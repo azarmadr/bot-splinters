@@ -25,10 +25,8 @@ async function getBattleHistory(player = '', data = {}) {
       console.log('There has been a problem with your fetch operation:', error);
       return [];
     });
-  //console.log(pc++,player);
-  require('readline')
-    .clearLine(process.stdout,0);
-    //.cursorTo(process.stdout,0);
+  require('readline').clearLine(process.stdout,0);
+  require('readline').cursorTo(process.stdout,0);
   process.stdout.write(`${pc+++' '+player}`);
   return battleHistory.battles;
 }

@@ -25,9 +25,8 @@ async function getBattleHistory(player = '', data = {}) {
       console.log('There has been a problem with your fetch operation:', error);
       return [];
     });
-  require('readline')
-    .clearLine(process.stdout,0);
-  //.cursorTo(process.stdout,0);
+  require('readline').clearLine(process.stdout,0)
+  require('readline').cursorTo(process.stdout,0);
   process.stdout.write(`${pc+++' '+player}`);
   return battleHistory.battles;
 }
@@ -102,7 +101,7 @@ const battles = (player,fn='') => getBattleHistory(player)
       .then(x => battlesList = [...battlesList, ...x])
     )
   }))
-  .then(() => { console.log(promises.length);return Promise.all(promises) })
+  .then(() => { return Promise.all(promises) })
   .then(() => { return new Promise((res,rej) => {
     console.log(battlesList.length,' battles this session')
     fs.readFile(`./data/battle_data${fn}.json`, 'utf8', (err, data) => {
