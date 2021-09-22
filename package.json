@@ -1,0 +1,27 @@
+{
+  "name": "bot-splinters",
+  "version": "1.0.0",
+  "description": "splinter bot",
+  "main": "battle-user.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/azarmadr/bot-splinters.git"
+  },
+  "keywords": [
+    "bot"
+  ],
+  "author": "madr",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/azarmadr/bot-splinters/issues"
+  },
+  "homepage": "https://github.com/azarmadr/bot-splinters#readme",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "node-fetch": "^2.6.1",
+    "puppeteer": "^10.2.0"
+  }
+}
