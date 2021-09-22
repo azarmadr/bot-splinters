@@ -142,4 +142,3 @@ const battles = (player) => getBattleHistory(player)
   }) })
 
 module.exports.battlesList = battles;
-//Promise.resolve(battles(process.env.ACCOUNT)).then(x=>console.log(x.length,battlesList.length))
