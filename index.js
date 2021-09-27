@@ -9,8 +9,6 @@ const quests = require('./quests');
 const battles = require('./battles-data');
 const score = require('./score');
 
-let sT = 0;
-
 // LOAD MY CARDS
 async function getCards() {
   return user.getPlayerCards(process.env.ACCOUNT.split('@')[0]).then(x=>x)
@@ -118,11 +116,13 @@ async function startBotPlayMatch(page, myCards, quest, battlesList) {
   ]);
 
   const playableTeams = score.scores(battlesList)[rules][mana].team.playable.filter(t=>t.w*2>t.count);
-  await page.waitForTimeout(2000);
+  //await page.waitForTimeout(2000);
 
   //TEAM SELECTION
   //Can do further analysin on playableTeams
   const teamToPlay = playableTeams[0];
+  const __medusa = teamToPlay.monsters.find(m=>m.id==17);
+  if(__medusa){__medusa.id=194;}
   console.log(playableTeams.length,teamToPlay);
 
   if (teamToPlay) {
@@ -172,6 +172,8 @@ async function startBotPlayMatch(page, myCards, quest, battlesList) {
   }
 }
 
+let sleepingTime = 0;
+
 ;(async () => {
   while (true) {
     try {
@@ -203,12 +205,12 @@ async function startBotPlayMatch(page, myCards, quest, battlesList) {
           console.log('Error: ', e)
         })
       await page.waitForTimeout(30000);
-      sT = await splinterlandsPage.sleepTime(page);
+      sleepingTime = await splinterlandsPage.sleepTime(page);
       await browser.close();
     } catch (e) {
       console.log('Routine error at: ', new Date().toLocaleString(), e)
     }
-    await console.log(process.env.ACCOUNT,'waiting for the next battle in', sT / 1000 / 60 , ' minutes at ', new Date(Date.now() +sT).toLocaleString())
-    await new Promise(r => setTimeout(r, sT));
+    await console.log(process.env.ACCOUNT,'waiting for the next battle in', sleepingTime / 1000 / 60 , ' minutes at ', new Date(Date.now() +sleepingTime).toLocaleString())
+    await new Promise(r => setTimeout(r, sleepingTime));
   }
 })()
