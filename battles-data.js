@@ -46,14 +46,12 @@ const extractMonster = (team) => {
     return {
       id:     m.card_detail_id,
       level:  m.level,
-      gold:   m.gold,
     }
   })
   return {
     summoner: {
       id:      team.summoner.card_detail_id,
       level:   team.summoner.level,
-      gold:    team.summoner.gold,
     },
     monsters: [...monsters],
   }

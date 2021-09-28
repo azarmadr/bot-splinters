@@ -25,7 +25,7 @@ function filterOutByMana(toggle){
   return toggle?filterOut:()=>true;
 }
 const ownedCard = (card) => {
-  return myCards.find(e => e.id === card.id && e.level >= card.level && e.gold === card.gold) ? true : false;
+  return myCards.find(e => e.id === card.id && e.level >= card.level) ? true : false;
 }
 const playableTeam = (team) => {
   return ownedCard(team.summoner) && team.monsters.every(v=>ownedCard(v))
@@ -76,15 +76,15 @@ const score = (battles,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,
           return JSON.stringify(cleanCard(e)) === JSON.stringify(t.summoner)
         })
         if(s_f) { s_f.score += score;s_f.count++;s_f[t.verdict]++; }
-        else scores[b.ruleset][b.mana_cap].summoner[ownership].push({...getCardName(t.summoner),score: score,count: 1,...kda})
+        else scores[b.ruleset][b.mana_cap].summoner[ownership].push({...team.summoner,score: score,count: 1,...kda})
         //monsters
-        t.monsters.forEach(m => {
+        team.monsters.forEach(m => {
           const ownership = ownedCard(m)?'owned':'unowned';
           var m_f = scores[b.ruleset][b.mana_cap].monsters[ownership].find(e=>{
-            return JSON.stringify(cleanCard(e)) === JSON.stringify(m)
+            return JSON.stringify(cleanCard(e)) === cleanCard(m)
           })
           if(m_f) { m_f.score += score;m_f.count++;m_f[t.verdict]++; }
-          else scores[b.ruleset][b.mana_cap].monsters[ownership].push({...getCardName(m),score: score,count: 1,...kda})
+          else scores[b.ruleset][b.mana_cap].monsters[ownership].push({...m,score: score,count: 1,...kda})
         })
       }
     })
