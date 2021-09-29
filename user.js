@@ -1,4 +1,3 @@
-require('dotenv').config()
 const fetch = require("node-fetch");
 const cards = require('./data/cards.json');
 const fs = require('fs');
@@ -17,7 +16,7 @@ getPlayerCards = (username) => (fetch(`https://game-api.splinterlands.io/cards/c
     })
   )
   .then(()=>{
-    fs.writeFile(`data/${process.env.ACCOUNT}_cards.json`, JSON.stringify(userCards), function (err) {
+    fs.writeFile(`data/${username}_cards.json`, JSON.stringify(userCards), function (err) {
         if (err) { console.log(err); }
       });
     return userCards 
@@ -25,5 +24,5 @@ getPlayerCards = (username) => (fetch(`https://game-api.splinterlands.io/cards/c
   .catch(e => {console.log('Using only basic cards due to error when getting user collection from splinterlands: ',e); return userCards})
 )
 
-//const c= getPlayerCards(process.env.ACCOUNT);Promise.resolve(c).then(y=>console.log(y))
+//const c= getPlayerCards('azarmadr');Promise.resolve(c).then(y=>console.log(y))
 module.exports.getPlayerCards = getPlayerCards;

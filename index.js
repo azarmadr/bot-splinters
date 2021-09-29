@@ -7,7 +7,6 @@ const user = require('./user');
 const { cardColor, teamActualSplinterToPlay } = require('./helper');
 const quests = require('./quests');
 const battles = require('./battles-data');
-const score = require('./score');
 
 // LOAD MY CARDS
 async function getCards() {
@@ -24,7 +23,29 @@ async function getBattles() {
   return battles.battlesList(process.env.ACCOUNT).then(x=>x)
 }
 
-async function startBotPlayMatch(page, myCards, quest, battlesList) {
+async function selectCorrectBattleType(page) {
+  try {
+    await page.waitForSelector("#battle_category_type", { timeout: 20000 })
+    let battleType = (await page.$eval('#battle_category_type', el => el.innerText)).trim();
+    while (battleType !== "RANKED") {
+      console.log("Wrong battleType! battleType is " +  battleType +  " - Trying to change it");
+      try {
+        await page.waitForSelector('#right_slider_btn', { timeout: 500 })
+          .then(button => button.click());
+      } catch (e) {
+        console.log('Slider button not found ', e)
+      }
+      await page.waitForTimeout(1000);
+      battleType = (await page.$eval('#battle_category_type', el => el.innerText)).trim();
+    }
+  } catch (error) {
+    console.log("Error: couldn't find battle category type ", error);
+  }
+}
+
+async function startBotPlayMatch(page, myCards, quest) {
+  var battlesList = await getBattles();
+  var teamScores = require('./score').scores(battlesList);
   if(myCards) {
     console.log(process.env.ACCOUNT, ' deck size: '+myCards.length)
   } else {
@@ -73,6 +94,7 @@ async function startBotPlayMatch(page, myCards, quest, battlesList) {
   // LAUNCH the battle can get some finess
   try {
     console.log('waiting for battle button...')
+    await selectCorrectBattleType(page);
     await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
       .then(button => {console.log('Battle button clicked'); button.click()})
       .catch(e=>console.error('[ERROR] waiting for Battle button. is Splinterlands in maintenance?'));
@@ -115,7 +137,7 @@ async function startBotPlayMatch(page, myCards, quest, battlesList) {
     splinterlandsPage.checkMatchActiveSplinters(page).then((splinters) => splinters).catch(() => 'no splinters')
   ]);
 
-  const playableTeams = score.scores(battlesList)[rules][mana].team.playable.filter(t=>t.w*2>t.count);
+  const playableTeams = teamScores[rules][mana].team.playable.filter(t=>t.w*2>t.count);
   //await page.waitForTimeout(2000);
 
   //TEAM SELECTION
@@ -180,7 +202,7 @@ let sleepingTime = 0;
       console.log('START ', process.env.ACCOUNT, new Date().toLocaleString())
       const browser = await puppeteer.launch({
         headless: false,
-        profile: './profile',
+        //profile: './profile',
         //args: ['--no-sandbox']
       }); // default is true
       const page = await browser.newPage();
@@ -195,9 +217,7 @@ let sleepingTime = 0;
         .catch(()=>console.log('cards collection api didnt respond'));
       console.log('getting user quest info from splinterlands API...')
       const quest = await getQuest();
-      const battlesList = await getBattles();
-      const scores = score.scores(battlesList);
-      await startBotPlayMatch(page, myCards, quest, battlesList)
+      await startBotPlayMatch(page, myCards, quest)
         .then(() => {
           console.log('Closing battle', new Date().toLocaleString());
         })
@@ -206,7 +226,7 @@ let sleepingTime = 0;
         })
       await page.waitForTimeout(30000);
       sleepingTime = await splinterlandsPage.sleepTime(page);
-      await browser.close();
+      //await browser.close();
     } catch (e) {
       console.log('Routine error at: ', new Date().toLocaleString(), e)
     }
