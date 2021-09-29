@@ -22,9 +22,8 @@ getPlayerCards = (username) => (fetch(`https://game-api.splinterlands.io/cards/c
       });
     return userCards 
   })
-  //.then(()=>console.log(basicCards.filter(c => {return !advanced.find(x => c.id === x.id)})))
   .catch(e => {console.log('Using only basic cards due to error when getting user collection from splinterlands: ',e); return userCards})
 )
 
-const c= getPlayerCards(process.env.ACCOUNT);Promise.resolve(c).then( y=>console.log(y))
+//const c= getPlayerCards(process.env.ACCOUNT);Promise.resolve(c).then(y=>console.log(y))
 module.exports.getPlayerCards = getPlayerCards;

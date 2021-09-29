@@ -4,7 +4,7 @@ const puppeteer = require('puppeteer');
 
 const splinterlandsPage = require('./splinterlandsPage');
 const user = require('./user');
-const helper = require('./helper');
+const { cardColor, teamActualSplinterToPlay } = require('./helper');
 const quests = require('./quests');
 const battles = require('./battles-data');
 const score = require('./score');
@@ -133,9 +133,9 @@ async function startBotPlayMatch(page, myCards, quest, battlesList) {
   await page.waitForTimeout(5000);
   try {
     await page.waitForXPath(`//div[@card_detail_id="${teamToPlay.summoner.id}"]`, { timeout: 10000 }).then(summonerButton => summonerButton.click());
-    if (helper.color(teamToPlay.summoner) === 'Gold') {
-      console.log('Dragon play TEAMCOLOR', helper.teamActualSplinterToPlay(teamToPlay.monsters))
-      await page.waitForXPath(`//div[@data-original-title="${helper.teamActualSplinterToPlay(teamToPlay.monsters)}"]`, { timeout: 8000 }).then(selector => selector.click())
+    if (cardColor(teamToPlay.summoner) === 'Gold') {
+      console.log('Dragon play TEAMCOLOR', teamActualSplinterToPlay(teamToPlay.monsters))
+      await page.waitForXPath(`//div[@data-original-title="${teamActualSplinterToPlay(teamToPlay.monsters)}"]`, { timeout: 8000 }).then(selector => selector.click())
     }
     await page.waitForTimeout(5000);
     //teamToPlay.monsters.forEach(m=>{

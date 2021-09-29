@@ -2,6 +2,7 @@ require('dotenv').config()
 const fs = require('fs');
 const cards = require('./data/cards.json');
 const myCards = require(`./data/${process.env.ACCOUNT}_cards.json`);
+const { playableTeam, addName, cleanTeam, cleanCard } = require('./helper');
 
 function uniqueListByKey(arr, key) {
   return [...new Map(arr.map(item => [item[key], item])).values()]
@@ -24,10 +25,6 @@ function filterOutByMana(toggle){
   }
   return toggle?filterOut:()=>true;
 }
-const playableTeam = (team) => myCards[team.summoner.id]>=team.summoner.level && team.monsters.every(v=>myCards[v.id]>=v.level)
-const getCardName = (card) => { return {...card,name:cards[card.id-1].name} }
-const cleanTeam=(team)=>{return{summoner:team.summoner,monsters:team.monsters}}
-const cleanCard=(card)=>{return{id:card.id,level:card.level}}
 const verdictToScore={w:1,l:-1,d:-0.5};
 
 const score = (battles,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,StandardOnly:std,filterOutLowWR:wro}={},fn='score') => {
@@ -42,8 +39,8 @@ const score = (battles,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,
     }
     b.teams.forEach(t=>{
       const team = cleanTeam(t);
-      team.summoner = getCardName(team.summoner)
-      team.monsters = team.monsters.map(m=>getCardName(m))
+      team.summoner = addName(team.summoner)
+      team.monsters = team.monsters.map(m=>addName(m))
       const kda = {w:0,l:0,d:0};
       const playable = playableTeam(t)?'playable':'unplayable';
       const score = verdictToScore[t.verdict]
