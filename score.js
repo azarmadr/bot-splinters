@@ -20,29 +20,15 @@ function sortByProperty(s){
 function filterOutByMana(toggle){
   const filterOut = (battle) => {
     if(battle.mana_cap == 99) return true;
-    return battle.mana_cap/10 > 2*battle.mana_cap - battle.teams.map(t=> cards.find(e=>e.id===t.summoner.id).stats.mana + t.monsters.reduce((mt,m)=>mt+cards.find(e=>e.id===m.id).stats.mana[m.level],0)).reduce((s,mc)=>s+mc,0)
+    return battle.mana_cap/10 > 2*battle.mana_cap - battle.teams.map(t=> cards[t.summoner.id-1].stats.mana + t.monsters.reduce((mt,m)=>mt+cards[m.id-1].stats.mana[m.level],0)).reduce((s,mc)=>s+mc,0)
   }
   return toggle?filterOut:()=>true;
 }
-const ownedCard = (card) => {
-  return myCards.find(e => e.id === card.id && e.level >= card.level) ? true : false;
-}
-const playableTeam = (team) => {
-  return ownedCard(team.summoner) && team.monsters.every(v=>ownedCard(v))
-}
-const getCardName = (card) => {
-  const name = cards.find(e => e.id === card.id).name
-  return {...card,name}
-}
-const cleanTeam = (team) => {
-  const {w, l, d, verdict, score, count, battle_queue_id, player_rating_initial, player_rating_final, ...rem} = team;
-  return rem
-}
-const cleanCard = (card) => {
-  const {w, l, d, score, count, name, ...rem} = card;
-  return rem
-}
-const verdictToScore = {w: 1, l: -1, d: -0.5};
+const playableTeam = (team) => myCards[team.summoner.id]>=team.summoner.level && team.monsters.every(v=>myCards[v.id]>=v.level)
+const getCardName = (card) => { return {...card,name:cards[card.id-1].name} }
+const cleanTeam=(team)=>{return{summoner:team.summoner,monsters:team.monsters}}
+const cleanCard=(card)=>{return{id:card.id,level:card.level}}
+const verdictToScore={w:1,l:-1,d:-0.5};
 
 const score = (battles,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,StandardOnly:std,filterOutLowWR:wro}={},fn='score') => {
   let scores = {};
@@ -71,7 +57,7 @@ const score = (battles,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,
       else scores[b.ruleset][b.mana_cap].team[playable].push({...team,score: score,count: 1,...kda})
       if(cardsToo){
         //summoner
-        const ownership = ownedCard(t.summoner)?'owned':'unowned';
+        const ownership = myCards[t.summoner.id]>=t.summoner.level?'owned':'unowned';
         var s_f = scores[b.ruleset][b.mana_cap].summoner[ownership].find(e=>{
           return JSON.stringify(cleanCard(e)) === JSON.stringify(t.summoner)
         })
@@ -79,7 +65,7 @@ const score = (battles,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,
         else scores[b.ruleset][b.mana_cap].summoner[ownership].push({...team.summoner,score: score,count: 1,...kda})
         //monsters
         team.monsters.forEach(m => {
-          const ownership = ownedCard(m)?'owned':'unowned';
+          const ownership = myCards[m.id]>=m.level?'owned':'unowned';
           var m_f = scores[b.ruleset][b.mana_cap].monsters[ownership].find(e=>{
             return JSON.stringify(cleanCard(e)) === cleanCard(m)
           })

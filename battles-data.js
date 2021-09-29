@@ -2,7 +2,7 @@ require('dotenv').config()
 const fetch = require("node-fetch");
 const fs = require('fs');
 
-let pc = 0;
+var pc = 0;
 const distinct = (value, index, self) => {
   return self.indexOf(value) === index;
 }
@@ -74,7 +74,7 @@ const teamFromBattles = (battles) => battles.map(
       }
     }
   })
-let battlesList = [];
+var battlesList = [];
 let promises = [];
 const battles = (player,fn='') => getBattleHistory(player)
   .then(u => u.map(x => {
