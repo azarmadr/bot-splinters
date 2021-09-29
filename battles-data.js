@@ -42,46 +42,34 @@ const extractGeneralInfo = (x) => {
 }
 
 const extractMonster = (team) => {
-  monsters = team.monsters.map(m => {
-    return {
-      id:     m.card_detail_id,
-      level:  m.level,
-    }
-  })
+  const extractCard = (card) => {
+    return {id:card.card_detail_id,level:card.level}
+  }
   return {
-    summoner: {
-      id:      team.summoner.card_detail_id,
-      level:   team.summoner.level,
-    },
-    monsters: [...monsters],
+    summoner: extractCard(team.summoner),
+    monsters: [...team.monsters.map(extractCard)],
   }
 }
 const teamFromBattles = (battles) => battles.map(
   battle => {
-    const details = JSON.parse(battle.details);
-    if (Date.parse(battle.created_date)>1631856895886 && details.type != 'Surrender') {
+    const {type,winner,team1,team2,seed} = JSON.parse(battle.details);
+    if (Date.parse(battle.created_date)>1631856895886 && type != 'Surrender') {
       const teams = [];
       const info = extractGeneralInfo(battle)
-      const t1mon = extractMonster(details.team1)
-      const t2mon = extractMonster(details.team2)
+      const t1mon = extractMonster(team1)
+      const t2mon = extractMonster(team2)
       teams.push({
         ...t1mon,
-        battle_queue_id: battle.battle_queue_id_1,
-        player_rating_initial: battle.player_1_rating_initial,
-        player_rating_final: battle.player_1_rating_final,
-        verdict: (battle.winner && battle.winner == battle.player_1)?'w':(battle.winner == 'DRAW')? 'd' :'l',
+        verdict: (winner && winner == battle.player_1)?'w':(winner == 'DRAW')? 'd' :'l',
       })
       if(JSON.stringify(t1mon)!==JSON.stringify(t2mon)){
         teams.push({
           ...t2mon,
-          battle_queue_id: battle.battle_queue_id_2,
-          player_rating_initial: battle.player_2_rating_initial,
-          player_rating_final: battle.player_2_rating_final,
-          verdict: (battle.winner && battle.winner == battle.player_2)?'w':(battle.winner == 'DRAW')? 'd' :'l',
+          verdict: (winner && winner == battle.player_2)?'w':(winner == 'DRAW')? 'd' :'l',
         })}
       return {
         ...info,
-        battle_id: details.seed,
+        battle_id: seed,
         teams: teams,
       }
     }
