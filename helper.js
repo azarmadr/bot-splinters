@@ -22,4 +22,5 @@ const teamWithNames=(team)=>{
 
 module.exports = {
   myCards, cardColor, teamActualSplinterToPlay, playableTeam, addName, cleanCard, cleanTeam,
+  teamWithNames,
 };
