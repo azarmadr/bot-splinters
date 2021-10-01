@@ -8,6 +8,22 @@ const { cardColor, teamActualSplinterToPlay } = require('./helper');
 const quests = require('./quests');
 const battles = require('./battles-data');
 
+async function checkForUpdate() {
+  await require('node-fetch')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
+  .then(response=>response.json())
+  .then(v=>{
+    var i,diff;
+    const gitVersion = v.version.replace(/(\.0+)+$/,'').split('.');
+    const version = require('./package.json').version.replace(/(\.0+)+$/,'').split('.');
+    const l = Math.min(gitVersion.length,version.length);
+    for (i=0;i<l;i++){
+      diff = parseInt(gitVersion[i]) - parseInt(version[i]);
+      if(diff){(diff>0)&&console.log('Newer version exists.');return}
+    }
+    (gitVersion.length>version.length)&&console.log('Newer version exists.');
+  })
+}
+
 // LOAD MY CARDS
 async function getCards() {
   return user.getPlayerCards(process.env.ACCOUNT.split('@')[0]).then(x=>x)
@@ -197,19 +213,23 @@ async function startBotPlayMatch(page, myCards, quest) {
 let sleepingTime = 0;
 
 ;(async () => {
+  let browser,page;
+  await checkForUpdate();
   while (true) {
     try {
       console.log('START ', process.env.ACCOUNT, new Date().toLocaleString())
-      const browser = await puppeteer.launch({
+      browser = browser || await puppeteer.launch({
         headless: false,
         //profile: './profile',
         //args: ['--no-sandbox']
       }); // default is true
-      const page = await browser.newPage();
-      await page.setDefaultNavigationTimeout(500000);
-      await page.on('dialog', async dialog => {
-        await dialog.accept();
-      });
+      if(!page){
+        page = await browser.newPage();
+        await page.setDefaultNavigationTimeout(500000);
+        await page.on('dialog', async dialog => {
+          await dialog.accept();
+        });
+      }
       page.goto('https://splinterlands.com/');
       console.log('getting user cards collection from splinterlands API...')
       const myCards = await getCards()

@@ -2,7 +2,7 @@ const fetch = require("node-fetch");
 const cards = require('./data/cards.json');
 const fs = require('fs');
 
-const userCards = {};
+const userCards = {gold:{}};
 //phantom cards available for the players but not visible in the api endpoint
 require('./data/basicCards').filter(c=>c!=='').forEach(c=>userCards[c]=1);
 
