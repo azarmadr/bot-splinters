@@ -61,7 +61,7 @@ async function selectCorrectBattleType(page) {
 
 async function startBotPlayMatch(page, myCards, quest) {
   var battlesList = await getBattles();
-  var teamScores = require('./score').scores(battlesList);
+  var teamScores = require('./score').scores(battlesList,process.env.ACCOUNT);
   if(myCards) {
     console.log(process.env.ACCOUNT, ' deck size: '+myCards.length)
   } else {

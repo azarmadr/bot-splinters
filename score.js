@@ -1,7 +1,5 @@
-require('dotenv').config()
 const fs = require('fs');
 const cards = require('./data/cards.json');
-const myCards = require(`./data/${process.env.ACCOUNT}_cards.json`);
 const { playableTeam, addName, cleanTeam, cleanCard } = require('./helper');
 
 function uniqueListByKey(arr, key) {
@@ -27,7 +25,8 @@ function filterOutByMana(toggle){
 }
 const verdictToScore={w:1,l:-1,d:-0.5};
 
-const score = (battles,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,StandardOnly:std,filterOutLowWR:wro}={},fn='score') => {
+const score = (battles,player,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,StandardOnly:std,filterOutLowWR:wro}={},fn='score') => {
+  const myCards = require(`./data/${player}_cards.json`);
   let scores = {};
   //console.log(battles.length)
   battles.filter(filterOutByMana(fo)).forEach(b => {
@@ -87,7 +86,7 @@ const score = (battles,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRate:sort,
         })
       )))
   scores = std?scores.Standard:scores;
-  fs.writeFile(`data/${process.env.ACCOUNT}_${fn}.json`, JSON.stringify(scores), function (err) {
+  fs.writeFile(`data/${player}_${fn}.json`, JSON.stringify(scores), function (err) {
     if (err) {
       console.log(err);
     }

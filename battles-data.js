@@ -33,10 +33,8 @@ async function getBattleHistory(player = '', data = {}) {
 const extractGeneralInfo = (x) => {
   return {
     created_date:  x.created_date ? x.created_date :  '',
-    match_type:    x.match_type   ? x.match_type :    '',
     mana_cap:      x.mana_cap     ? x.mana_cap :      '',
     ruleset:       x.ruleset      ? x.ruleset :       '',
-    inactive:      x.inactive     ? x.inactive :      ''
   }
 }
 
