@@ -41,7 +41,7 @@ const score = (battles,player,{cardsToo:cardsToo,filterOutByMana:fo,sortByWinRat
       team.summoner = addName(team.summoner)
       team.monsters = team.monsters.map(m=>addName(m))
       const kda = {w:0,l:0,d:0};
-      const playable = playableTeam(t)?'playable':'unplayable';
+      const playable = playableTeam(t,myCards)?'playable':'unplayable';
       const score = verdictToScore[t.verdict]
       kda[t.verdict]=1;
 
