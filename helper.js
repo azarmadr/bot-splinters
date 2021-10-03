@@ -1,5 +1,6 @@
 const cards = require("./data/cards.json");
 
+// Teams and Cards
 const cardColor=(c)=>cards[c.id-1]?.color;
 const validDecks = ['Red', 'Blue', 'White', 'Black', 'Green']
 const colorToDeck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
@@ -15,10 +16,17 @@ const teamWithNames=(team)=>{
   return {summoner:addName(team.summoner),monsters:[...team.monsters.map(m=>addName(m))]}
 }
 
+// general helper functions
+const arrEquals = (a, b) =>
+  a.length === b.length &&
+    a.every((v, i) => Array.isArray(v)?arrEquals(v,b[i]):v === b[i]);
+const arrCmp = (a,b)=>
+  a.length === b.length ?
+    a.reduce((r,v,i)=>r+(Array.isArray(v)?arrCmp(v,b[i]):v-b[i]),0):a.length-b.length;
 //const teamIdsArray = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(teamIdsArray));
 //console.log(cardColor({"id":224,"level":1,"name":"Drake of Arnak"}))
 
 module.exports = {
-  cardColor, teamActualSplinterToPlay, playableTeam, addName, cleanCard, cleanTeam,
-  teamWithNames,
+  cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
+  teamWithNames, arrEquals,
 };

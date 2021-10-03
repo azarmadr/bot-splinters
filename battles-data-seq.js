@@ -92,7 +92,8 @@ async function battleHistoryTo(user){
   return new Promise(res=>res(
     getBattleHistory(user)
     .then(teamFromBattles)
-    .then(x => battlesList = [...battlesList, ...x])))
+    .then(x => battlesList = [...battlesList, ...x])
+  ))
 }
 const battles = (player,fn='') => getBattleHistory(player)
   .then(u => u.map(x => {
