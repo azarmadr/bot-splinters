@@ -28,5 +28,5 @@ const arrCmp = (a,b)=>
 
 module.exports = {
   cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
-  teamWithNames, arrEquals,
+  teamWithNames, arrEquals, cards,
 };

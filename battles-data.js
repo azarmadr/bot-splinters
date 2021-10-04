@@ -27,7 +27,7 @@ const genBattleList=(battles)=>battles.map(
         if(t.winner=='d'){return 'd'}
         return t.winner==p?'w':'l';
       }});
-      [team1,team2].forEach(({player},i)=>teams[i].push(won[player]));
+      [team1,team2].forEach(({player},i)=>teams[i].unshift(won[player]));
       return{date:created_date,mana:mana_cap,rule:ruleset,id:seed,teams}
     }
   }
@@ -44,7 +44,7 @@ const battles = (player,fn='') => getBattleHistory(player)
       if(e){log('Error reading file: ',e)}
       else{ d && (battlesList = [...d,...battlesList])}
       log('battles',__c=battlesList.length-__c);
-      battlesList = [...new Map(battlesList.map(item => [item.teams.map(t=>t.slice(0,-1)).sort(arrCmp)+'', item])).values()];
+      battlesList = [...new Map(battlesList.map(item => [item.teams.map(t=>t.slice(1)).sort(arrCmp)+'', item])).values()];
       log('battles',battlesList.length-__c,' added')
       writeFile(`data/battle_data_n${fn}.json`, battlesList).catch(e=>log(e))
       res(battlesList);
@@ -52,3 +52,4 @@ const battles = (player,fn='') => getBattleHistory(player)
   )})
 
 module.exports.battlesList = battles;
+//Promise.resolve(battles('azarmadr')).then(b=>log(b[0],b.at(-1),b.filter(a=>a.teams.length<2).length))

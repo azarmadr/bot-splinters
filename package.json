@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/azarmadr/bot-splinters#readme",
   "dependencies": {
+    "array-keyed-map": "^2.1.2",
     "async-get-json": "^4.0.0",
     "dotenv": "^10.0.0",
     "jsonfile": "^6.1.0",
