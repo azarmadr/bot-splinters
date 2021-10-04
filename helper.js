@@ -1,7 +1,7 @@
 const cards = require("./data/cards.json");
 
 // Teams and Cards
-const cardColor=(c)=>cards[c.id-1]?.color;
+const cardColor=(c)=>cards[c[0]-1]?.color;
 const validDecks = ['Red', 'Blue', 'White', 'Black', 'Green']
 const colorToDeck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
 
@@ -23,10 +23,18 @@ const arrEquals = (a, b) =>
 const arrCmp = (a,b)=>
   a.length === b.length ?
     a.reduce((r,v,i)=>r+(Array.isArray(v)?arrCmp(v,b[i]):v-b[i]),0):a.length-b.length;
+const chunk = (input, size) => {
+  return input.reduce((arr, item, idx) => {
+    return idx % size === 0
+      ? [...arr, [item]]
+      : [...arr.slice(0, -1), [...arr.slice(-1)[0], item]];
+  }, []);
+};
+const chunk2 = t => chunk(t,2);
 //const teamIdsArray = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(teamIdsArray));
 //console.log(cardColor({"id":224,"level":1,"name":"Drake of Arnak"}))
 
 module.exports = {
   cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
-  teamWithNames, arrEquals, cards,
+  teamWithNames, arrEquals, cards, chunk,chunk2
 };

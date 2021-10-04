@@ -11,7 +11,7 @@ async function getBattleHistory(player = '') {
     });
   require('readline').clearLine(process.stdout,0)
   require('readline').cursorTo(process.stdout,0);
-  process.stdout.write(`${pc+++' '+player}`);
+  process.stdout.write(`battle-data: ${pc+++' '+player}`);
   return battleHistory;
 }
 
@@ -40,7 +40,8 @@ const battles = (player,fn='') => getBattleHistory(player)
   .then(b=>{ return new Promise((res,rej) =>
     readFile(`./data/battle_data_n${fn}.json`,(e,d)=>{
       let battlesList = b,__c=b.length;
-      log("\n",__c,' battles this session');
+      console.log();
+      log(__c,' battles this session');
       if(e){log('Error reading file: ',e)}
       else{ d && (battlesList = [...d,...battlesList])}
       log('battles',__c=battlesList.length-__c);
