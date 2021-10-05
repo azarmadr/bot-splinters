@@ -63,7 +63,7 @@ const playableTeams = (scores,player,mana,rule,{sortByWinRate}={}) => {
   const filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
     m==mana&&r==rule&&t.length>2&&chunk2(t).every(c=>myCards[c[0]]>=c[1])&&s.count<2*s.w
   ).map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}}).sort(sortByProperty(sortByWinRate))
-  //writeFile(`data/${player}_pt.json`, filteredTeams).catch(log);
+  writeFile(`data/${player}_lastMatch.json`, filteredTeams).catch(log);
   return filteredTeams;
 }
 
