@@ -7,11 +7,10 @@ require('./data/basicCards').filter(c=>c!=='').forEach(c=>userCards[c]=1);
 
 getPlayerCards = (username) => require('async-get-json')(`https://game-api.splinterlands.io/cards/collection/${username}`)
   .then(({cards}) => cards.filter(x=>x.delegated_to === username || x.market_id === null)
-    .forEach(({card_detail_id,level,gold}) => {
-      gold?
-        (userCards.gold[card_detail_id]>level)||(userCards.gold[card_detail_id]=level):
-        (userCards[card_detail_id]>level)||(userCards[card_detail_id]=level);
-    })
+    .forEach(({card_detail_id,level,gold}) => gold?
+      (userCards.gold[card_detail_id]>level)||(userCards.gold[card_detail_id]=level):
+      (userCards[card_detail_id]>level)||(userCards[card_detail_id]=level);
+    )
   )
   .then(()=>{
     require('jsonfile').writeFile(`data/${username}_cards.json`, JSON.stringify(userCards), function (err) {
