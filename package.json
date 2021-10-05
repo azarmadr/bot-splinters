@@ -1,6 +1,6 @@
 {
   "name": "bot-splinters",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "splinter bot",
   "main": "battle-user.js",
   "scripts": {
