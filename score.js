@@ -28,9 +28,9 @@ async function scoreMap2Obj(player,scores,fn='score'){
     //NOTE k => mana, rule, team/card
     const [mana,rule,...key] = k;
     const type = key.length>2?'team':'cards'
-    if(!(mana in scoreObj))scoreObj[mana]={};
-    if(!(rule in scoreObj[mana]))scoreObj[mana][rule]={team:[],cards:[]};
-    scoreObj[mana][rule][type].push({[type]:chunk2(key,2),...s});
+    if(!(rule in scoreObj))scoreObj[rule]={};
+    if(!(mana in scoreObj[rule]))scoreObj[rule][mana]={team:[],cards:[]};
+    scoreObj[rule][mana][type].push({[type]:chunk2(key,2),...s});
   }
   writeFile(`data/${player}_n_${fn}.json`, scoreObj).catch(log);
 }

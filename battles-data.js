@@ -1,6 +1,6 @@
 const {readFile,writeFile} = require('jsonfile');
 const {arrEquals,arrCmp} = require('./helper');
-const log=(...m)=>console.log('battles-data: ',...m);
+const log=(...m)=>console.log('battles-data:',...m);
 var pc = 0;
 async function getBattleHistory(player = '') {
   const battleHistory = await require('async-get-json')(`https://game-api.splinterlands.io/battle/history?player=${player}`)
