@@ -131,7 +131,7 @@ async function startBotPlayMatch(page, myCards, quest) {
           .then(()=>log('start the match'))
           .catch(async ()=>{
             log('second attempt failed reloading from homepage...');
-            await page.goto('https://splinterlands.com/');
+            await page.goto('https://splinterlands.com/?p=battle_history');
             await page.waitForTimeout(5000);
             await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
               .then(button => button.click())
@@ -231,7 +231,7 @@ let sleepingTime = 0;
           await dialog.accept();
         });
       }
-      page.goto('https://splinterlands.com/');
+      page.goto('https://splinterlands.com/?p=battle_history');
       log('getting user cards collection from splinterlands API...')
       const myCards = await getCards()
         .then((x)=>{log('cards retrieved'); return x})
