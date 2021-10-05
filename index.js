@@ -5,14 +5,13 @@ const puppeteer = require('puppeteer');
 const splinterlandsPage = require('./splinterlandsPage');
 const user = require('./user');
 const {teamScores,playableTeams} = require('./score');
-const { cards, cardColor, teamActualSplinterToPlay } = require('./helper');
+const { cards, cardColor, teamActualSplinterToPlay, arrCmp} = require('./helper');
 const quests = require('./quests');
 const battles = require('./battles-data');
 const log=(...m)=>console.log('index.js:',...m)
 
 async function checkForUpdate() {
-  await require('node-fetch')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
-  .then(response=>response.json())
+  await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
   .then(v=>{
     var i,diff;
     const gitVersion = v.version.replace(/(\.0+)+$/,'').split('.');
