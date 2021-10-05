@@ -38,7 +38,7 @@ const battles = (player,fn='') => getBattleHistory(player)
   .then(ul=>ul.map(u=>getBattleHistory(u).then(genBattleList)))
   .then(ul=>Promise.all(ul).then(x=>x.flat().filter(x=>x)))
   .then(b=>{ return new Promise((res,rej) =>
-    readFile(`./data/battle_data_n${fn}.json`,(e,d)=>{
+    readFile(`./data/battle_data${fn}.json`,(e,d)=>{
       let battlesList = b,__c=b.length;
       console.log();
       log(__c,' battles this session');
@@ -47,7 +47,7 @@ const battles = (player,fn='') => getBattleHistory(player)
       log('battles',__c=battlesList.length-__c);
       battlesList = [...new Map(battlesList.map(item => [item.teams.map(t=>t.slice(1)).sort(arrCmp)+'', item])).values()];
       log('battles',battlesList.length-__c,' added')
-      writeFile(`data/battle_data_n${fn}.json`, battlesList).catch(e=>log(e))
+      writeFile(`data/battle_data${fn}.json`, battlesList).catch(e=>log(e))
       res(battlesList);
       })
   )})

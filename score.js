@@ -32,7 +32,7 @@ async function scoreMap2Obj(player,scores,fn='score'){
     if(!(mana in scoreObj[rule]))scoreObj[rule][mana]={team:[],cards:[]};
     scoreObj[rule][mana][type].push({[type]:chunk2(key,2),...s});
   }
-  writeFile(`data/${player}_n_${fn}.json`, scoreObj).catch(log);
+  writeFile(`data/${player}_${fn}.json`, scoreObj).catch(log);
 }
 const teamScores = (battles,player,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterLessMana=1,StandardOnly,filterOutLowWR}={},fn) => {
   //NOTE team array is [verdict, summoner, monsters]
@@ -63,9 +63,9 @@ const playableTeams = (scores,player,mana,rule,{sortByWinRate}={}) => {
   const filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
     m==mana&&r==rule&&t.length>2&&chunk2(t).every(c=>myCards[c[0]]>=c[1])&&s.count<2*s.w
   ).map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}}).sort(sortByProperty(sortByWinRate))
-  //writeFile(`data/${player}_n_pt.json`, filteredTeams).catch(log);
+  //writeFile(`data/${player}_pt.json`, filteredTeams).catch(log);
   return filteredTeams;
 }
 
 module.exports = {teamScores,playableTeams};
-//log(playableTeams(score(require('./data/battle_data_n.json'),'azarmadr'),'azarmadr',30,'Standard')[0])
+//log(playableTeams(score(require('./data/battle_data.json'),'azarmadr'),'azarmadr',30,'Standard')[0])
