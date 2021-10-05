@@ -9,11 +9,11 @@ getPlayerCards = (username) => require('async-get-json')(`https://game-api.splin
   .then(({cards}) => cards.filter(x=>x.delegated_to === username || x.market_id === null)
     .forEach(({card_detail_id,level,gold}) => gold?
       (userCards.gold[card_detail_id]>level)||(userCards.gold[card_detail_id]=level):
-      (userCards[card_detail_id]>level)||(userCards[card_detail_id]=level);
+      (userCards[card_detail_id]>level)||(userCards[card_detail_id]=level)
     )
   )
   .then(()=>{
-    require('jsonfile').writeFile(`data/${username}_cards.json`, JSON.stringify(userCards), function (err) {
+    require('jsonfile').writeFile(`data/${username}_cards.json`, userCards, function (err) {
         if (err) { log(err); }
       });
     return userCards 
