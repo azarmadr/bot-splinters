@@ -13,15 +13,18 @@ const log=(...m)=>console.log('index.js:',...m)
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
   .then(v=>{
-    var i,diff;
     const gitVersion = v.version.replace(/(\.0+)+$/,'').split('.');
     const version = require('./package.json').version.replace(/(\.0+)+$/,'').split('.');
-    const l = Math.min(gitVersion.length,version.length);
-    for (i=0;i<l;i++){
-      diff = parseInt(gitVersion[i]) - parseInt(version[i]);
-      if(diff){(diff>0)&&log('Newer version exists.');return}
+    if(arrCmp(gitVersion,version)>0){
+      const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
+      do{
+        rl.question("Newer version exists!!!\nDo you want to continue? (y/N)", function(d) {
+          if(d.match(/y/gi)) log('Continuing with older version');
+          else if(d.match(/n/gi)) throw new Error('git pull or get newer version');
+          rl.close();
+        });
+      }while(!decision)
     }
-    (gitVersion.length>version.length)&&log('Newer version exists.');
   })
 }
 

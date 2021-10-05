@@ -20,7 +20,7 @@ const teamWithNames=(team)=>{
 const arrEquals = (a, b) =>
   a.length === b.length &&
     a.every((v, i) => Array.isArray(v)?arrEquals(v,b[i]):v === b[i]);
-const arrCmp = (a,b)=>
+const arrCmp = (a,b)=> // return a>b
   a.length === b.length ?
     a.reduce((r,v,i)=>r+(Array.isArray(v)?arrCmp(v,b[i]):v-b[i]),0):a.length-b.length;
 const chunk = (input, size) => {
@@ -36,5 +36,5 @@ const chunk2 = t => chunk(t,2);
 
 module.exports = {
   cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
-  teamWithNames, arrEquals, cards, chunk,chunk2
+  teamWithNames, arrEquals,    cards,   chunk,     chunk2,    arrCmp,
 };
