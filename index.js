@@ -217,8 +217,8 @@ let sleepingTime = 0;
 
 ;(async () => {
   let browser,page;
-  await checkForUpdate();
   while (true) {
+    await checkForUpdate();
     try {
       log('START ', process.env.ACCOUNT, new Date().toLocaleString())
       browser = browser || await puppeteer.launch({
