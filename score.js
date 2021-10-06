@@ -22,7 +22,7 @@ function filterOutByMana(toggle){
   }
   return toggle?filterOut:()=>true;
 }
-async function scoreMap2Obj(player,scores,fn='score'){
+async function scoreMap2Obj(player,scores,fn=''){
   const scoreObj = {}
   for(const [k,s] of scores.entries()){
     //NOTE k => mana, rule, team/card
@@ -32,7 +32,7 @@ async function scoreMap2Obj(player,scores,fn='score'){
     if(!(mana in scoreObj[rule]))scoreObj[rule][mana]={team:[],cards:[]};
     scoreObj[rule][mana][type].push({[type]:chunk2(key,2),...s});
   }
-  writeFile(`data/${player}_${fn}.json`, scoreObj).catch(log);
+  writeFile(`data/scores${fn}.json`, scoreObj).catch(log);
 }
 const teamScores = (battles,player,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterLessMana=1,StandardOnly,filterOutLowWR}={},fn) => {
   //NOTE team array is [verdict, summoner, monsters]

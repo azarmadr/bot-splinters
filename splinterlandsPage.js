@@ -62,16 +62,30 @@ async function sleepTime(page) {
   return 3333333;
 }
 
+const quests = {
+  "Defend the Borders":    "life",    "Pirate Attacks":   "water",
+  "High Priority Targets": "snipe",   "Lyanna's Call":    "earth",
+  "Stir the Volcano":      "fire",    "Rising Dead":      "death",
+  "Stubborn Mercenaries":  "neutral", "Gloridax Revenge": "dragon",
+  "Stealth Mission":       "sneak",
+};
+
+const getPlayerQuest = (username) => (require('async-get-json')(`https://game-api.splinterlands.io/players/quests?username=${username}`)
+  .then(x => {
+    if (x[0]) {
+      const questDetails = {name: x[0].name, splinter: quests[x[0].name], total: x[0].total_items, completed: x[0].completed_items}
+      return questDetails;
+    }})
+  .catch(e => console.log('[ERROR QUEST] Check if Splinterlands is down. Are you using username or email? please use username'))
+)
+
 //UNUSED ?
 const splinterIsActive = (splinterUrl) => {
   const splinter = splinterUrl.split('/').slice(-1)[0].replace('.svg', '').replace('icon_splinter_', '');
   return splinter.indexOf('inactive') === -1 ? splinter : '';
 }
 
-exports.login                     = login;
-exports.checkMana                 = checkMana;
-exports.checkMatchMana            = checkMatchMana;
-exports.checkMatchRules           = checkMatchRules;
-exports.checkMatchActiveSplinters = checkMatchActiveSplinters;
-exports.sleepTime                 = sleepTime;
-exports.splinterIsActive          = splinterIsActive;
+module.exports = {
+  login,                     checkMana, checkMatchMana,   checkMatchRules,
+  checkMatchActiveSplinters, sleepTime, splinterIsActive, getPlayerQuest,
+}

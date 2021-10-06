@@ -6,7 +6,6 @@ const splinterlandsPage = require('./splinterlandsPage');
 const user = require('./user');
 const {teamScores,playableTeams} = require('./score');
 const { cards, cardColor, teamActualSplinterToPlay, arrCmp} = require('./helper');
-const quests = require('./quests');
 const battles = require('./battles-data');
 const log=(...m)=>console.log('index.js:',...m)
 
@@ -34,7 +33,7 @@ async function getCards() {
 }
 
 async function getQuest() {
-  return quests.getPlayerQuest(process.env.ACCOUNT.split('@')[0])
+  return splinterlandsPage.getPlayerQuest(process.env.ACCOUNT.split('@')[0])
     .then(x=>x)
     .catch(e=>log('No quest data, splinterlands API didnt respond.'))
 }
