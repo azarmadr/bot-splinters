@@ -1,4 +1,5 @@
 const AKMap = require('array-keyed-map');
+const bC = require('./data/basicCards').filter(c=>c);
 const {readFile,writeFile} = require('jsonfile');
 const { cards, chunk2, addName} = require('./helper');
 const log=(...m)=>console.log('Scoring Teams: ',...m);
@@ -22,50 +23,55 @@ function filterOutByMana(toggle){
   }
   return toggle?filterOut:()=>true;
 }
-async function scoreMap2Obj(player,scores,fn=''){
+async function scoreMap2Obj(scores,fn=''){
   const scoreObj = {}
-  for(const [k,s] of scores.entries()){
-    //NOTE k => mana, rule, team/card
-    const [mana,rule,...key] = k;
+  for(const [[mana,rule,...key],stats] of scores.entries()){
     const type = key.length>2?'team':'cards'
     if(!(rule in scoreObj))scoreObj[rule]={};
     if(!(mana in scoreObj[rule]))scoreObj[rule][mana]={team:[],cards:[]};
-    scoreObj[rule][mana][type].push({[type]:chunk2(key,2),...s});
+    scoreObj[rule][mana][type].push({[type]:chunk2(key),...stats});
   }
   writeFile(`data/scores${fn}.json`, scoreObj).catch(log);
 }
-const teamScores = (battles,player,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterLessMana=1,StandardOnly,filterOutLowWR}={},fn) => {
-  //NOTE team array is [verdict, summoner, monsters]
+const scoreXer=t=>t.reduce((s,[i,l])=>(bC.includes(i)?1:(8**cards[i-1].rarity))*(cards[i-1].stats.mana?.[l-1]||cards[i-1].stats.mana||1)+s,0)
+const _toPrecision3=x=>Number(x.toFixed(3));
+const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterLessMana=1,StandardOnly,filterOutLowWR}={},fn) => {
   const scores = new AKMap();
-  battles.filter(filterOutByMana(filterLessMana)).forEach(({teams,mana,rule}) => teams.forEach(t=>{
-    const kda = {w:0,l:0,d:0};const teamKey = [mana,rule,...t.slice(1).flat()];kda[t[0]]=1;
+  battles.filter(filterOutByMana(filterLessMana)).forEach(({teams,mana,rule}) => teams.forEach(([v,...t])=>{
+    const kda = {w:0,l:0,d:0};const teamKey = [mana,rule,...t.flat()];kda[v]=1;
+    const score = verdictToScore[v];
     if(scores.has(teamKey)){
       const stats = scores.get(teamKey)
-      stats.score+=verdictToScore[t[0]];stats.count++;stats[t[0]]++;
-    } else scores.set(teamKey,{score:verdictToScore[t[0]],count:1,...kda})
+      stats.score+=score;stats.count++;stats[v]++;
+    } else scores.set(teamKey,{score,count:1,...kda})
     if(cardsToo){
       t.slice(1).forEach(c=>{
         const cardKey = [mana,rule,...c];
         if(scores.has(cardKey)){
           const stats = scores.get(cardKey)
-          stats.score+=verdictToScore[t[0]];stats.count++;stats[t[0]]++;
-        }else scores.set(cardKey,{score:verdictToScore[t[0]],count:1,...kda})
+          stats.score+=score;stats.count++;stats[v]++;
+        }else scores.set(cardKey,{score,count:1,...kda})
       })
     }
     }))
-  scoreMap2Obj(player,scores)
+  scores.forEach(s=>s.score=_toPrecision3(s.score));
+  scoreMap2Obj(scores,fn)
   return scores
 }
 
-const playableTeams = (scores,player,mana,rule,{sortByWinRate}={}) => {
+const playableTeams = (scores,player,mana,rule,{sortByWinRate}={},fn='lastMatch') => {
   const myCards = require(`./data/${player}_cards.json`);
+  //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
   //filter
   const filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
     m==mana&&r==rule&&t.length>2&&chunk2(t).every(c=>myCards[c[0]]>=c[1])&&s.count<2*s.w
-  ).map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}}).sort(sortByProperty(sortByWinRate))
-  writeFile(`data/${player}_lastMatch.json`, filteredTeams).catch(log);
+  )
+    .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
+  filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana))
+  filteredTeams.sort(sortByProperty(sortByWinRate))
+  writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
   return filteredTeams;
 }
 
-module.exports = {teamScores,playableTeams};
+module.exports = {teamScores,playableTeams,scoreMap2Obj};
 //log(playableTeams(score(require('./data/battle_data.json'),'azarmadr'),'azarmadr',30,'Standard')[0])

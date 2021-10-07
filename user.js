@@ -3,7 +3,7 @@ const log=(...m)=>console.log('user.js:',...m);
 
 const userCards = {gold:{}};
 //phantom cards available for the players but not visible in the api endpoint
-require('./data/basicCards').filter(c=>c!=='').forEach(c=>userCards[c]=1);
+require('./data/basicCards').filter(c=>c).forEach(c=>userCards[c]=1);
 
 getPlayerCards = (username) => require('async-get-json')(`https://game-api.splinterlands.io/cards/collection/${username}`)
   .then(({cards}) => cards.filter(x=>x.delegated_to === username || x.market_id === null)
