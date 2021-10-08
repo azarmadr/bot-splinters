@@ -5,24 +5,25 @@ const puppeteer = require('puppeteer');
 const splinterlandsPage = require('./splinterlandsPage');
 const user = require('./user');
 const {teamScores,playableTeams} = require('./score');
-const { cards, cardColor, teamActualSplinterToPlay, arrCmp} = require('./helper');
+const { cards, cardColor, teamActualSplinterToPlay, checkVer} = require('./helper');
 const battles = require('./battles-data');
 const log=(...m)=>console.log('index.js:',...m)
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
-  .then(v=>{
+  .then(async v=>{
     const gitVersion = v.version.replace(/(\.0+)+$/,'').split('.');
     const version = require('./package.json').version.replace(/(\.0+)+$/,'').split('.');
-    if(arrCmp(gitVersion,version)>0){
+    if(checkVer(gitVersion,version)){
       const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
-      do{
-        rl.question("Newer version exists!!!\nDo you want to continue? (y/N)", function(d) {
-          if(d.match(/y/gi)) log('Continuing with older version');
-          else if(d.match(/n/gi)) throw new Error('git pull or get newer version');
-          rl.close();
-        });
-      }while(!decision)
+      const question = require('util').promisify(rl.question).bind(rl);
+      log(gitVersion,version)
+      if(checkVer(gitVersion,version)){
+        let answer = await question("Newer version exists!!!\nDo you want to continue? (y/N)")
+        if(answer.match(/y/gi)) log('Continuing with older version');
+        else if(answer.match(/n/gi)) throw new Error('git pull or get newer version');
+        else throw new Error('choose correctly');
+      }
     }
   })
 }

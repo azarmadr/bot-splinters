@@ -23,6 +23,13 @@ const arrEquals = (a, b) =>
 const arrCmp = (a,b)=> // return a>b
   a.length === b.length ?
     a.reduce((r,v,i)=>r+(Array.isArray(v)?arrCmp(v,b[i]):v-b[i]),0):a.length-b.length;
+function checkVer(a,b){
+  for(const i of Array(Math.min(a.length,b.length))){
+    if(Number(a[i])>Number(b[i]))return true;
+    else if(Number(a[i])<Number(b[i]))return false;
+  }
+  return a.length>b.length
+}
 const chunk = (input, size) => {
   return input.reduce((arr, item, idx) => {
     return idx % size === 0
@@ -36,5 +43,5 @@ const chunk2 = t => chunk(t,2);
 
 module.exports = {
   cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
-  teamWithNames, arrEquals,    cards,   chunk,     chunk2,    arrCmp,
+  teamWithNames, arrEquals,    cards,   chunk,     chunk2,    arrCmp, checkVer,
 };
