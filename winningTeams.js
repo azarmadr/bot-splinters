@@ -1,27 +1,27 @@
-const fs = require('fs');
-const { playableTeam, teamWithNames } = require('./helper');
+const AKMap = require('array-keyed-map');
+const log=(...m)=>console.log('Winning Teams:',...m);
 
-const winningTeams = (battles,user,fn='') => {
-  let winningTeams = {};
-  const myCards = require(`./data/${user}_cards.json`);
+const wT2Obj = (wt,player,fn='') => {
+  const wT2Obj = {};
+  for(const [[mana,...l],wt] of wt.entries()){
+    if(!(mana in wT2Obj))wT2Obj[mana]=[];
+    wT2Obj[mana].push({l,wt});
+  }
+  writeFile(`data/${player}_wt_${fn}.json`,wT2Obj).catch(log);
+}
+const winningTeams = (battles,player,myCards=require(`./data/${player}_cards.json`),fn) => {
+  const winningTeams = new AKMap();
   //battles
-  battles.filter(b=>b.teams[1]&&b.teams[0].verdict!=='d').map(b=>{
-    const r={};
-    r.mana_cap = b.mana_cap;r.ruleset = b.ruleset;
-    b.teams.forEach(t=>r[t.verdict]={summoner:t.summoner,monsters:t.monsters})
-    return r;
-  }).forEach(b=>{
-    if(!winningTeams.hasOwnProperty(b.mana_cap)){
-      winningTeams[b.mana_cap] = [];
-    }
-    winByMana = winningTeams[b.mana_cap];
-    var l_f = winByMana.find(t=>JSON.stringify(t.l)==JSON.stringify(b.l));
-    if(l_f){ l_f.w.push({...teamWithNames(b.w),ruleset:b.ruleset,playable:playableTeam(b.w,myCards)}); }
-    else{ winByMana.push({l:b.l,w:[{...teamWithNames(b.w),ruleset:b.ruleset,playable:playableTeam(b.w,myCards)}]}) }
-  });
-  fs.writeFile(`data/${user}_wt_${fn}.json`,JSON.stringify(winningTeams),function(err){
-    if (err) { console.log(err); }
+  battles.filter(b=>b.teams[0][0]!=='d').map(({teams,mana,rule})=>{
+    return {mana,rule,...Object.fromEntries(teams.map(([v,...t])=>[v,t]))}
+  }).forEach(({w,l,mana,rule})=>{
+    log(w,l)
+    const teamKey = [mana,...l];
+    if(winningTeams.has(teamKey))
+      winningTeams.get(teamKey).push([...w,rule])
+    else winningTeams.set(teamKey,[[...w,rule]]);
   });
   return winningTeams;
 }
 module.exports.winningTeams = winningTeams;
+log(winningTeams(require('./data/battle_data.json'),'azarmadr').entries().next())
