@@ -59,10 +59,8 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
   return scores
 }
 
-const playableTeams = (scores,player,mana,rule,{sortByWinRate}={},fn='lastMatch') => {
-  const myCards = require(`./data/${player}_cards.json`);
+const playableTeams = (scores,player,mana,rule,myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
   //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
-  //filter
   const filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
     m==mana&&r==rule&&t.length>2&&chunk2(t).every(c=>myCards[c[0]]>=c[1])&&s.count<2*s.w
   )

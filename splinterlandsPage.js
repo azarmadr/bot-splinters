@@ -51,9 +51,9 @@ async function sleepTime(page) {
   try {
     const sleepTime = await page.evaluate(()=> {
       const dec_rr = parseFloat(document.querySelector(".dec-options .value:nth-child(3) > div").innerText);
-      const curr_rating = parseInt(document.querySelector(".league_status_panel_progress_bar_pos .number_text").innerText);
+      const curr_rating = parseInt(document.querySelector(".league_status_panel_progress_bar_pos .number_text").innerText.replace(/,/g,''));
       console.log(dec_rr,curr_rating);
-      return (6.8**8)*Math.tanh(Math.sqrt(curr_rating)/27)*Math.tanh((127-dec_rr)/81);
+      return 54321*(27*Math.tanh(curr_rating/729)+81/Math.cosh(dec_rr/27));
     });
     return sleepTime;
   } catch (e) {

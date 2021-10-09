@@ -157,7 +157,7 @@ async function startBotPlayMatch(page, myCards, quest) {
     splinterlandsPage.checkMatchActiveSplinters(page).then((splinters) => splinters).catch(() => 'no splinters')
   ]);
 
-  const teamsToPlay = playableTeams(scores,process.env.ACCOUNT,mana,rules);
+  const teamsToPlay = playableTeams(scores,process.env.ACCOUNT,mana,rules,myCards);
   //await page.waitForTimeout(2000);
 
   //TEAM SELECTION
