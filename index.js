@@ -17,7 +17,7 @@ async function checkForUpdate() {
     if(checkVer(gitVersion,version)){
       const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
       const question = require('util').promisify(rl.question).bind(rl);
-      log(gitVersion,version)
+      log(gitVersion.join('.'),version.join('.'))
       if(checkVer(gitVersion,version)){
         let answer = await question("Newer version exists!!!\nDo you want to continue? (y/N)")
         if(answer.match(/y/gi)) log('Continuing with older version');
@@ -216,9 +216,9 @@ async function startBotPlayMatch(page, myCards, quest) {
 let sleepingTime = 0;
 
 ;(async () => {
+  await checkForUpdate();
   let browser,page;
   while (true) {
-    await checkForUpdate();
     try {
       log('START ', process.env.ACCOUNT, new Date().toLocaleString())
       browser = browser || await puppeteer.launch({

@@ -1,4 +1,5 @@
 const cards = require("./data/cards.json");
+const log=(...m)=>console.log('helper:',...m);
 
 // Teams and Cards
 const cardColor=(c)=>cards[c[0]-1]?.color;
@@ -23,8 +24,8 @@ const arrEquals = (a, b) =>
 const arrCmp = (a,b)=> // return a>b
   a.length === b.length ?
     a.reduce((r,v,i)=>r+(Array.isArray(v)?arrCmp(v,b[i]):v-b[i]),0):a.length-b.length;
-function checkVer(a,b){
-  for(const i of Array(Math.min(a.length,b.length))){
+const checkVer=(a,b)=>{
+  for(const i of Array(Math.min(a.length,b.length)).keys()){
     if(Number(a[i])>Number(b[i]))return true;
     else if(Number(a[i])<Number(b[i]))return false;
   }
