@@ -59,7 +59,7 @@ async function sleepTime(page) {
   } catch (e) {
     console.log('login error', e);
   }
-  return 3333333;
+  return 3210123;
 }
 
 const quests = {
