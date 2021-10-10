@@ -61,14 +61,14 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
 
 const playableTeams = (scores,player,mana,rule,myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
   //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
-  const filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
+  const playableTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
     m==mana&&r==rule&&t.length>2&&chunk2(t).every(c=>myCards[c[0]]>=c[1])&&s.count<2*s.w
   )
     .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
-  filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana))
-  filteredTeams.sort(sortByProperty(sortByWinRate))
-  writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
-  return filteredTeams;
+  playableTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana))
+  playableTeams.sort(sortByProperty(sortByWinRate))
+  writeFile(`data/${player}_${fn}.json`, playableTeams).catch(log);
+  return playableTeams;
 }
 
 module.exports = {teamScores,playableTeams,scoreMap2Obj};

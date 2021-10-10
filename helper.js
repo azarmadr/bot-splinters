@@ -42,7 +42,22 @@ const chunk2 = t => chunk(t,2);
 //const teamIdsArray = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(teamIdsArray));
 //console.log(cardColor({"id":224,"level":1,"name":"Drake of Arnak"}))
 
+// async page element functions
+async function getElementText(page, selector, timeout=20000) {
+  const element = await page.waitForSelector(selector,  { timeout: timeout });
+  const text = await element.evaluate(el => el.textContent);
+  return text;
+}
+
+async function getElementTextByXpath(page, selector, timeout=20000) {
+  const element = await page.waitForXPath(selector,  { timeout: timeout });
+  const text = await element.evaluate(el => el.textContent);
+  return text;
+}
+
+
 module.exports = {
   cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
   teamWithNames, arrEquals,    cards,   chunk,     chunk2,    arrCmp, checkVer,
+  getElementText, getElementTextByXpath,
 };

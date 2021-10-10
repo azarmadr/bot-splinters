@@ -5,7 +5,8 @@ const puppeteer = require('puppeteer');
 const splinterlandsPage = require('./splinterlandsPage');
 const user = require('./user');
 const {teamScores,playableTeams} = require('./score');
-const { cards, cardColor, teamActualSplinterToPlay, checkVer} = require('./helper');
+const { winningTeams, winVsOppTeams } = require('./winningTeams');
+const { cards, cardColor, teamActualSplinterToPlay, checkVer, getElementText,getElementTextByXpath} = require('./helper');
 const battles = require('./battles-data');
 const log=(...m)=>console.log('index.js:',...m)
 
@@ -29,8 +30,8 @@ async function checkForUpdate() {
 }
 
 // LOAD MY CARDS
-async function getCards() {
-  return user.getPlayerCards(process.env.ACCOUNT.split('@')[0]).then(x=>x)
+async function getCards(player=process.env.ACCOUNT.split('@')[0]) {
+  return user.getPlayerCards(player).then(x=>x)
 }
 
 async function getQuest() {
@@ -39,8 +40,8 @@ async function getQuest() {
     .catch(e=>log('No quest data, splinterlands API didnt respond.'))
 }
 
-async function getBattles() {
-  return battles.battlesList(process.env.ACCOUNT).then(x=>x)
+async function getBattles(player=process.env.ACCOUNT) {
+  return battles.battlesList(player).then(x=>x)
 }
 
 async function selectCorrectBattleType(page) {
@@ -65,7 +66,8 @@ async function selectCorrectBattleType(page) {
 
 async function startBotPlayMatch(page, myCards, quest) {
   var battlesList = await getBattles();
-  var scores = teamScores(battlesList,process.env.ACCOUNT);
+  var scores = teamScores(battlesList);
+  var wt = winningTeams(battlesList);
   if(myCards) {
     log(process.env.ACCOUNT, ' deck size: '+Object.keys(myCards).length)
   } else {
@@ -157,7 +159,11 @@ async function startBotPlayMatch(page, myCards, quest) {
     splinterlandsPage.checkMatchActiveSplinters(page).then((splinters) => splinters).catch(() => 'no splinters')
   ]);
 
-  const teamsToPlay = playableTeams(scores,process.env.ACCOUNT,mana,rules,myCards);
+  const oppName = await getElementText(page, 'div.col-md-12 .bio__name__display');
+  const oppCards = await getCards(oppName);
+  const oppPTToPlay = playableTeams(scores,oppName,mana,rules,oppCards);
+  const oppBTeams = winVsOppTeams(wt,oppPTToPlay,mana,rules,myCards);
+  const teamsToPlay = oppBTeams || playableTeams(scores,process.env.ACCOUNT,mana,rules,myCards);
   //await page.waitForTimeout(2000);
 
   //TEAM SELECTION
@@ -248,7 +254,7 @@ let sleepingTime = 0;
           log('Error: ', e)
         })
       await page.waitForTimeout(30000);
-      sleepingTime = await splinterlandsPage.sleepTime(page);
+      sleepingTime = process.env.RAPID_FIRE?0:await splinterlandsPage.sleepTime(page);
       //await browser.close();
     } catch (e) {
       log('Routine error at: ', new Date().toLocaleString(), e)
