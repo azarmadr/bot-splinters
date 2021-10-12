@@ -1,24 +1,23 @@
 const cards = require('./data/cards.json');
-const log=(...m)=>console.log('user.js:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
-const userCards = {gold:{}};
-//phantom cards available for the players but not visible in the api endpoint
-require('./data/basicCards').filter(c=>c).forEach(c=>userCards[c]=1);
+//basic cards of edition 1,4 with rarity < 3
+const basicCards =(uc=[])=> cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3&&!uc.includes(c.id)).map(c=>[c.id,1]);
 
 getPlayerCards = (username) => require('async-get-json')(`https://game-api.splinterlands.io/cards/collection/${username}`)
-  .then(({cards}) => cards.filter(x=>x.delegated_to === username || x.market_id === null)
-    .forEach(({card_detail_id,level,gold}) => gold?
-      (userCards.gold[card_detail_id]>level)||(userCards.gold[card_detail_id]=level):
-      (userCards[card_detail_id]>level)||(userCards[card_detail_id]=level)
-    )
+  .then(({cards}) => [...basicCards(cards.map(c=>c.card_detail_id)),...cards.filter(x=>x.delegated_to === username || x.market_id === null)
+    .map(({card_detail_id,level,gold}) => gold?
+      ['gold',[card_detail_id,level]]:
+      [card_detail_id,level]
+    )].sort((a,b)=>a[1]-b[1])
   )
-  .then(()=>{
-    require('jsonfile').writeFile(`data/${username}_cards.json`, userCards, function (err) {
-        if (err) { log(err); }
-      });
-    return userCards 
+  .then(cards=>{
+    log('deck length',cards.length);
+    const userCards = Object.fromEntries(cards);
+    require('jsonfile').writeFile(`data/${username}_cards.json`, userCards).catch(log)
+    return userCards
   })
-  .catch(e => {log('Using only basic cards due to error when getting user collection from splinterlands: ',e); return userCards})
+  .catch(e => {log('Using only basic cards due to error when getting user collection from splinterlands: ',e); return Object.fromEntries(basicCards())})
 
 module.exports.getPlayerCards = getPlayerCards;
-//const c= getPlayerCards('azarmadr3');Promise.resolve(c).then(log)
+const c= getPlayerCards('azarmadr3');Promise.resolve(c).then(log)
