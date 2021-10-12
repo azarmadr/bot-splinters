@@ -20,4 +20,4 @@ getPlayerCards = (username) => require('async-get-json')(`https://game-api.splin
   .catch(e => {log('Using only basic cards due to error when getting user collection from splinterlands: ',e); return Object.fromEntries(basicCards())})
 
 module.exports.getPlayerCards = getPlayerCards;
-const c= getPlayerCards('azarmadr3');Promise.resolve(c).then(log)
+//const c= getPlayerCards('azarmadr3');Promise.resolve(c).then(log)
