@@ -1,5 +1,5 @@
 const cards = require("./data/cards.json");
-const log=(...m)=>console.log('helper:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 // Teams and Cards
 const cardColor=(c)=>cards[c[0]-1]?.color;

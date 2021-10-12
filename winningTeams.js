@@ -1,6 +1,6 @@
 const AKMap = require('array-keyed-map');
 const {readFile,writeFile} = require('jsonfile');
-const log=(...m)=>console.log('Winning Teams:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 const { cards, chunk2, addName} = require('./helper');
 
 const wT2Obj = async(wt,fn='') => {

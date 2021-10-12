@@ -1,4 +1,4 @@
-const log=(...m)=>console.log('data-cleaner:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 const old_battles = require('./data/battle_data.json');
 //*
 const new_battles=old_battles.filter(({teams})=>teams.length>1).map(bt=>bt={id:bt.battle_id,date:bt.created_date,mana:bt.mana_cap,rule:bt.ruleset,teams:bt.teams})

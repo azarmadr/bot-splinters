@@ -2,7 +2,7 @@ const AKMap = require('array-keyed-map');
 const bC = require('./data/basicCards').filter(c=>c);
 const {readFile,writeFile} = require('jsonfile');
 const { cards, chunk2, addName} = require('./helper');
-const log=(...m)=>console.log('Scoring Teams:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 function sortByProperty(s){
   if(s){

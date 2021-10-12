@@ -1,6 +1,6 @@
 const {readFile,writeFile} = require('jsonfile');
 const {arrEquals,arrCmp} = require('./helper');
-const log=(...m)=>console.log('battles-data:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 var pc = 0;
 async function getBattleHistory(player = '') {
   const battleHistory = await require('async-get-json')(`https://game-api.splinterlands.io/battle/history?player=${player}`)
@@ -24,7 +24,7 @@ const genBattleList=(battles)=>battles.map(
       const teams = [team1,team2].map(xtractTeam);
       if(arrEquals(...teams)){return undefined}
       const won = new Proxy({winner},{get: (t,p,r)=>{//target,prop,reciever
-        if(t.winner==='DRAW'){return 'd'}
+        if(t.winner=='DRAW'){return 'd'}
         return t.winner==p?'w':'l';
       }});
       [team1,team2].forEach(({player},i)=>teams[i].unshift(won[player]));

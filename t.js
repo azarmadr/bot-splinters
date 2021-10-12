@@ -1,5 +1,5 @@
 require('dotenv').config();
-const log  = (...m)=>console.log('Tests:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 const args = require('minimist')(process.argv.slice(2));
 
 const {teamScores,playableTeams} = require('./score');

@@ -8,7 +8,7 @@ const {teamScores,playableTeams} = require('./score');
 const { winningTeams, winVsOppTeams } = require('./winningTeams');
 const { cards, cardColor, teamActualSplinterToPlay, checkVer, getElementText,getElementTextByXpath} = require('./helper');
 const battles = require('./battles-data');
-const log=(...m)=>console.log('index.js:',...m)
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
