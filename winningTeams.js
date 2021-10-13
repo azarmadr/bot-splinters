@@ -1,5 +1,5 @@
 const AKMap = require('array-keyed-map');
-const log=(...m)=>console.log('Winning Teams:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 const wT2Obj = (wt,player,fn='') => {
   const wT2Obj = {};

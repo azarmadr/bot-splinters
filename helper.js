@@ -1,5 +1,5 @@
 const cards = require("./data/cards.json");
-const log=(...m)=>console.log('helper:',...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 // Teams and Cards
 const cardColor=(c)=>cards[c[0]-1]?.color;
@@ -40,9 +40,41 @@ const chunk = (input, size) => {
 };
 const chunk2 = t => chunk(t,2);
 //const teamIdsArray = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(teamIdsArray));
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function clickOnElement(page, selector, timeout = 20000, delayBeforeClicking = 0) {
+  try {
+    const elem = await page.waitForSelector(selector, { timeout: timeout });
+    if (elem) {
+      await sleep(delayBeforeClicking);
+      log('Clicking element ' + selector);
+      await elem.click();
+      return true;
+    }
+  } catch (e) {/*log(e)*/}
+  log('Error: Could not find element ' + selector);
+  return false;
+}
+
+async function getElementText(page, selector, timeout=20000) {
+  const element = await page.waitForSelector(selector,  { timeout: timeout });
+  const text = await element.evaluate(el => el.textContent);
+  return text;
+}
+
+async function getElementTextByXpath(page, selector, timeout=20000) {
+  const element = await page.waitForXPath(selector,  { timeout: timeout });
+  const text = await element.evaluate(el => el.textContent);
+  return text;
+}
 //console.log(cardColor({"id":224,"level":1,"name":"Drake of Arnak"}))
 
 module.exports = {
   cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
   teamWithNames, arrEquals,    cards,   chunk,     chunk2,    arrCmp, checkVer,
+  getElementText, getElementTextByXpath, clickOnElement, sleep,
 };
