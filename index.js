@@ -414,9 +414,7 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
         if (keepBrowserOpen) {
           await page.goto('about:blank');
         } else {
-          await page.evaluate(function () {
-            SM.Logout();
-          });
+          await page.evaluate(function () { SM.Logout(); });
           //let pages = await browsers[0].pages();
           //await Promise.all(pages.map(page =>page.close()));
           //await browsers[0].close();
@@ -437,6 +435,7 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
       captureRateAll = [];
       questRewardAll = [];
       finalRateAll = [];
+      log('//debug');
     }
   } catch (e) {
     log('Routine error at: ', new Date().toLocaleString(), e)
