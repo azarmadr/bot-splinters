@@ -40,9 +40,14 @@ const chunk = (input, size) => {
 };
 const chunk2 = t => chunk(t,2);
 function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+  process.stdout.write("\x1B[?25l");
+  [...Array(27).keys()].forEach(()=>process.stdout.write("\u2591"))
+  require("readline").cursorTo(process.stdout, 0);
+  return [...Array(27).keys()].reduce((memo,e)=>memo.then(async()=>{
+    process.stdout.write("\u2588");
+    if(e==26)console.log();
+    return new Promise((resolve) => setTimeout(resolve, ms/27));
+  }),Promise.resolve())
 }
 
 async function clickOnElement(page, selector, timeout = 20000, delayBeforeClicking = 0) {

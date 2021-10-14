@@ -64,26 +64,17 @@ async function getBattles(player=process.env.ACCOUNT) {
 }
 
 async function closePopups(page) {
-  if (await clickOnElement(page, '.close', 4000)) return;
-  await clickOnElement(page, '.modal-close-new', 1000);
+  if (await clickOnElement(page, '.close', 10000)) return;
+  await clickOnElement(page, '.modal-close-new', 10000);
 }
 // await loading circle by Jones
 async function waitUntilLoaded(page) {
   try {
-    await page.waitForSelector('.loading', {
-      timeout: 6000
-    })
-      .then(() => {
-        log('Waiting until page is loaded...');
-      });
-  } catch (e) {
-    log('No loading circle...')
-    return;
-  }
+    await page.waitForSelector('.loading', { timeout: 6000 })
+      .then(() => { log('Waiting until page is loaded...'); });
+  } catch (e) { log('No loading circle...');return; }
 
-  await page.waitForFunction(() => !document.querySelector('.loading'), {
-    timeout: 120000
-  });
+  await page.waitForFunction(() => !document.querySelector('.loading'), { timeout: 120000 });
 }
 async function clickMenuFightButton(page) {
   try {
@@ -109,7 +100,7 @@ async function selectCorrectBattleType(page) {
       } catch (e) {
         log('Slider button not found ', e)
       }
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(10000);
       battleType = (await page.$eval('#battle_category_type', el => el.innerText)).trim();
     }
   } catch (error) {
@@ -195,13 +186,13 @@ async function startBotPlayMatch(page, myCards, quest) {
       log('no season reward to be claimed');
     }
   }
-  let curRating = await getElementText(page, 'span.number_text', 2000);
+  let curRating = await getElementText(page, 'span.number_text', 20000);
   await log('Current Rating is ' + chalk.yellow(curRating));
 
   //if quest done claim reward
   log('Quest details: ' + chalk.yellow(JSON.stringify(quest)));
   try {
-    const claimButton = await page.waitForSelector('#quest_claim_btn', { timeout: 2500, visible: true });
+    const claimButton = await page.waitForSelector('#quest_claim_btn', { timeout: 25000, visible: true });
     if (claimButton) {
       log('Quest reward can be claimed!');
       questRewardAll.push(process.env.ACCOUNT + " Quest: " + quest + "/" + quest + ' Quest reward can be claimed!')
@@ -311,7 +302,7 @@ async function startBotPlayMatch(page, myCards, quest) {
       await page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`, { timeout: 10000 }).then(summonerButton => summonerButton.click());
       if (cardColor(Summoner) === 'Gold') {
         log('Dragon play TEAMCOLOR', teamActualSplinterToPlay(Monsters))
-        await page.waitForXPath(`//div[@data-original-title="${teamActualSplinterToPlay(Monsters)}"]`, { timeout: 8000 }).then(selector => selector.click())
+        await page.waitForXPath(`//div[@data-original-title="${teamActualSplinterToPlay(Monsters)}"]`, { timeout: 10000 }).then(selector => selector.click())
       }
       await page.waitForTimeout(5000);
       for(const m of Monsters.values()){
