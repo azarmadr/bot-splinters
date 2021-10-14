@@ -49,8 +49,8 @@ async function checkForMissingConfigs() {
 }
 
 // LOAD MY CARDS
-async function getCards() {
-  return user.getPlayerCards(process.env.ACCOUNT.split('@')[0]).then(x=>x)
+async function getCards(player=process.env.ACCOUNT.split('@')[0]) {
+  return user.getPlayerCards(player).then(x=>x)
 }
 
 async function getQuest() {
@@ -59,8 +59,8 @@ async function getQuest() {
     .catch(e=>log('No quest data, splinterlands API didnt respond.'))
 }
 
-async function getBattles() {
-  return battles.battlesList(process.env.ACCOUNT).then(x=>x)
+async function getBattles(player=process.env.ACCOUNT) {
+  return battles.battlesList(player).then(x=>x)
 }
 
 async function closePopups(page) {
