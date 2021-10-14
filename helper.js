@@ -39,7 +39,6 @@ const chunk = (input, size) => {
   }, []);
 };
 const chunk2 = t => chunk(t,2);
-//const teamIdsArray = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(teamIdsArray));
 function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -71,7 +70,7 @@ async function getElementTextByXpath(page, selector, timeout=20000) {
   const text = await element.evaluate(el => el.textContent);
   return text;
 }
-//console.log(cardColor({"id":224,"level":1,"name":"Drake of Arnak"}))
+//const teamIdsArray = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(teamIdsArray)); console.log(cardColor({"id":224,"level":1,"name":"Drake of Arnak"}))
 
 module.exports = {
   cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,

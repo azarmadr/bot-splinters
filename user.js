@@ -5,7 +5,7 @@ const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 const basicCards =(uc=[])=> cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3&&!uc.includes(c.id)).map(c=>[c.id,1]);
 
 getPlayerCards = (username) => require('async-get-json')(`https://game-api.splinterlands.io/cards/collection/${username}`)
-  .then(({cards}) => [...basicCards(cards.map(c=>c.card_detail_id)),...cards.filter(x=>x.delegated_to === username || x.market_id === null)
+  .then(({cards}) => [...basicCards(cards.map(c=>c.card_detail_id)),...cards.filter(o => !(o.market_id && o.market_listing_status === 0) && (!o.delegated_to || o.delegated_to === player))
     .map(({card_detail_id,level,gold}) => gold?
       ['gold',[card_detail_id,level]]:
       [card_detail_id,level]
