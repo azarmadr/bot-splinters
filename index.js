@@ -4,6 +4,7 @@ const puppeteer = require('puppeteer');
 const chalk = require('chalk');
 
 const user = require('./user');
+const SM = require('./splinterApi');
 const {teamScores,playableTeams} = require('./score');
 const {
   cards, cardColor, teamActualSplinterToPlay, checkVer, getElementText, getElementTextByXpath,
@@ -17,6 +18,7 @@ let resultAll = [];
 let captureRateAll = [];
 let questRewardAll = [];
 let finalRateAll = [];
+var claimQuestReward;
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
@@ -126,34 +128,24 @@ async function startBotPlayMatch(page, myCards) {
   var battlesList = await getBattles();
   var scores = teamScores(battlesList,process.env.ACCOUNT);
   const ercThreshold = process.env.ERC_THRESHOLD;
-  if(myCards) {
-    log(process.env.ACCOUNT, ' deck size: '+Object.keys(myCards).length)
-  } else {
-    log(process.env.ACCOUNT, ' playing only basic cards')
-  }
+  log(process.env.ACCOUNT, ' deck size: '+Object.keys(myCards).length)
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
   await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
 
   let username = await page.evaluate(()=>SM?.Player?.name);
   if (username != process.env.ACCOUNT) {
-    log('Login')
     if(JSON.parse(process.env.LOGIN_VIA_EMAIL))
-      await page.evaluate(async({email,pwd})=>
-        await new Promise((res,rej)=>SM.EmailLogin(email,pwd).then(r=>{if(r&&r.success)res(r);else rej(r)}))
-      ,{email:process.env.EMAIL,pwd:process.env.PASSWORD});
-    else
-      await page.evaluate(async({acc,pwd})=>
-        await new Promise((res,rej)=>SM.Login(acc,pwd,r=>{if(r&&r.success)res(r);else rej(r)}))
-      ,{acc:process.env.ACCOUNT,pwd:process.env.PASSWORD})
+      await SM.mailLogin([process.env.EMAIL,process.env.PASSWORD]);
+    else await SM.login([process.env.ACCOUNT,process.env.PASSWORD]);
   }
-  await page.goto('https://splinterlands.com/?p=battle_history');
-  await waitUntilLoaded(page);
-  await sleep(10000);
-  const dec = await page.evaluate(()=>SM.Player.balances[0].balance);
-  const erc = await page.evaluate(()=>SM.Player.capture_rate);
-  log('Current Energy Capture Rate is ' + erc>5000?chalk.green(erc/100 + "%"):chalk.red(erc/100 + "%"));
-  captureRateAll.push(process.env.ACCOUNT + erc>5000?chalk.green("ERC:" + erc/100 + "%"):chalk.red("ERC:" + erc/100 + "%"));
-  if (erc < ercThreshold*100) {
+  await page.evaluate(()=>SM.ShowBattleHistory());
+  await sleep(12345);
+  const {Player,settings} = await SM.__();
+  const dec = Player.balances[0].balance;
+  const erc = Player.capture_rate/100;
+  log('Current Energy Capture Rate is ' + erc>5000?chalk.green(erc + "%"):chalk.red(erc + "%"));
+  captureRateAll.push(process.env.ACCOUNT + erc>5000?chalk.green("ERC:" + erc + "%"):chalk.red("ERC:" + erc + "%"));
+  if (erc < ercThreshold) {
     log('ERC is below threshold of ' + ercThreshold + '% - skipping this account');
     return;
   }
@@ -180,28 +172,17 @@ async function startBotPlayMatch(page, myCards) {
       log('no season reward to be claimed');
     }
   }
-  let curRating = await page.evaluate(()=>SM.Player.rating);
+  let curRating = Player.rating;
   await log('Current Rating is ' + chalk.yellow(curRating));
 
   //if quest done claim reward
-  const quest = await page.evaluate(()=>SM.Player.quest);
-  if (quest) log('Quest details: ' + chalk.yellow(JSON.stringify(quest)));
-  else       log('NO quest details!! Get an account to have quests');
-  try {
-    const claimButton = await page.waitForSelector('#quest_claim_btn', { timeout: 25000, visible: true });
-    if (claimButton) {
-      log('Quest reward can be claimed!');
-      questRewardAll.push(process.env.ACCOUNT + " Quest: " + quest.completed_items + "/" + quest.total_items + ' Quest reward can be claimed!')
-      if (claimQuestReward) {
-        await claimButton.click();
-        await page.waitForTimeout(60000);
-        await page.reload();
-        await page.waitForTimeout(10000);
-      }
+  if (Player.quest){
+    const {name,completed_items,total_items,rewards}=Player.quest;
+    if(claimQuestReward&&!rewards&&completed_items>=total_items){
+      log('Quest details:' + chalk.yellow(name,'->',completed_items,'/',total_items));
+      let quest = settings.quest.find(q=>q.name==name);
+      quest&&(await SM.questClaim(Player.quest,quest))
     }
-  } catch (e) {
-    log('No quest reward to be claimed waiting for the battle...')
-    questRewardAll.push(process.env.ACCOUNT + " Quest: " + chalk.yellow(quest.completed_items + "/" + quest.total_items) + chalk.red(' No quest reward...'));
   }
 
   if (!page.url().includes("battle_history")) {
@@ -352,7 +333,7 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
     const passwords = process.env.PASSWORD.split(',');
     const headless = JSON.parse(process.env.HEADLESS.toLowerCase());
     const keepBrowserOpen = JSON.parse(process.env.KEEP_BROWSER_OPEN.toLowerCase());
-    const claimQuestReward = JSON.parse(process.env.CLAIM_QUEST_REWARD.toLowerCase());
+    let claimQuestReward = JSON.parse(process.env.CLAIM_QUEST_REWARD.toLowerCase());
 
     let browsers = [];
     log('Headless: ' + headless);
@@ -377,6 +358,7 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
         }
         const page = (await(keepBrowserOpen ? browsers[i] : browsers[0]).pages())[1];
         await page.goto('https://splinterlands.com/');
+        SM._((await page.evaluateHandle(()=>SM)));
         log('getting user cards collection from splinterlands API...')
         const myCards = await getCards()
           .then((x)=>{log('cards retrieved'); return x})
