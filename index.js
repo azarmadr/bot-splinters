@@ -3,7 +3,6 @@ require('dotenv').config()
 const puppeteer = require('puppeteer');
 const chalk = require('chalk');
 
-const splinterlandsPage = require('./splinterlandsPage');
 const user = require('./user');
 const {teamScores,playableTeams} = require('./score');
 const {
@@ -51,12 +50,6 @@ async function checkForMissingConfigs() {
 // LOAD MY CARDS
 async function getCards(player=process.env.ACCOUNT.split('@')[0]) {
   return user.getPlayerCards(player).then(x=>x)
-}
-
-async function getQuest() {
-  return splinterlandsPage.getPlayerQuest(process.env.ACCOUNT.split('@')[0])
-    .then(x=>x)
-    .catch(e=>log('No quest data, splinterlands API didnt respond.'))
 }
 
 async function getBattles(player=process.env.ACCOUNT) {
@@ -129,7 +122,7 @@ async function createBrowsers(count, headless) {
   return browsers;
 }
 
-async function startBotPlayMatch(page, myCards, quest) {
+async function startBotPlayMatch(page, myCards) {
   var battlesList = await getBattles();
   var scores = teamScores(battlesList,process.env.ACCOUNT);
   const ercThreshold = process.env.ERC_THRESHOLD;
@@ -139,27 +132,29 @@ async function startBotPlayMatch(page, myCards, quest) {
     log(process.env.ACCOUNT, ' playing only basic cards')
   }
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
-  await page.setViewport({
-    width: 1800,
-    height: 1500,
-    deviceScaleFactor: 1,
-  });
+  await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
 
-  await page.goto('https://splinterlands.com/?p=battle_history');
-  await page.waitForTimeout(4000);
-  let username = await getElementText(page, '.dropdown-toggle .bio__name__display', 10000);
+  let username = await page.evaluate(()=>SM?.Player?.name);
   if (username != process.env.ACCOUNT) {
     log('Login')
-    await splinterlandsPage.login(page).catch(e => {
-      log(e); throw new Error('Login Error');
-    });
+    if(JSON.parse(process.env.LOGIN_VIA_EMAIL))
+      await page.evaluate(async({email,pwd})=>
+        await new Promise((res,rej)=>SM.EmailLogin(email,pwd).then(r=>{if(r&&r.success)res(r);else rej(r)}))
+      ,{email:process.env.EMAIL,pwd:process.env.PASSWORD});
+    else
+      await page.evaluate(async({acc,pwd})=>
+        await new Promise((res,rej)=>SM.Login(acc,pwd,r=>{if(r&&r.success)res(r);else rej(r)}))
+      ,{acc:process.env.ACCOUNT,pwd:process.env.PASSWORD})
   }
+  await page.goto('https://splinterlands.com/?p=battle_history');
   await waitUntilLoaded(page);
-  const erc = parseInt((await getElementTextByXpath(page, "//div[@class='dec-options'][1]/div[@class='value'][2]/div", 100)).split('.')[0]);
-  log('Current Energy Capture Rate is ' + erc>50?chalk.green(erc + "%"):chalk.red(erc + "%"));
-  captureRateAll.push(process.env.ACCOUNT + erc>50?chalk.green("ERC:" + erc + "%"):chalk.red("ERC:" + erc + "%"));
-
-  if (erc < ercThreshold) {
+  await page.waitForTimeout(10000);
+  await sleep(10000);
+  const dec = await page.evaluate(()=>SM.Player.balances[0].balance);
+  const erc = await page.evaluate(()=>SM.Player.capture_rate);
+  log('Current Energy Capture Rate is ' + erc>5000?chalk.green(erc/100 + "%"):chalk.red(erc/100 + "%"));
+  captureRateAll.push(process.env.ACCOUNT + erc>5000?chalk.green("ERC:" + erc + "%"):chalk.red("ERC:" + erc + "%"));
+  if (erc < ercThreshold*100) {
     log('ERC is below threshold of ' + ercThreshold + '% - skipping this account');
     return;
   }
@@ -186,16 +181,18 @@ async function startBotPlayMatch(page, myCards, quest) {
       log('no season reward to be claimed');
     }
   }
-  let curRating = await getElementText(page, 'span.number_text', 20000);
+  let curRating = await page.evaluate(()=>SM.Player.rating);
   await log('Current Rating is ' + chalk.yellow(curRating));
 
   //if quest done claim reward
-  log('Quest details: ' + chalk.yellow(JSON.stringify(quest)));
+  const quest = await page.evaluate(()=>SM.Player.quest);
+  if (quest) log('Quest details: ' + chalk.yellow(JSON.stringify(quest)));
+  else       log('NO quest details!! Get an account to have quests');
   try {
     const claimButton = await page.waitForSelector('#quest_claim_btn', { timeout: 25000, visible: true });
     if (claimButton) {
       log('Quest reward can be claimed!');
-      questRewardAll.push(process.env.ACCOUNT + " Quest: " + quest + "/" + quest + ' Quest reward can be claimed!')
+      questRewardAll.push(process.env.ACCOUNT + " Quest: " + quest.completed_items + "/" + quest.total_items + ' Quest reward can be claimed!')
       if (claimQuestReward) {
         await claimButton.click();
         await page.waitForTimeout(60000);
@@ -205,7 +202,7 @@ async function startBotPlayMatch(page, myCards, quest) {
     }
   } catch (e) {
     log('No quest reward to be claimed waiting for the battle...')
-    questRewardAll.push(process.env.ACCOUNT + " Quest: " + chalk.yellow(quest + "/" + quest) + chalk.red(' No quest reward...'));
+    questRewardAll.push(process.env.ACCOUNT + " Quest: " + chalk.yellow(quest.completed_items + "/" + quest.total_items) + chalk.red(' No quest reward...'));
   }
 
   if (!page.url().includes("battle_history")) {
@@ -256,7 +253,7 @@ async function startBotPlayMatch(page, myCards, quest) {
             .then(() => log('start the match'))
             .catch(async() => {
               log('second attempt failed reloading from homepage...');
-              await page.goto('https://splinterlands.io/');
+              await page.goto('https://splinterlands.com/');
               await page.waitForTimeout(5000);
               await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
                 .then(button => button.click())
@@ -275,13 +272,9 @@ async function startBotPlayMatch(page, myCards, quest) {
       throw new Error('The Battle cannot start');
     }
     await page.waitForTimeout(10000);
-    let [mana, rules, splinters] = await Promise.all([
-      splinterlandsPage.checkMatchMana(page).then((mana) => mana).catch(() => 'no mana'),
-      splinterlandsPage.checkMatchRules(page).then((rulesArray) => rulesArray).catch(() => 'no rules'),
-      splinterlandsPage.checkMatchActiveSplinters(page).then((splinters) => splinters).catch(() => 'no splinters')
-    ]);
+    const {mana_cap, ruleset, inactive, opponent_player,} = await page.evaluate(()=>SM._currentBattle)
 
-    const teamsToPlay = playableTeams(scores,process.env.ACCOUNT,mana,rules,myCards);
+    const teamsToPlay = playableTeams(scores,process.env.ACCOUNT,{mana_cap,ruleset,inactive},myCards);
     //await page.waitForTimeout(2000);
 
     //TEAM SELECTION
@@ -325,28 +318,18 @@ async function startBotPlayMatch(page, myCards, quest) {
       await page.$eval('#btnRumble', elem => elem.click()).then(()=>log('btnRumble clicked')).catch(()=>log('btnRumble didnt click')); //start rumble
       await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
       await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
-      try {
-        const winner = await getElementText(page, 'section.player.winner .bio__name__display', 15000);
-        if (winner.trim() == process.env.ACCOUNT.trim()) {
-          const decWon = await getElementText(page, '.player.winner span.dec-reward span', 100);
-          resultAll.push(process.env.ACCOUNT + chalk.green(' You won! Reward: ' + decWon + ' DEC'));
-        } else {
-          resultAll.push(process.env.ACCOUNT + chalk.red(' You lost :('));
-        }
-      } catch(e) {
-        log(e,chalk.blueBright('Could not find winner - draw?'));
-        resultAll.push(process.env.ACCOUNT + chalk.blueBright('Could not find winner - draw?'));
-      }
+
+      const won = (await page.evaluate(()=>SM.Player.rating))-curRating;
+      if(won>0){
+        const decWon = (await page.evaluate(()=>SM.Player.balances[0].balance))-dec;
+        resultAll.push(process.env.ACCOUNT + chalk.green(' You won! Reward: ' + decWon + ' DEC'));
+      } else if(won<0) resultAll.push(process.env.ACCOUNT + chalk.red(' You lost :('));
+      else resultAll.push(process.env.ACCOUNT + chalk.red(' Draw!! :('));
       await clickOnElement(page, '.btn--done', 1000, 2500);
 
-      try {
-        let curRating = await getElementText(page, 'span.number_text', 2000);
-        log('Updated Rating after battle is ' + chalk.yellow(curRating));
-        finalRateAll.push(process.env.ACCOUNT + (' New rating is ' + chalk.yellow(curRating)));
-      } catch (e) {
-        log(e,chalk.blueBright('Unable to get new rating'));
-        finalRateAll.push(process.env.ACCOUNT + chalk.red(' Unable to get new rating'));
-      }
+      curRating = await page.evaluate(()=>SM.Player.rating);
+      log('Updated Rating after battle is ' + chalk.yellow(curRating));
+      finalRateAll.push(process.env.ACCOUNT + (' New rating is ' + chalk.yellow(curRating)));
     } catch (e) {
       throw new Error(e);
     }
@@ -394,22 +377,13 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
           browsers = await createBrowsers(1, headless);
         }
         const page = (await(keepBrowserOpen ? browsers[i] : browsers[0]).pages())[1];
+        await page.goto('https://splinterlands.com/');
         log('getting user cards collection from splinterlands API...')
         const myCards = await getCards()
           .then((x)=>{log('cards retrieved'); return x})
           .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
-        log('getting user quest info from splinterlands API...');
-        const quest = await getQuest();
-        if (!quest) {
-          log('Error for quest details. Splinterlands API didnt work or you used incorrect username');
-        }
-        await startBotPlayMatch(page, myCards, quest)
-          .then(() => {
-            log('Closing battle');
-          })
-          .catch((e) => {
-            log(e)
-          })
+        await startBotPlayMatch(page, myCards)
+          .then(() => { log('Closing battle'); }) .catch(log)
         await page.waitForTimeout(5000);
         if (keepBrowserOpen) {
           await page.goto('about:blank');

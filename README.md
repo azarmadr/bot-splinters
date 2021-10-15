@@ -1,3 +1,11 @@
+# Install & Usage
+This is a node.js project. to install all dependencies:
+`npm install`
+To start the bot:
+`node index.js`
+
+I added a version check, so if one wants to continue with older version, resopnd with `yes` or `y` or anything with `y`
+
 Splinterlands bot with useful scripts to visualize the data and data aggregation.
 ## Generating Battle Data
 https://peakd.com/hive-140217/@azarmadr3/using-javascript-to-analyze-splinterlands
