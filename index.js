@@ -148,12 +148,11 @@ async function startBotPlayMatch(page, myCards) {
   }
   await page.goto('https://splinterlands.com/?p=battle_history');
   await waitUntilLoaded(page);
-  await page.waitForTimeout(10000);
   await sleep(10000);
   const dec = await page.evaluate(()=>SM.Player.balances[0].balance);
   const erc = await page.evaluate(()=>SM.Player.capture_rate);
   log('Current Energy Capture Rate is ' + erc>5000?chalk.green(erc/100 + "%"):chalk.red(erc/100 + "%"));
-  captureRateAll.push(process.env.ACCOUNT + erc>5000?chalk.green("ERC:" + erc + "%"):chalk.red("ERC:" + erc + "%"));
+  captureRateAll.push(process.env.ACCOUNT + erc>5000?chalk.green("ERC:" + erc/100 + "%"):chalk.red("ERC:" + erc/100 + "%"));
   if (erc < ercThreshold*100) {
     log('ERC is below threshold of ' + ercThreshold + '% - skipping this account');
     return;
