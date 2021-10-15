@@ -333,7 +333,7 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
     const passwords = process.env.PASSWORD.split(',');
     const headless = JSON.parse(process.env.HEADLESS.toLowerCase());
     const keepBrowserOpen = JSON.parse(process.env.KEEP_BROWSER_OPEN.toLowerCase());
-    let claimQuestReward = JSON.parse(process.env.CLAIM_QUEST_REWARD.toLowerCase());
+    claimQuestReward = JSON.parse(process.env.CLAIM_QUEST_REWARD.toLowerCase());
 
     let browsers = [];
     log('Headless: ' + headless);
