@@ -1,7 +1,7 @@
 const AKMap = require('array-keyed-map');
-const bC = require('./data/basicCards').filter(c=>c);
 const {readFile,writeFile} = require('jsonfile');
 const { cards, chunk2, addName} = require('./helper');
+const bC = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id)
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 function sortByProperty(s){
