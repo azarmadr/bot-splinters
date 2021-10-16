@@ -40,12 +40,12 @@ async function checkForUpdate() {
 }
 
 async function checkForMissingConfigs() {
-  await ['LOGIN_VIA_EMAIL','ACCOUNT','PASSWORD','HEADLESS','KEEP_BROWSER_OPEN','CLAIM_QUEST_REWARD','ERC_THRESHOLD']
+  await ['LOGIN_VIA_EMAIL','ACCOUNT','PASSWORD','PAUSE_BEFORE_SUBMIT','HEADLESS','KEEP_BROWSER_OPEN','CLAIM_QUEST_REWARD','ERC_THRESHOLD']
     .reduce((memo,e)=>memo.then(async()=>{
       if (!process.env[e]) {
         log(`Missing ${e} parameter in .env - see updated .env-example!`);
         await sleep(60000);
-      }
+      }else if(!e.includes('PASSWORD')) log(`${e}:`,process.env[e]);
     }),Promise.resolve())
 }
 
@@ -283,7 +283,7 @@ async function startBotPlayMatch(page, myCards) {
         await page.waitForXPath(`//div[@card_detail_id="${m[0].toString()}"]`, { timeout: 10000 }).then(selector => selector.click());
         await page.waitForTimeout(1000);
       }
-      await page.waitForTimeout(5000);
+      await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
       try {
         await page.click('.btn-green')[0]; //start fight
       } catch {
@@ -336,12 +336,6 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
     claimQuestReward = JSON.parse(process.env.CLAIM_QUEST_REWARD.toLowerCase());
 
     let browsers = [];
-    log('Headless: ' + headless);
-    log('Keep Browser Open: ' + keepBrowserOpen);
-    log('Login via Email: ' + loginViaEmail);
-    log('Claim Quest Reward: ' + claimQuestReward);
-    log('Loaded ' + chalk.yellow(accounts.length) + ' Accounts')
-    log('Accounts: ' + chalk.greenBright(accounts))
 
     while (true) {
       for (let i = 0; i < accounts.length; i++) {
@@ -365,7 +359,7 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
           .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
         await startBotPlayMatch(page, myCards)
           .then(() => { log('Closing battle'); }) .catch(log)
-        await page.waitForTimeout(5000);
+        //await page.waitForTimeout(5000);
         if (keepBrowserOpen) {
           await page.goto('about:blank');
         } else {
@@ -394,5 +388,4 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
     }
   } catch (e) {
     log('Routine error at: ', new Date().toLocaleString(), e)
-  }
-})()
+  } })()
