@@ -71,18 +71,6 @@ async function waitUntilLoaded(page) {
 
   await page.waitForFunction(() => !document.querySelector('.loading'), { timeout: 120000 });
 }
-async function clickMenuFightButton(page) {
-  try {
-    await page.waitForSelector('#menu_item_battle', {
-      timeout: 6000
-    })
-      .then(button => button.click());
-  } catch (e) {
-    log('fight button not found')
-  }
-
-}
-
 async function selectCorrectBattleType(page) {
   try {
     await page.waitForSelector("#battle_category_type", { timeout: 20000 })
@@ -124,73 +112,10 @@ async function createBrowsers(count, headless) {
   return browsers;
 }
 
-async function startBotPlayMatch(page, myCards) {
+async function startBotPlayMatch(page, myCards,{dec,curRating}) {
   var battlesList = await getBattles();
   var scores = teamScores(battlesList,process.env.ACCOUNT);
-  const ercThreshold = process.env.ERC_THRESHOLD;
   log(process.env.ACCOUNT, ' deck size: '+Object.keys(myCards).length)
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
-  await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
-
-  let username = await page.evaluate(()=>SM?.Player?.name);
-  if (username != process.env.ACCOUNT) {
-    if(JSON.parse(process.env.LOGIN_VIA_EMAIL))
-      await SM.mailLogin([process.env.EMAIL,process.env.PASSWORD]);
-    else await SM.login([process.env.ACCOUNT,process.env.PASSWORD]);
-  }
-  await page.evaluate(()=>SM.ShowBattleHistory());
-  await sleep(12345);
-  const {Player,settings} = await SM.__();
-  const dec = Player.balances[0].balance;
-  const erc = Player.capture_rate/100;
-  log('Current Energy Capture Rate is ' + erc>5000?chalk.green(erc + "%"):chalk.red(erc + "%"));
-  captureRateAll.push(process.env.ACCOUNT + erc>5000?chalk.green("ERC:" + erc + "%"):chalk.red("ERC:" + erc + "%"));
-  if (erc < ercThreshold) {
-    log('ERC is below threshold of ' + ercThreshold + '% - skipping this account');
-    return;
-  }
-  await page.waitForTimeout(1000);
-  await closePopups(page);
-  await page.waitForTimeout(2000);
-  if (!page.url().includes("battle_history")) {
-    await clickMenuFightButton(page);
-    await page.waitForTimeout(3000);
-  }
-
-  //check if season reward is available
-  if (process.env.CLAIM_SEASON_REWARD === 'true') {
-    try {
-      log('Season reward check: ');
-      await page.waitForSelector('#claim-btn', { visible: true, timeout: 3000 })
-        .then(async(button) => {
-          button.click();
-          log(`claiming the season reward. you can check them here https://peakmonsters.com/@${process.env.ACCOUNT}/explorer`);
-          await page.waitForTimeout(20000);
-        })
-        .catch(() => log('no season reward to be claimed, but you can still check your data here https://peakmonsters.com/@${process.env.ACCOUNT}/explorer'));
-    } catch (e) {
-      log('no season reward to be claimed');
-    }
-  }
-  let curRating = Player.rating;
-  await log('Current Rating is ' + chalk.yellow(curRating));
-
-  //if quest done claim reward
-  if (Player.quest){
-    const {name,completed_items,total_items,rewards}=Player.quest;
-    if(claimQuestReward&&!rewards&&completed_items>=total_items){
-      log('Quest details:' + chalk.yellow(name,'->',completed_items,'/',total_items));
-      let quest = settings.quest.find(q=>q.name==name);
-      quest&&(await SM.questClaim(Player.quest,quest))
-    }
-  }
-
-  if (!page.url().includes("battle_history")) {
-    log("Seems like battle button menu didn't get clicked correctly - try again");
-    log('Clicking fight menu button again');
-    await clickMenuFightButton(page);
-    await page.waitForTimeout(5000);
-  }
 
   // LAUNCH the battle can get some finess
   try {
@@ -202,22 +127,13 @@ async function startBotPlayMatch(page, myCards) {
     await page.waitForTimeout(5000);
 
     try {
-      log('waiting for battle button...')
-      await selectCorrectBattleType(page);
-      await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 3000 })
-        .then(button => {
-          log('Battle button clicked');
-          button.click()
-        })
-        .catch(e => writeErrorToLog('[ERROR] waiting for Battle button. is Splinterlands in maintenance?'));
-      await page.waitForTimeout(5000);
       log('waiting for an opponent...')
       await page.waitForSelector('.btn--create-team', { timeout: 25000 })
         .then(() => log('start the match'))
         .catch(async(e) => {
           writeErrorToLog('[Error while waiting for battle]');
           log('Clicking fight menu button again');
-          await clickMenuFightButton(page);
+          await page.evaluate(()=>SM.ShowBattleHistory());
           log('Clicking battle button again');
           await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 3000 })
             .then(button => {
@@ -299,17 +215,18 @@ async function startBotPlayMatch(page, myCards) {
       await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
       await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
 
-      const won = (await page.evaluate(()=>SM.Player.rating))-curRating;
-      if(won>0){
-        const decWon = (await page.evaluate(()=>SM.Player.balances[0].balance))-dec;
-        resultAll.push(process.env.ACCOUNT + chalk.green(' You won! Reward: ' + decWon + ' DEC'));
-      } else if(won<0) resultAll.push(process.env.ACCOUNT + chalk.red(' You lost :('));
-      else resultAll.push(process.env.ACCOUNT + chalk.red(' Draw!! :('));
-      await clickOnElement(page, '.btn--done', 1000, 2500);
+      await getBattles(opponent_player);
+      await page.evaluate('SM.Player').then(Player=>{
+        const won = Player.rating-curRating;
+        if(won>0){
+          var decWon = Player.balances[0].balance-dec;
+          resultAll.push(process.env.ACCOUNT + chalk.green(' You won! Reward: ' + decWon + ' DEC'));
+        } else if(won<0) resultAll.push(process.env.ACCOUNT + chalk.red(' You lost :('));
+        else resultAll.push(process.env.ACCOUNT + chalk.red(' Draw!! :('));
 
-      curRating = await page.evaluate(()=>SM.Player.rating);
-      log('Updated Rating after battle is ' + chalk.yellow(curRating));
-      finalRateAll.push(process.env.ACCOUNT + (' New rating is ' + chalk.yellow(curRating)));
+        log('Updated Rating after battle is ' + chalk.yellow(Player.rating));
+        finalRateAll.push(process.env.ACCOUNT + (' New rating is ' + chalk.yellow(Player.rating)));
+      })
     } catch (e) {
       throw new Error(e);
     }
@@ -322,6 +239,30 @@ async function startBotPlayMatch(page, myCards) {
 const sleepingTimeInMinutes = process.env.MINUTES_BATTLES_INTERVAL || 30;
 const sleepingTime = sleepingTimeInMinutes * 60000;
 
+const preMatch=(__sm)=>{
+  const _return = {};
+  const ercThreshold = process.env.ERC_THRESHOLD;
+  const Player = __sm.Player,settings = __sm.settings;
+  _return.dec = Player.balances[0].balance
+  const erc = Math.floor(Math.min((isNaN(parseInt(Player.capture_rate)) ? 1e4 : Player.capture_rate) + (Date.now() - new Date(Player.last_reward_time)) / 3e3 * settings.dec.ecr_regen_rate, 1e4)/100)
+  log('Current Energy Capture Rate is ' + (erc>ercThreshold?chalk.green(erc + "%"):chalk.red(erc + "%")));
+  captureRateAll.push(process.env.ACCOUNT + (erc>ercThreshold?chalk.green("ERC:" + erc + "%"):chalk.red("ERC:" + erc + "%")))
+  _return.erc = erc>ercThreshold;
+  _return.rating = Player.rating;
+  log('Current Rating is ' + chalk.yellow(Player.rating));
+  _return.claimSeasonReward = process.env.CLAIM_SEASON_REWARD === 'true'&&Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
+
+  //if quest done claim reward
+  if (claimQuestReward&&Player.quest){
+    const {name,completed_items,total_items,rewards}=Player.quest;
+    if(!rewards&&completed_items<=total_items){
+      log('Quest details:' + chalk.yellow(name,'->',completed_items,'/',total_items));
+      let quest = settings.quests.find(q=>q.name==name);
+      _return.claimQuestReward = [Player.quest,quest];
+    }
+  }else _return.claimQuestReward = [];
+  return _return;
+}
 ;(async () => {
   await checkForUpdate();
   try {
@@ -339,7 +280,7 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
 
     while (true) {
       for (let i = 0; i < accounts.length; i++) {
-        process.env['EMAIL'] = accounts[i];
+        process.env['LOGIN'] = accounts[i];
         process.env['PASSWORD'] = passwords[i];
         process.env['ACCOUNT'] = accountusers[i];
 
@@ -350,25 +291,30 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
           log('Opening browser');
           browsers = await createBrowsers(1, headless);
         }
+        log('//debug');
         const page = (await(keepBrowserOpen ? browsers[i] : browsers[0]).pages())[1];
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
+        await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
         await page.goto('https://splinterlands.com/');
-        SM._((await page.evaluateHandle(()=>SM)));
-        log('getting user cards collection from splinterlands API...')
-        const myCards = await getCards()
-          .then((x)=>{log('cards retrieved'); return x})
-          .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
-        await startBotPlayMatch(page, myCards)
-          .then(() => { log('Closing battle'); }) .catch(log)
-        //await page.waitForTimeout(5000);
-        if (keepBrowserOpen) {
-          await page.goto('about:blank');
-        } else {
-          await page.evaluate(function () { SM.Logout(); });
-          //let pages = await browsers[0].pages();
-          //await Promise.all(pages.map(page =>page.close()));
-          //await browsers[0].close();
-          //browsers[0].process().kill('SIGKILL');
+        SM._(page);
+        // Login
+        let username = await page.evaluate('SM?.Player?.name');
+        if (username != process.env.ACCOUNT) {
+          await SM.login(process.env.LOGIN,process.env.PASSWORD,JSON.parse(process.env.LOGIN_VIA_EMAIL));
         }
+        await page.evaluate(()=>SM.ShowBattleHistory());
+        const _pre = await page.evaluate(()=>{return {Player:SM.Player,settings:SM.settings}}).then(preMatch)
+        if(_pre.claimSeasonReward) await page.evaluate(()=>claim());
+        if(_pre.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(..._pre.claimQuestReward)
+        if(_pre.erc){
+          log('getting user cards collection from splinterlands API...')
+          const myCards = await getCards()
+            .then((x)=>{log('cards retrieved'); return x})
+            .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
+          await startBotPlayMatch(page, myCards, {dec:_pre.dec,curRating:_pre.rating})
+            .then(() => { log('Closing battle'); }) .catch(log)
+        }
+        await page.evaluate('SM.Logout()');
       }
 
       log('--------------------------Battle Result Summary:----------------------');
@@ -384,7 +330,6 @@ const sleepingTime = sleepingTimeInMinutes * 60000;
       captureRateAll = [];
       questRewardAll = [];
       finalRateAll = [];
-      log('//debug');
     }
   } catch (e) {
     log('Routine error at: ', new Date().toLocaleString(), e)
