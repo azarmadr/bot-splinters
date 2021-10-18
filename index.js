@@ -117,120 +117,64 @@ async function startBotPlayMatch(page, myCards,{dec,curRating}) {
   var scores = teamScores(battlesList,process.env.ACCOUNT);
   log(process.env.ACCOUNT, ' deck size: '+Object.keys(myCards).length)
 
-  // LAUNCH the battle can get some finess
+  await page.waitForTimeout(10000);
+  const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle('Ranked')
+
+  const teamsToPlay = playableTeams(scores,process.env.ACCOUNT,{mana_cap,ruleset,inactive},myCards);
+  //await page.waitForTimeout(2000);
+
+  //TEAM SELECTION
+  //Can do further analysin on teamsToPlay
+  const [Summoner,...Monsters] = teamsToPlay[0].team;
+  const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
+  log('teamsToPlay.length',teamsToPlay.length);
+  log('Summoner:',cards[Summoner[0]-1].name,'Level:',Summoner[1]);
+  Monsters.forEach(m=>log('Monster:',cards[m[0]-1].name,'Level:',m[1]));
+
+  await page.waitForTimeout(10000);
   try {
-    log('waiting for battle button...')
-    await selectCorrectBattleType(page);
-    await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
-      .then(button => {log('Battle button clicked'); button.click()})
-      .catch(e=>console.error('[ERROR] waiting for Battle button. is Splinterlands in maintenance?'));
-    await page.waitForTimeout(5000);
-
-    try {
-      log('waiting for an opponent...')
-      await page.waitForSelector('.btn--create-team', { timeout: 25000 })
-        .then(() => log('start the match'))
-        .catch(async(e) => {
-          writeErrorToLog('[Error while waiting for battle]');
-          log('Clicking fight menu button again');
-          await page.evaluate(()=>SM.ShowBattleHistory());
-          log('Clicking battle button again');
-          await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 3000 })
-            .then(button => {
-              log('Battle button clicked');
-              button.click()
-            })
-            .catch(e => writeErrorToLog('[ERROR] waiting for Battle button. is Splinterlands in maintenance?'));
-          writeErrorToLog('Refreshing the page and retrying to retrieve a battle');
-          await page.waitForTimeout(5000);
-          await page.reload();
-          await page.waitForTimeout(5000);
-          await page.waitForSelector('.btn--create-team', { timeout: 50000 })
-            .then(() => log('start the match'))
-            .catch(async() => {
-              log('second attempt failed reloading from homepage...');
-              await page.goto('https://splinterlands.com/');
-              await page.waitForTimeout(5000);
-              await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
-                .then(button => button.click())
-                .catch(e => writeErrorToLog('[ERROR] waiting for Battle button second time'));
-              await page.waitForTimeout(5000);
-              await page.waitForSelector('.btn--create-team', { timeout: 25000 })
-                .then(() => log('start the match'))
-                .catch((e) => {
-                  log('third attempt failed');
-                  throw new Error(e);
-                })
-            })
-        })
-    } catch (e) {
-      writeErrorToLog('[Battle cannot start]:', e)
-      throw new Error('The Battle cannot start');
-    }
-    await page.waitForTimeout(10000);
-    const {mana_cap, ruleset, inactive, opponent_player,} = await page.evaluate(()=>SM._currentBattle)
-
-    const teamsToPlay = playableTeams(scores,process.env.ACCOUNT,{mana_cap,ruleset,inactive},myCards);
-    //await page.waitForTimeout(2000);
-
-    //TEAM SELECTION
-    //Can do further analysin on teamsToPlay
-    const [Summoner,...Monsters] = teamsToPlay[0].team;
-    const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
-    log('teamsToPlay.length',teamsToPlay.length);
-    log('Summoner:',cards[Summoner[0]-1].name,'Level:',Summoner[1]);
-    Monsters.forEach(m=>log('Monster:',cards[m[0]-1].name,'Level:',m[1]));
-
-    if (Summoner) {
-      page.click('.btn--create-team')[0];
-    } else {
-      throw new Error('Team Selection error');
+    await page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`, { timeout: 10000 }).then(summonerButton => summonerButton.click());
+    if (cardColor(Summoner) === 'Gold') {
+      log('Dragon play TEAMCOLOR', teamActualSplinterToPlay(Monsters))
+      await page.waitForXPath(`//div[@data-original-title="${teamActualSplinterToPlay(Monsters)}"]`, { timeout: 10000 }).then(selector => selector.click())
     }
     await page.waitForTimeout(5000);
-    try {
-      await page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`, { timeout: 10000 }).then(summonerButton => summonerButton.click());
-      if (cardColor(Summoner) === 'Gold') {
-        log('Dragon play TEAMCOLOR', teamActualSplinterToPlay(Monsters))
-        await page.waitForXPath(`//div[@data-original-title="${teamActualSplinterToPlay(Monsters)}"]`, { timeout: 10000 }).then(selector => selector.click())
-      }
-      await page.waitForTimeout(5000);
-      for(const m of Monsters.values()){
-        log('play: ', m[0])
-        await page.waitForXPath(`//div[@card_detail_id="${m[0].toString()}"]`, { timeout: 10000 }).then(selector => selector.click());
-        await page.waitForTimeout(1000);
-      }
-      await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
-      try {
-        await page.click('.btn-green')[0]; //start fight
-      } catch {
-        log('Start Fight didnt work, waiting 5 sec and retry');
-        await page.waitForTimeout(5000);
-        await page.click('.btn-green')[0]; //start fight
-      }
-      log('Team submitted, Waiting for opponent');
-      await page.waitForTimeout(5000);
-      await page.waitForSelector('#btnRumble', { timeout: 160000 }).then(() => log('btnRumble visible')).catch(() => log('btnRumble not visible'));
-      await page.waitForTimeout(5000);
-      await page.$eval('#btnRumble', elem => elem.click()).then(()=>log('btnRumble clicked')).catch(()=>log('btnRumble didnt click')); //start rumble
-      await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
-      await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
-
-      await getBattles(opponent_player);
-      await page.evaluate('SM.Player').then(Player=>{
-        const won = Player.rating-curRating;
-        if(won>0){
-          var decWon = Player.balances[0].balance-dec;
-          resultAll.push(process.env.ACCOUNT + chalk.green(' You won! Reward: ' + decWon + ' DEC'));
-        } else if(won<0) resultAll.push(process.env.ACCOUNT + chalk.red(' You lost :('));
-        else resultAll.push(process.env.ACCOUNT + chalk.red(' Draw!! :('));
-
-        log('Updated Rating after battle is ' + chalk.yellow(Player.rating));
-        finalRateAll.push(process.env.ACCOUNT + (' New rating is ' + chalk.yellow(Player.rating)));
-      })
-    } catch (e) {
-      throw new Error(e);
+    for(const m of Monsters.values()){
+      log('play: ', m[0])
+      await page.waitForXPath(`//div[@card_detail_id="${m[0].toString()}"]`, { timeout: 10000 }).then(selector => selector.click());
+      await page.waitForTimeout(1000);
     }
+    await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
+    try {
+      await page.click('.btn-green')[0]; //start fight
+    } catch {
+      log('Start Fight didnt work, waiting 5 sec and retry');
+      await page.waitForTimeout(5000);
+      await page.click('.btn-green')[0]; //start fight
+    }
+    log('Team submitted, Waiting for opponent');
+    await page.waitForTimeout(5000);
+    await page.waitForSelector('#btnRumble', { timeout: 160000 }).then(() => log('btnRumble visible')).catch(() => log('btnRumble not visible'));
+    await page.waitForTimeout(5000);
+    await page.$eval('#btnRumble', elem => elem.click()).then(()=>log('btnRumble clicked')).catch(()=>log('btnRumble didnt click')); //start rumble
+    await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
+    await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
+
+    await getBattles(opponent_player);
+    await page.evaluate('SM.Player').then(Player=>{
+      const won = Player.rating-curRating;
+      if(won>0){
+        var decWon = Player.balances.find(t=>t.token=='DEC')?.balance-dec;
+        resultAll.push(process.env.ACCOUNT + chalk.green(' You won! Reward: ' + decWon + ' DEC'));
+      } else if(won<0) resultAll.push(process.env.ACCOUNT + chalk.red(' You lost :('));
+      else resultAll.push(process.env.ACCOUNT + chalk.red(' Draw!! :('));
+
+      log('Updated Rating after battle is ' + chalk.yellow(Player.rating));
+      finalRateAll.push(process.env.ACCOUNT + (' New rating is ' + chalk.yellow(Player.rating)));
+    })
   } catch (e) {
+    log('failed to submit team, so waiting for user to input manually and close the session')
+    await sleep(123456);
     throw new Error(e);
   }
 }
@@ -243,24 +187,22 @@ const preMatch=(__sm)=>{
   const _return = {};
   const ercThreshold = process.env.ERC_THRESHOLD;
   const Player = __sm.Player,settings = __sm.settings;
-  _return.dec = Player.balances[0].balance
+  _return.dec = Player.balances.find(t=>t.token=='DEC')?.balance
   const erc = Math.floor(Math.min((isNaN(parseInt(Player.capture_rate)) ? 1e4 : Player.capture_rate) + (Date.now() - new Date(Player.last_reward_time)) / 3e3 * settings.dec.ecr_regen_rate, 1e4)/100)
   log('Current Energy Capture Rate is ' + (erc>ercThreshold?chalk.green(erc + "%"):chalk.red(erc + "%")));
   captureRateAll.push(process.env.ACCOUNT + (erc>ercThreshold?chalk.green("ERC:" + erc + "%"):chalk.red("ERC:" + erc + "%")))
   _return.erc = erc>ercThreshold;
-  _return.rating = Player.rating;
+  _return.curRating = Player.rating;
   log('Current Rating is ' + chalk.yellow(Player.rating));
   _return.claimSeasonReward = process.env.CLAIM_SEASON_REWARD === 'true'&&Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
 
   //if quest done claim reward
-  if (claimQuestReward&&Player.quest){
+  _return.claimQuestReward = [];
+  if (Player.quest&&!Player.quest.claim_trx_id){
     const {name,completed_items,total_items,rewards}=Player.quest;
-    if(!rewards&&completed_items<=total_items){
-      log('Quest details:' + chalk.yellow(name,'->',completed_items,'/',total_items));
-      let quest = settings.quests.find(q=>q.name==name);
-      _return.claimQuestReward = [Player.quest,quest];
-    }
-  }else _return.claimQuestReward = [];
+    if(completed_items<=total_items)log('Quest details:'+chalk.yellow(name,'->',completed_items,'/',total_items));
+    (claimQuestReward&&completed_items>=total_items)&&_return.claimQuestReward.push(Player.quest,settings.quests.find(q=>q.name==name));
+  }
   return _return;
 }
 ;(async () => {
@@ -311,7 +253,7 @@ const preMatch=(__sm)=>{
           const myCards = await getCards()
             .then((x)=>{log('cards retrieved'); return x})
             .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
-          await startBotPlayMatch(page, myCards, {dec:_pre.dec,curRating:_pre.rating})
+          await startBotPlayMatch(page, myCards, _pre)
             .then(() => { log('Closing battle'); }) .catch(log)
         }
         await page.evaluate('SM.Logout()');
