@@ -4,16 +4,28 @@ const { cards, chunk2, addName} = require('./helper');
 const bC = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id)
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
-function sortByProperty(s){
-  if(s){
-    return function(a,b){
-      return (a.w*b.count<a.count*b.w) ? 1 :(a.w*b.count>a.count*b.w) ? -1 : 0;
-    }
-  } else {
-    return function(a,b){
-      return a.score < b.score ? 1 : a.score > b.score ? -1 : 0;
-    }
+function sortByQuest({type,value,color}){
+  switch(type){
+    case 'splinter':
+      log(`playing for ${value} ${type} quest`);
+      return (a,b)=>(cards[b.team[0][0]-1].color===color)-(cards[a.team[0][0]-1].color===color);
+      break;
+    case 'no_neutral':
+      log(`playing for ${type} quest`);
+      return (a,b)=>(a.team.slice(1).every(c=>cards[c[0]-1].color!='Gray'))
+        -(b.team.slice(1).every(c=>cards[c[0]-1].color!='Gray'))
+      break;
+    case 'ability':
+      log(`playing for ${value} ${type} quest`);
+      return (a,b)=>(a.team.every(c=>!(cards[c[0]-1].stats.abilities?.slice(0,c[1])+'').includes(value)))
+        -(b.team.every(c=>!(cards[c[0]-1].stats.abilities?.slice(0,c[1])+'').includes(value)))
+      break;
+    default: (a,b)=>0;
   }
+}
+function sortByProperty(s){
+  if(s) return (a,b)=>(a.w*b.count<a.count*b.w) ? 1 :(a.w*b.count>a.count*b.w) ? -1 : 0;
+  else return (a,b)=>a.score < b.score ? 1 : a.score > b.score ? -1 : 0;
 }
 function filterOutByMana(toggle){
   const filterOut = (battle) => {
@@ -59,7 +71,7 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
   return scores
 }
 
-const playableTeams = (scores,player,{mana_cap,ruleset,inactive},myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
+const playableTeams = (scores,player,{mana_cap,ruleset,inactive,quest},myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
   //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
   //ruleset matching could be improved
   const filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
@@ -69,10 +81,10 @@ const playableTeams = (scores,player,{mana_cap,ruleset,inactive},myCards=require
   )
     .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
   filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
-  filteredTeams.sort(sortByProperty(sortByWinRate))
+  filteredTeams.sort(sortByProperty(sortByWinRate)).splice(1+filteredTeams.length/3)
+  if(quest)filteredTeams.sort(sortByQuest(quest));
   writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
   return filteredTeams;
 }
 
 module.exports = {teamScores,playableTeams,scoreMap2Obj};
-//log(playableTeams(score(require('./data/battle_data.json'),'azarmadr'),'azarmadr',30,'Standard')[0])

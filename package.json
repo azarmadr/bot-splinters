@@ -22,10 +22,11 @@
   "dependencies": {
     "array-keyed-map": "^2.1.2",
     "async-get-json": "^4.0.0",
+    "chalk": "^4.1.2",
     "dotenv": "^10.0.0",
     "jsonfile": "^6.1.0",
     "puppeteer": "^10.2.0",
-    "chalk": "^4.1.2"
+    "table": "^6.7.2"
   },
   "devDependencies": {
     "asciichart": "^1.5.25"
