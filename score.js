@@ -81,7 +81,7 @@ const playableTeams = (scores,player,{mana_cap,ruleset,inactive,quest},myCards=r
   )
     .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
   filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
-  filteredTeams.sort(sortByProperty(sortByWinRate)).splice(1+filteredTeams.length/3)
+  filteredTeams.sort(sortByProperty(sortByWinRate)).splice(1+filteredTeams.length/27)
   if(quest)filteredTeams.sort(sortByQuest(quest));
   writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
   return filteredTeams;
