@@ -5,9 +5,9 @@ async function __(p=page){return p.evaluate(()=>SM);}
 async function login(acc,pwd){
   log(`Logging ${acc}`)
   if(acc.indexOf('@')>0)
-    await page.evaluate(([mail,pwd])=>
-      new Promise((res,rej)=>SM.EmailLogin(mail,pwd).then(r=>(r&&r.success)?res(r):rej(r))),
-      [mail,pwd]
+    await page.evaluate(([acc,pwd])=>
+      new Promise((res,rej)=>SM.EmailLogin(acc,pwd).then(r=>(r&&r.success)?res(r):rej(r))),
+      [acc,pwd]
     );
   else{
     await page.evaluate(([acc,pwd])=>
