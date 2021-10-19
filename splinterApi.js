@@ -3,7 +3,7 @@ var page;
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 async function __(p=page){return p.evaluate(()=>SM);}
 async function login(acc,pwd){
-  log(`Logging ${acc+(is_mail?' via mail':'')}`)
+  log(`Logging ${acc}`)
   if(acc.indexOf('@')>0)
     await page.evaluate(([mail,pwd])=>
       new Promise((res,rej)=>SM.EmailLogin(mail,pwd).then(r=>(r&&r.success)?res(r):rej(r))),
