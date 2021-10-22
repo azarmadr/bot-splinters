@@ -120,9 +120,9 @@ async function startBotPlayMatch(page, myCards,user) {
       user.decWon = null;
       if(user.won>0){
         log(chalk.green('Won!!!'));
-        user.decWon = Player.balances.find(t=>t.token=='DEC')?.balance-user.dec;
-        user.dec+=user.decWon;
-      }
+        user.decWon = (Player.balances.find(t=>t.token=='DEC')?.balance-user.dec).toFixed(3);
+        user.w++
+      }else user.won<0?user.l++:user.d++;
       log('Updated Rating after battle is ' + chalk.yellow(Player.rating));
       user.rating=Player.rating;
     })
@@ -172,7 +172,8 @@ const preMatch=(__sm)=>{
     let users = process.env.ACCOUNT.split(',').map((account,i)=>{return {
       account,
       password:process.env.PASSWORD.split(',')[i],
-      login:process.env?.EMAIL?.split(',')[i]
+      login:process.env?.EMAIL?.split(',')[i],
+      w:0,l:0,d:0,
     }})
     log('Opening a browser');
     let browser = await createBrowser(headless);
@@ -210,7 +211,7 @@ const preMatch=(__sm)=>{
         await page.evaluate('SM.Logout()');
       }
 
-      console.log(table([['account','dec','erc','rating','won','decWon'],...users.map(u=>['account','dec','erc','rating','won','decWon'].map(t=>u[t]))]));
+      console.log(table([['account','dec','erc','rating','won','decWon','w','l','d'],...users.map(u=>['account','dec','erc','rating','won','decWon','w','l','d'].map(t=>u[t]))]));
       log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
       log('--------------------------End of Battle--------------------------------');
       //if(!keepBrowserOpen)browser.close();
