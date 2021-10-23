@@ -29,6 +29,7 @@
     "table": "^6.7.2"
   },
   "devDependencies": {
-    "asciichart": "^1.5.25"
+    "asciichart": "^1.5.25",
+    "glicko2": "^0.8.6"
   }
 }
