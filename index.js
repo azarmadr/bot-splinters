@@ -6,7 +6,7 @@ const {table} = require('table');
 
 const user = require('./user');
 const SM = require('./splinterApi');
-const {teamScores,playableTeams} = require('./score');
+const {playableTeams} = require('./score');
 const {
   cards, cardColor, teamActualSplinterToPlay, checkVer, getElementText, getElementTextByXpath,
   clickOnElement, sleep,
@@ -68,14 +68,13 @@ async function createBrowser(headless) {
 }
 
 async function startBotPlayMatch(page, myCards,user) {
-  var battlesList = await getBattles();
-  var scores = teamScores(battlesList,process.env.ACCOUNT);
   log(process.env.ACCOUNT, ' deck size: '+Object.keys(myCards).length)
 
   await page.waitForTimeout(10000);
   const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle('Ranked')
 
-  const teamsToPlay = playableTeams(scores,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards);
+  var battlesList = await getBattles(opponent_player).catch(log);
+  const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards);
 
   //TEAM SELECTION
   //Can do further analysin on teamsToPlay
@@ -114,7 +113,6 @@ async function startBotPlayMatch(page, myCards,user) {
     await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
     await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
 
-    await getBattles(opponent_player);
     await page.evaluate('SM.Player').then(Player=>{
       user.won = Player.rating-user.rating;
       user.decWon = null;

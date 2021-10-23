@@ -4,24 +4,24 @@ const { cards, chunk2, addName} = require('./helper');
 const bC = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id)
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
-function sortByQuest({type,value,color}){
+const priorByQuest=(teams,{type,value,color})=>{
+  var team;
   switch(type){
     case 'splinter':
       log(`playing for ${value} ${type} quest`);
-      return (a,b)=>(cards[b.team[0][0]-1].color===color)-(cards[a.team[0][0]-1].color===color);
+      team=teams.find(t=>cards[t.team[0][0]-1].color===color);
       break;
     case 'no_neutral':
       log(`playing for ${type} quest`);
-      return (a,b)=>(a.team.slice(1).every(c=>cards[c[0]-1].color!='Gray'))
-        -(b.team.slice(1).every(c=>cards[c[0]-1].color!='Gray'))
+      team = teams.find(t=>t.team.slice(1).every(c=>cards[c[0]-1].color!='Gray'))
       break;
     case 'ability':
       log(`playing for ${value} ${type} quest`);
-      return (a,b)=>(a.team.every(c=>!(cards[c[0]-1].stats.abilities?.slice(0,c[1])+'').includes(value)))
-        -(b.team.every(c=>!(cards[c[0]-1].stats.abilities?.slice(0,c[1])+'').includes(value)))
+      team=teams.find(t=>!(t.team.every(c=>!(cards[c[0]-1].stats.abilities?.slice(0,c[1])+'').includes(value))))
       break;
-    default: (a,b)=>0;
+    default: team = null;
   }
+  if(team)teams.unshift(team);
 }
 function sortByProperty(s){
   if(s) return (a,b)=>(a.w*b.count<a.count*b.w) ? 1 :(a.w*b.count>a.count*b.w) ? -1 : 0;
@@ -71,18 +71,18 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
   return scores
 }
 
-const playableTeams = (scores,player,{mana_cap,ruleset,inactive,quest},myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
+const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
+  const scores = teamScores(battles.filter(b=>b.mana==mana_cap&&b.rule==ruleset));
   //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
   //ruleset matching could be improved
   const filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
-    m==mana_cap                             && r==ruleset                              &&
-    t.length>2                              && s.count<2*s.w                           &&
-    chunk2(t).every(c=>myCards[c[0]]>=c[1]) && inactive.indexOf(cards[t[0]-1].color)<0
+    t.length>2    && inactive.indexOf(cards[t[0]-1].color)<0 &&
+    s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1])
   )
     .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
   filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(1+filteredTeams.length/27)
-  if(quest)filteredTeams.sort(sortByQuest(quest));
+  if(quest)priorByQuest(filteredTeams,quest);
   writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
   return filteredTeams;
 }
