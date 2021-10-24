@@ -1,4 +1,5 @@
 const cards = require("./data/cards.json");
+const chalk = require('chalk');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 // Teams and Cards
@@ -79,8 +80,10 @@ async function getElementTextByXpath(page, selector, timeout=20000) {
 }
 //const teamIdsArray = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(teamIdsArray)); console.log(cardColor({"id":224,"level":1,"name":"Drake of Arnak"}))
 
-module.exports = {
-  cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
-  teamWithNames, arrEquals,    cards,   chunk,     chunk2,    arrCmp, checkVer,
-  getElementText, getElementTextByXpath, clickOnElement, sleep,
-};
+module.exports
+module.exports=function(x){return {
+  teamActualSplinterToPlay, clickOnElement, cardColor, cards, addName, cleanCard, cleanTeam,
+  teamWithNames,            playableTeam,   arrEquals, chunk, chunk2,  arrCmp,    checkVer,
+  getElementTextByXpath,    getElementText, sleep,
+  log: function(...m){console.log(chalk.gray(x),...m)}
+}};

@@ -1,13 +1,25 @@
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
-const old_battles = require('./data/battle_data.json');
-//*
-const new_battles=old_battles.filter(({teams})=>teams.length>1).map(bt=>bt={id:bt.battle_id,date:bt.created_date,mana:bt.mana_cap,rule:bt.ruleset,teams:bt.teams})
-log(new_battles[0].teams)
-new_battles.forEach(({teams})=>teams.forEach((t,i)=>
-  teams[i]=[t.verdict,Object.values(t.summoner),...t.monsters.map(m=>Object.values(m))]
-))
-const [v,s,...mon]=new_battles[0].teams[0];
-log(new_battles[0].teams)
-log(s);log(mon,'v',v)
-// unComment the following to permanently modify your battle_data or try with different name checkout the file and make it permanent
-//require('jsonfile').writeFile(`data/battle_data.json`,new_battles).catch(log);
+const AKMap = require('array-keyed-map');
+const {log} = require('./helper')(__filename.split(/[\\/]/).pop());
+const oldBattles                 = require('./data/battle_data.json');
+const newB = new AKMap();
+oldBattles.forEach(b=>newB.set([b.rule,b.mana,...b.teams.sort().flat(2).slice(1)],null))
+//log(newB.entries().next())
+//log(newA.size)
+const newA = new AKMap();
+[...newB.keys()].forEach(([r,m,...k])=>{
+  const result = k.find(a=>typeof a =='string');
+  const idx = k.indexOf(result);
+  const key = [r,m,result,...k.slice(0,idx)];
+  if(newA.has(key))newA.get(key).push(k.slice(idx+1));
+  else newA.set(key,[k.slice(idx+1)])
+})
+const new_battles = {};
+for(const[[rule,mana,result,...key],t] of newA.entries()){
+  if(!(rule in new_battles))new_battles[rule]={};
+  if(!(mana in new_battles[rule]))new_battles[rule][mana]={w:[],d:[]};
+  new_battles[rule][mana][result].push([key,t]);
+}
+//uncomment the following line and save your file with correct name
+//require('jsonfile').writeFile(`data/battle_data_n.json`,new_battles).catch(log);
+/*
+*/

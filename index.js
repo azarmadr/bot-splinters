@@ -176,6 +176,7 @@ const preMatch=(__sm)=>{
     }})
     log('Opening a browser');
     let browser = await createBrowser(headless);
+    let page = (await browser.pages())[1];
 
     while (true) {
       await checkForUpdate();
@@ -184,9 +185,11 @@ const preMatch=(__sm)=>{
         process.env['PASSWORD'] = user.password
         process.env['ACCOUNT'] = user.account
 
-        if(!browser) browser = await createBrowser(headless);
-        const page = (await browser.pages())[1];
         log('//debug');
+        if((await browser.process().killed)){
+          browser = await createBrowser(headless);
+          page = (await browser.pages())[1];
+        }
         await page.goto('https://splinterlands.com/');
         SM._(page);
         // Login
@@ -213,7 +216,7 @@ const preMatch=(__sm)=>{
         ...users.map(u=>['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'].map(t=>u[t]))]));
       log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
       log('--------------------------End of Battle--------------------------------');
-      //if(!keepBrowserOpen)browser.close();
+      if(!keepBrowserOpen)browser.close();
       await sleep(sleepingTime);
     }
   } catch (e) {
