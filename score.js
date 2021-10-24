@@ -72,14 +72,18 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
 }
 
 const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
-  const scores = teamScores(battles.filter(b=>b.mana==mana_cap&&b.rule==ruleset));
   //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
   //ruleset matching could be improved
-  const filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
-    t.length>2    && inactive.indexOf(cards[t[0]-1].color)<0 &&
-    s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1])
-  )
-    .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
+  let mana=mana_cap;
+  do{
+    const scores = teamScores(battles.filter(b=>b.mana==mana&&b.rule==ruleset));
+    var filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
+      t.length>2    && chunk2(t).every(c=>inactive.indexOf(cards[c[0]-1].color)<0) &&
+      s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1])
+    )
+      .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
+    mana--;
+  }while(filteredTeams.length<1&&(mana>12))
   filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(1+filteredTeams.length/27)
   if(quest)priorByQuest(filteredTeams,quest);
