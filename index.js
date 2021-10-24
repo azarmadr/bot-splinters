@@ -71,10 +71,10 @@ async function startBotPlayMatch(page, myCards,user) {
   log(process.env.ACCOUNT, ' deck size: '+Object.keys(myCards).length)
 
   await page.waitForTimeout(10000);
-  const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle('Ranked')
+  const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle(user.isRanked?'Ranked':'Practice')
 
   var battlesList = await getBattles(opponent_player).catch(log);
-  const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards);
+  const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards,{sortByWinRate:!user.isRanked});
 
   //TEAM SELECTION
   //Can do further analysin on teamsToPlay
@@ -83,13 +83,14 @@ async function startBotPlayMatch(page, myCards,user) {
   log('teamsToPlay.length',teamsToPlay.length);
   log('Summoner:',cards[Summoner[0]-1].name,'Level:',Summoner[1]);
   Monsters.forEach(m=>log('Monster:',cards[m[0]-1].name,'Level:',m[1]));
+  log('Stats:',['score','count','w','l','d'].map(s=>s+':'+teamsToPlay[0][s]).join())
 
   await page.waitForTimeout(10000);
   try {
     await page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`, { timeout: 10000 }).then(summonerButton => summonerButton.click());
     if (cardColor(Summoner) === 'Gold') {
-      log('Dragon play TEAMCOLOR', teamActualSplinterToPlay(Monsters))
-      await page.waitForXPath(`//div[@data-original-title="${teamActualSplinterToPlay(Monsters)}"]`, { timeout: 10000 }).then(selector => selector.click())
+      log('Dragon play TEAMCOLOR', teamActualSplinterToPlay(Monsters,inactive))
+      await page.waitForXPath(`//div[@data-original-title="${teamActualSplinterToPlay(Monsters,inactive)}"]`, { timeout: 10000 }).then(selector => selector.click())
     }
     await page.waitForTimeout(5000);
     for(const m of Monsters.values()){
@@ -97,7 +98,7 @@ async function startBotPlayMatch(page, myCards,user) {
       await page.waitForXPath(`//div[@card_detail_id="${m[0].toString()}"]`, { timeout: 10000 }).then(selector => selector.click());
       await page.waitForTimeout(1000);
     }
-    await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
+    if(user.isRanked)await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
     try {
       await page.click('.btn-green')[0]; //start fight
     } catch {
@@ -110,21 +111,21 @@ async function startBotPlayMatch(page, myCards,user) {
     await page.waitForSelector('#btnRumble', { timeout: 160000 }).then(() => log('btnRumble visible')).catch(() => log('btnRumble not visible'));
     await page.waitForTimeout(5000);
     await page.$eval('#btnRumble', elem => elem.click()).then(()=>log('btnRumble clicked')).catch(()=>log('btnRumble didnt click')); //start rumble
-    await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
-    await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
-
-    await page.evaluate('SM.Player').then(Player=>{
-      user.won = Player.rating-user.rating;
+    await page.evaluate('SM.CurrentView.data').then(battle=>{
+      user.won = battle.winner==user.account?1:battle.winner=='DRAW'?0:-1;
       user.decWon = null;
       if(user.won>0){
         log(chalk.green('Won!!!'));
-        user.decWon = (Player.balances.find(t=>t.token=='DEC')?.balance-user.dec).toFixed(3);
-        user.w++
-      }else user.won<0?user.l++:user.d++;
-      log('Updated Rating after battle is ' + chalk.yellow(Player.rating));
-      user.rating=Player.rating;
+        user.decWon = battle.reward_dec;
+        user.isRanked?user.w++:user.w_p++;
+      }else user.won<0?user.isRanked?user.l++:user.l_p++:user.isRanked?user.d++:user.d_p++;
+      //log('Updated Rating after battle is ' + chalk.yellow(Player.rating)); user.rating=Player.rating;
     })
+    await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
+    await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
+
   } catch (e) {
+    log(e)
     log('failed to submit team, so waiting for user to input manually and close the session')
     await sleep(123456);
     throw new Error(e);
@@ -171,7 +172,7 @@ const preMatch=(__sm)=>{
       account,
       password:process.env.PASSWORD.split(',')[i],
       login:process.env?.EMAIL?.split(',')[i],
-      w:0,l:0,d:0,
+      w:0,l:0,d:0,w_p:0,l_p:0,d_p:0,
     }})
     log('Opening a browser');
     let browser = await createBrowser(headless);
@@ -198,18 +199,18 @@ const preMatch=(__sm)=>{
           if(user.claimSeasonReward)                         await page.evaluate(()=>claim());
           if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
         }
-        if(user.erc>process.env.ERC_THRESHOLD){
-          log('getting user cards collection from splinterlands API...')
-          const myCards = await getCards()
-            .then((x)=>{log('cards retrieved'); return x})
-            .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
-          await startBotPlayMatch(page, myCards, user)
-            .then(() => { log('Closing battle'); }) .catch(log)
-        }
+        user.isRanked = user.erc>process.env.ERC_THRESHOLD
+        log('getting user cards collection from splinterlands API...')
+        const myCards = await getCards()
+          .then((x)=>{log('cards retrieved'); return x})
+          .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
+        await startBotPlayMatch(page, myCards, user)
+          .then(() => { log('Closing battle'); }) .catch(log)
         await page.evaluate('SM.Logout()');
       }
 
-      console.log(table([['account','dec','erc','rating','won','decWon','w','l','d'],...users.map(u=>['account','dec','erc','rating','won','decWon','w','l','d'].map(t=>u[t]))]));
+      console.log(table([['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'],
+        ...users.map(u=>['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'].map(t=>u[t]))]));
       log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
       log('--------------------------End of Battle--------------------------------');
       //if(!keepBrowserOpen)browser.close();
