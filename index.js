@@ -78,9 +78,9 @@ async function startBotPlayMatch(page, myCards,user) {
 
   //TEAM SELECTION
   //Can do further analysin on teamsToPlay
+  log('teamsToPlay.length',teamsToPlay.length);
   const [Summoner,...Monsters] = teamsToPlay[0].team;
   const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
-  log('teamsToPlay.length',teamsToPlay.length);
   log('Summoner:',cards[Summoner[0]-1].name,'Level:',Summoner[1]);
   Monsters.forEach(m=>log('Monster:',cards[m[0]-1].name,'Level:',m[1]));
   log('Stats:',['score','count','w','l','d'].map(s=>s+':'+teamsToPlay[0][s]).join())
