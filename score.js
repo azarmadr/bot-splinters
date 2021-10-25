@@ -35,7 +35,7 @@ function filterOutByMana(toggle){
   const filterOut = (battle) => {
     if(battle.mana == 99) return true;
     const losing_team = battle.teams.find(t=>t[t.length-1]=='l')||[];
-    return battle.mana*.9 > losing_team.reduce((s,c)=>s+cards[c[0]-1].stats.mana,0)
+    return battle.mana*.9 < losing_team.reduce((s,c)=>s+cards[c[0]-1].stats.mana,0)
   }
   return toggle?filterOut:()=>true;
 }
