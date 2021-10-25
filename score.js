@@ -24,8 +24,12 @@ const priorByQuest=(teams,{type,value,color})=>{
   if(team)teams.unshift(team);
 }
 function sortByProperty(s){
-  if(s) return (a,b)=>(a.w*b.count<a.count*b.w) ? 1 :(a.w*b.count>a.count*b.w) ? -1 : 0;
-  else return (a,b)=>a.score < b.score ? 1 : a.score > b.score ? -1 : 0;
+  if(s) return (a,b)=>{
+    const _byCount = b.w*a.count-a.w*b.count;
+    if(_byCount==0)return b.score-a.score;
+    return _byCount;
+  }
+  else return (a,b)=>b.score-a.score
 }
 function filterOutByMana(toggle){
   const filterOut = (battle) => {
@@ -45,7 +49,8 @@ async function scoreMap2Obj(scores,fn=''){
   }
   writeFile(`data/scores${fn}.json`, scoreObj).catch(log);
 }
-const scoreXer=t=>t.reduce((s,[i,l])=>(bC.includes(i)?1:(8**cards[i-1].rarity))*(cards[i-1].stats.mana?.[l-1]||cards[i-1].stats.mana||1)+s,0)
+const scoreXer=t=>t.reduce((s,[i,l])=>
+  (bC.includes(i)?1:(8**cards[i-1].rarity))*([cards[i-1].stats.mana].flat().pop()||1)+s,0)
 const _toPrecision3=x=>Number(x.toFixed(3));
 const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterLessMana=1,StandardOnly,filterOutLowWR}={},fn) => {
   const scores = new AKMap();

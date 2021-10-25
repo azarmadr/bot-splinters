@@ -123,7 +123,7 @@ async function startBotPlayMatch(page, myCards,user) {
     })
     await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
     await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
-
+  if(!user.isRanked)battlesList = await getBattles().catch(log);
   } catch (e) {
     log(e)
     log('failed to submit team, so waiting for user to input manually and close the session')
@@ -176,6 +176,7 @@ const preMatch=(__sm)=>{
     }})
     log('Opening a browser');
     let browser = await createBrowser(headless);
+    let page = (await browser.pages())[1];
 
     while (true) {
       await checkForUpdate();
@@ -184,8 +185,10 @@ const preMatch=(__sm)=>{
         process.env['PASSWORD'] = user.password
         process.env['ACCOUNT'] = user.account
 
-        if(!browser) browser = await createBrowser(headless);
-        const page = (await browser.pages())[1];
+        if((await browser.process().killed)){
+          browser = await createBrowser(headless);
+          page = (await browser.pages())[1];
+        }
         log('//debug');
         await page.goto('https://splinterlands.com/');
         SM._(page);
