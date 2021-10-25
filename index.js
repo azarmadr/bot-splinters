@@ -6,13 +6,11 @@ const {table} = require('table');
 
 const user = require('./user');
 const SM = require('./splinterApi');
+const { cards, cardColor, teamActualSplinterToPlay, checkVer, sleep, log, } = require('./helper')(__filename.split(/[\\/]/).pop());
 const {playableTeams} = require('./score');
-const {
-  cards, cardColor, teamActualSplinterToPlay, checkVer, getElementText, getElementTextByXpath,
-  clickOnElement, sleep,
-} = require('./helper');
 const battles = require('./battles-data');
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+
+let battlesList = new battles.BattleData(require('jsonfile').readFileSync('./data/battle_data_n.json'));
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
@@ -48,10 +46,6 @@ async function getCards(player=process.env.ACCOUNT.split('@')[0]) {
   return user.getPlayerCards(player).then(x=>x)
 }
 
-async function getBattles(player=process.env.ACCOUNT) {
-  return battles.battlesList(player).then(x=>x)
-}
-
 async function createBrowser(headless) {
   const browser = await puppeteer.launch({
     headless,
@@ -73,7 +67,7 @@ async function startBotPlayMatch(page, myCards,user) {
   await page.waitForTimeout(10000);
   const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle(user.isRanked?'Ranked':'Practice')
 
-  var battlesList = await getBattles(opponent_player).catch(log);
+  await battles.getBattleHistory(opponent_player,battlesList).catch(log);;
   const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards,{sortByWinRate:!user.isRanked});
 
   //TEAM SELECTION
@@ -123,7 +117,7 @@ async function startBotPlayMatch(page, myCards,user) {
     })
     await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
     await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
-
+  if(!user.isRanked)await battles.getBattleHistory(user.account,battlesList).catch(log);
   } catch (e) {
     log(e)
     log('failed to submit team, so waiting for user to input manually and close the session')
@@ -185,11 +179,11 @@ const preMatch=(__sm)=>{
         process.env['PASSWORD'] = user.password
         process.env['ACCOUNT'] = user.account
 
-        log('//debug');
         if((await browser.process().killed)){
           browser = await createBrowser(headless);
           page = (await browser.pages())[1];
         }
+        log('//debug');
         await page.goto('https://splinterlands.com/');
         SM._(page);
         // Login
@@ -211,6 +205,8 @@ const preMatch=(__sm)=>{
           .then(() => { log('Closing battle'); }) .catch(log)
         await page.evaluate('SM.Logout()');
       }
+      log('saving Battles List to default file')
+      battlesList.save();
 
       console.log(table([['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'],
         ...users.map(u=>['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'].map(t=>u[t]))]));
