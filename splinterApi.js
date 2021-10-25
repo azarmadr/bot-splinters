@@ -32,7 +32,7 @@ async function battle(type='Ranked'){
     type
   )
   const cb = await page.evaluate(()=>
-    new Promise(async(res)=>{
+    new Promise(async(res,rej)=>{
       while(SM.in_battle){ if(SM._currentBattle)break; await sleep(1729); }
       if(SM.in_battle)res(SM._currentBattle);
       else rej(null);
