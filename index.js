@@ -216,9 +216,10 @@ const preMatch=(__sm)=>{
         ...users.map(u=>['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'].map(t=>u[t]))]));
       log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
       log('--------------------------End of Battle--------------------------------');
-      //if(!keepBrowserOpen)browser.close();
+      if(!keepBrowserOpen)browser.close();
       await sleep(sleepingTime);
     }
   } catch (e) {
     log('Routine error at: ', new Date().toLocaleString(), e)
+    throw new Error(e);
   } })()
