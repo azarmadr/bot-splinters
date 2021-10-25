@@ -28,7 +28,7 @@ const genBattleList=(battles)=>battles.map(
         return t.winner==p?'w':'l';
       }});
       [team1,team2].forEach(({player},i)=>teams[i].unshift(won[player]));
-      return{date:created_date,mana:mana_cap,rule:ruleset,id:seed,teams}
+      return{mana:mana_cap,rule:ruleset,teams}
     }
   }
 )
