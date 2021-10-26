@@ -9,7 +9,7 @@ const colorToDeck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 
 const deckValidColor=(accumulator,currentValue)=>validDecks.includes(cardColor(currentValue))?colorToDeck[cardColor(currentValue)]:accumulator;
 
 const teamActualSplinterToPlay=(teamIdsArray,inactive)=>
-  teamIdsArray.reduce(deckValidColor,colorToDeck(validDecks.find(c=>inactive.indexOf(c)<0)))
+  teamIdsArray.reduce(deckValidColor,colorToDeck[validDecks.find(c=>inactive.indexOf(c)<0)])
 const playableTeam = (team,myCards) =>
   myCards[team.summoner.id]>=team.summoner.level && team.monsters.every(v=>myCards[v.id]>=v.level)//mostly depr
 const addName  =(card)=>{return{...card,name:cards[card.id-1].name}}
