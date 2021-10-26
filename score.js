@@ -4,6 +4,13 @@ const { cards, chunk2, addName} = require('./helper');
 const bC = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id)
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
+/** Finds team satisfying quest rules, and places it at head of the teams array
+ * @param {Array team} teams Better to have high scoring teams
+ * @param {Object} $1 quest rules
+ * @param {String} $1.type of the quest
+ * @param {String} $1.value quest value to satisfy
+ * @param {String} $1.color if the quest is splinter, provide color of the team
+ */
 const priorByQuest=(teams,{type,value,color})=>{
   var team;
   switch(type){
@@ -23,6 +30,9 @@ const priorByQuest=(teams,{type,value,color})=>{
   }
   if(team)teams.unshift(team);
 }
+/** Sorts by score or win rate
+ * @param {Boolean} s if yes, then sorts by win rate, else by score
+ */
 function sortByProperty(s){
   if(s) return (a,b)=>{
     const _byCount = b.w*a.count-a.w*b.count;
@@ -31,6 +41,9 @@ function sortByProperty(s){
   }
   else return (a,b)=>b.score-a.score
 }
+/** Filter battles with losing team less than 90% of the mana_cap. Winning against such team is not difficult
+ * @param {Boolean} toggle if yes, filter out by mana, else keep them
+ */
 function filterOutByMana(toggle){
   const filterOut = (battle) => {
     if(battle.mana == 99) return true;
@@ -79,6 +92,16 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
   return scores
 }
 
+/** Generate an array of playable Teams by scoring and sorting by score or winrate
+ * @param {Array} battles handle to array of battlesList
+ * @param {String} player username to filter teams based on their capacity to play the team
+ * @param {Object} $2 various aspects of the current battle to filter the battles list
+ * @param {Object} myCards cards to filter the teams
+ * @param {Object} $4 options to set the final array by.
+ * @param {Boolean} $4.sortByWinRate sort the array of teams by winrate, or else by score
+ * @param {String} fn file name to store the array of playable teams
+ * @returns {Array} array of playable teams
+ */
 const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
   //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
   //ruleset matching could be improved
