@@ -73,6 +73,7 @@ async function startBotPlayMatch(page, myCards,user) {
   await page.waitForTimeout(10000);
   const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle(user.isRanked?'Ranked':'Practice')
 
+  log('Mana:',mana_cap,'Rules:',ruleset,'Inactive:',inactive,'Opponent:',opponent_player)
   var battlesList = await getBattles(opponent_player).catch(log);
   const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards,{sortByWinRate:!user.isRanked});
 
@@ -80,7 +81,9 @@ async function startBotPlayMatch(page, myCards,user) {
   //Can do further analysin on teamsToPlay
   log('teamsToPlay.length',teamsToPlay.length);
   const [Summoner,...Monsters] = teamsToPlay[0].team;
-  const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
+  if(!ruleset.includes('Taking Sides')){
+    const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
+  }
   log('Summoner:',cards[Summoner[0]-1].name,'Level:',Summoner[1]);
   Monsters.forEach(m=>log('Monster:',cards[m[0]-1].name,'Level:',m[1]));
   log('Stats:',['score','count','w','l','d'].map(s=>s+':'+teamsToPlay[0][s]).join())
