@@ -92,6 +92,21 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
   return scores
 }
 
+const teamWithBetterCards=betterCards=>{
+  return (t,idx)=>{
+    const co = 'Gray'
+      +(cards[t.team[0][0]-1].color=='Gold'?'Gold':'')
+      +t.team.reduce(
+        (acc,[i])=>'RedWhiteBlueBlackGreen'.includes(cards[i-1].color)?cards[i-1].color:acc,'Red')
+    t.team = t.team.map(([i,l])=>{
+      const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!t.team.flat().includes(c.id));
+      if(bc)log('Better Cards: Replaced',cards[i-1].name,'with',cards[bc.id-1].name,'for team Rank',idx);
+      return bc?[bc.id,bc.level]:[i,l]
+    })
+    return t
+  }
+}
+
 /** Generate an array of playable Teams by scoring and sorting by score or winrate
  * @param {Array} battles handle to array of battlesList
  * @param {String} player username to filter teams based on their capacity to play the team
@@ -105,6 +120,26 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
 const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
   //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
   //ruleset matching could be improved
+  /** Get better cards from myCards*/
+  const betterCards = Object.fromEntries(
+    Object.entries(myCards)
+    .filter(c=>c[0]!='gold'&&cards[c[0]-1].type=='Monster').map(([id,l])=>{
+      const {stats,color} = cards[id-1];
+      var allowedColors=('RedWhiteBlueBlackGreen'.includes(color)?
+        ['Gold',color]:'RedWhiteBlueBlackGreenGold')+
+        (ruleset.includes('Taking Sides')?'':'Gray')
+      const statCmp=(s1,s2,level)=>
+        !Object.keys(s1).every(t=>""+s1[t][l-1]==""+s2[t][level])&&
+          ["attack","ranged","magic","armor","health","speed",].every(t=>s1[t][l-1]<=s2[t][level])//speed can be inverted here for a different ruleset
+          &&s1.mana[l-1]>=s2.mana[level]
+          &&(s1.abilities.slice(0,l).flat()+''==''||s1.abilities.slice(0,l).flat()+''==s2.abilities.slice(0,level+1).flat()+'')
+      const better = cards.filter(c=>
+        c.id in myCards&&id!=c.id&&c.type=='Monster'&&
+        allowedColors.includes(c.color)&&statCmp(stats,c.stats,myCards[c.id]-1)
+      ).map(({color,id})=>{return{color,id,level:myCards[id]}})
+      if(better.length)return[[id],better]
+    }).filter(x=>x)
+  )
   let mana=mana_cap;
   do{
     const scores = teamScores(battles.filter(b=>b.mana==mana&&b.rule==ruleset));
@@ -119,7 +154,7 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(1+filteredTeams.length/27)
   if(quest)priorByQuest(filteredTeams,quest);
   writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
-  return filteredTeams;
+  return filteredTeams.map(teamWithBetterCards(betterCards));
 }
 
 module.exports = {teamScores,playableTeams,scoreMap2Obj};
