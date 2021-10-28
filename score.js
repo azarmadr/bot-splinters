@@ -1,9 +1,10 @@
 const AKMap = require('array-keyed-map');
 const {readFile,writeFile} = require('jsonfile');
-const { cards, chunk2, addName} = require('./helper');
-const bC = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id)
+const {cards, chunk2} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
+const basicCards = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id)
+const RULES_ON_CARDS = 'Broken Arrows,Even Stevens,Keep Your Distance,Little League,Lost Legendaries,Lost Magic,Odd Ones Out,Rise of the Commons,Taking Sides,Up Close & Personal'
 /** Finds team satisfying quest rules, and places it at head of the teams array
  * @param {Array team} teams Better to have high scoring teams
  * @param {Object} $1 quest rules
@@ -31,10 +32,10 @@ const priorByQuest=(teams,{type,value,color})=>{
   if(team)teams.unshift(team);
 }
 /** Sorts by score or win rate
- * @param {Boolean} s if yes, then sorts by win rate, else by score
+ * @param {Boolean} byWinRate if yes, then sorts by win rate, else by score
  */
-function sortByProperty(s){
-  if(s) return (a,b)=>{
+function sortByProperty(byWinRate){
+  if(byWinRate) return (a,b)=>{
     const _byCount = b.w*a.count-a.w*b.count;
     if(_byCount==0)return b.score-a.score;
     return _byCount;
@@ -42,9 +43,9 @@ function sortByProperty(s){
   else return (a,b)=>b.score-a.score
 }
 /** Filter battles with losing team less than 90% of the mana_cap. Winning against such team is not difficult
- * @param {Boolean} toggle if yes, filter out by mana, else keep them
+ * @param {Boolean} byMana if yes, filter out by mana, else keep them
  */
-function filterOutByMana(toggle){
+function filterOutByMana(byMana){
   const filterOut = (battle) => {
     if(battle.mana == 99) return true;
     const losing_team = battle.teams.find(t=>t[0]=='l'||t[0]=='d');
@@ -53,7 +54,7 @@ function filterOutByMana(toggle){
         >battle.mana*.9
     else return true
   }
-  return toggle?filterOut:()=>true;
+  return byMana?filterOut:()=>true;
 }
 async function scoreMap2Obj(scores,fn=''){
   const scoreObj = {}
@@ -65,8 +66,11 @@ async function scoreMap2Obj(scores,fn=''){
   }
   writeFile(`data/scores${fn}.json`, scoreObj).catch(log);
 }
-const scoreXer=t=>t.reduce((s,[i,l])=>
-  (bC.includes(i)?1:(8**cards[i-1].rarity))*([cards[i-1].stats.mana].flat().pop()||1)+s,0)
+
+const _mana=id=>[cards[id-1].stats.mana].flat().pop()||1
+const _rarityScore=(id,level)=>basicCards.includes(id)?1:(8**cards[id-1].rarity)
+const scoreXer=team=>team.reduce((s,[id,level])=>_rarityScore(id,level)*_mana(id)+s,0)
+
 const _toPrecision3=x=>Number(x.toFixed(3));
 const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterLessMana=1,StandardOnly,filterOutLowWR}={},fn) => {
   const scores = new AKMap();
@@ -93,20 +97,45 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5},cardsToo=1,filterL
 }
 
 const teamWithBetterCards=betterCards=>{
-  return (t,idx)=>{
+  return (team,idx)=>{
     const co = 'Gray'
-      +(cards[t.team[0][0]-1].color=='Gold'?'Gold':'')
-      +t.team.reduce(
+      +(cards[team.team[0][0]-1].color=='Gold'?'Gold':'')
+      +team.team.reduce(
         (acc,[i])=>'RedWhiteBlueBlackGreen'.includes(cards[i-1].color)?cards[i-1].color:acc,'Red')
-    t.team = t.team.map(([i,l])=>{
-      const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!t.team.flat().includes(c.id));
+    team.team = team.team.map(([i,l])=>{
+      const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!team.team.flat().includes(c.id));
       if(bc)log('Better Cards: Replaced',cards[i-1].name,'with',cards[bc.id-1].name,'for team Rank',idx);
       return bc?[bc.id,bc.level]:[i,l]
     })
-    return t
+    return team
   }
 }
 
+const filterTeamByRules=(team,ruleset)=>{
+  switch(ruleset){
+    case 'Broken Arrows':
+      return team.slice(1).every(c=>cards[c[0]-1].stats.abilities.ranged[c[1]-1]==0);break;
+    case 'Lost Magic':
+      return team.slice(1).every(c=>cards[c[0]-1].stats.abilities.magic[c[1]-1]==0);break;
+    case 'Keep Your Distance':
+      return team.slice(1).every(c=>cards[c[0]-1].stats.abilities.attack[c[1]-1]==0);break;
+    case 'Up Close & Personal':
+      return team.slice(1).every(c=>cards[c[0]-1].stats.abilities.attack[c[1]-1]>0);break;
+    case 'Little League':
+      return team.every(c=>[cards[c[0]-1].stats.mana].flat().pop()<4);break;
+    case 'Lost Legendaries':
+      return team.every(c=>cards[c[0]-1].rarity<4);break;
+    case 'Rise of the Commons':
+      return team.every(c=>cards[c[0]-1].rarity<2);break;
+    case 'Taking Sides':
+      return (team.reduce((a,c)=>c[0]==19?a+1:a,0)<2)&&team.slice(1).every(c=>cards[c[0]-1].color!='Gray');break//medusa
+    case 'Even Stevens':
+      return team.slice(1).every(c=>[cards[c[0]-1].stats.mana].flat().pop()%2==0);break;
+    case 'Odd Ones Out':
+      return team.slice(1).every(c=>[cards[c[0]-1].stats.mana].flat().pop()%2==1);break;
+    default: return true;
+  }
+}
 /** Generate an array of playable Teams by scoring and sorting by score or winrate
  * @param {Array} battles handle to array of battlesList
  * @param {String} player username to filter teams based on their capacity to play the team
@@ -118,7 +147,7 @@ const teamWithBetterCards=betterCards=>{
  * @returns {Array} array of playable teams
  */
 const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=require(`./data/${player}_cards.json`),{sortByWinRate}={},fn='lastMatch') => {
-  //const score = verdictToScore[v]*(bC.includes(c[0])?1:cards[c[0]-1].rarity)/4;
+  //const score = verdictToScore[v]*(basicCards.includes(c[0])?1:cards[c[0]-1].rarity)/4;
   //ruleset matching could be improved
   /** Get better cards from myCards*/
   const betterCards = Object.fromEntries(
@@ -140,12 +169,14 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
       if(better.length)return[[id],better]
     }).filter(x=>x)
   )
-  let mana=mana_cap;
+  let mana=mana_cap,rule=RULES_ON_CARDS.includes(ruleset)?'Standard':ruleset;
+  if(rule!=ruleset) log('Filtering Teams for',ruleset)
   do{
-    const scores = teamScores(battles.filter(b=>b.mana==mana&&b.rule==ruleset));
+    const scores = teamScores(battles.filter(b=>b.mana==mana&&b.rule==rule));
     var filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
       t.length>2    && chunk2(t).every(c=>inactive.indexOf(cards[c[0]-1].color)<0) &&
-      s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1])
+      s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1]) &&
+      filterTeamByRules(chunk2(t),ruleset)
     )
       .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
     mana--;

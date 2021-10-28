@@ -73,7 +73,7 @@ async function startBotPlayMatch(page, myCards,user) {
   await page.waitForTimeout(10000);
   const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle(user.isRanked?'Ranked':'Practice')
 
-  log('Mana:',mana_cap,'Rules:',ruleset,'Inactive:',inactive,'Opponent:',opponent_player)
+  log({mana_cap, ruleset, inactive, opponent_player,})
   var battlesList = await getBattles(opponent_player).catch(log);
   const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards,{sortByWinRate:!user.isRanked});
 
