@@ -41,7 +41,7 @@ class BattleData {
    * @example {team1:{summoner:{card_detail_id:49,level:1},monsters:[1:{card_detail_id:50,level:1},2:{card_detail_id:191,level:1}]}} =>
    * [[49,1],[50,1],[191,1]]
    * */
-  setBattles=(battles)=>{ 
+  setBattles=(battles)=>{
     battles.forEach(({ruleset,mana_cap,details})=>{
       const {type,winner,team1,team2} = JSON.parse(details);
       if (type != 'Surrender') {
@@ -111,7 +111,7 @@ const battles=(player,battleData)=>getBattleHistory(player)
 module.exports = {
   BattleData, getBattleHistory:battles,
 }
-/*
 const b = new BattleData(readFileSync('./data/battle_data_n.json'));log(b.size)
 Promise.resolve(battles('azarmadr',b)).then(()=>log(b.size,b.save('./data/battle_data_n.json')));
+/*
 */
