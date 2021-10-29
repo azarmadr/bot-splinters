@@ -114,13 +114,13 @@ const teamWithBetterCards=betterCards=>{
 const filterTeamByRules=(team,ruleset)=>{
   switch(ruleset){
     case 'Broken Arrows':
-      return team.slice(1).every(c=>cards[c[0]-1].stats.abilities.ranged[c[1]-1]==0);break;
+      return team.slice(1).every(c=>cards[c[0]-1].stats.ranged[c[1]-1]==0);break;
     case 'Lost Magic':
-      return team.slice(1).every(c=>cards[c[0]-1].stats.abilities.magic[c[1]-1]==0);break;
+      return team.slice(1).every(c=>cards[c[0]-1].stats.magic[c[1]-1]==0);break;
     case 'Keep Your Distance':
-      return team.slice(1).every(c=>cards[c[0]-1].stats.abilities.attack[c[1]-1]==0);break;
+      return team.slice(1).every(c=>cards[c[0]-1].stats.attack[c[1]-1]==0);break;
     case 'Up Close & Personal':
-      return team.slice(1).every(c=>cards[c[0]-1].stats.abilities.attack[c[1]-1]>0);break;
+      return team.slice(1).every(c=>cards[c[0]-1].stats.attack[c[1]-1]>0);break;
     case 'Little League':
       return team.every(c=>[cards[c[0]-1].stats.mana].flat().pop()<4);break;
     case 'Lost Legendaries':
