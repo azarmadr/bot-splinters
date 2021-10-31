@@ -7,10 +7,7 @@ const {table} = require('table');
 const user = require('./user');
 const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
-const {
-  cards, cardColor, teamActualSplinterToPlay, checkVer, getElementText, getElementTextByXpath,
-  clickOnElement, sleep,
-} = require('./helper');
+const {cards, cardColor, teamActualSplinterToPlay, checkVer, sleep,} = require('./helper');
 const battles = require('./battles-data');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
