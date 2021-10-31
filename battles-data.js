@@ -1,5 +1,5 @@
 const {readFile,writeFile} = require('jsonfile');
-const {arrEquals,arrCmp} = require('./helper');
+const {arrEquals,arrCmp,chunk} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 var pc = 0;
 const RULES_ON_CARDS = 'Broken Arrows,Even Stevens,Keep Your Distance,Little League,Lost Legendaries,Lost Magic,Odd Ones Out,Rise of the Commons,Taking Sides,Up Close & Personal'
@@ -32,15 +32,19 @@ const genBattleList=(battles)=>battles.map(
       return{mana:mana_cap,rule:(RULES_ON_CARDS.includes(ruleset)?'Standard':ruleset),teams}
     }
   }
-)
+).filter(x=>x)
 
 const battles = (player,fn='') => getBattleHistory(player)
-  .then(u => u.reduce((d,c)=>[...new Set([...d,c.player_1,c.player_2])],[]))
-  .then(ul=>ul.map(u=>getBattleHistory(u).then(genBattleList)))
-  .then(ul=>Promise.all(ul).then(x=>x.flat().filter(x=>x)))
-  .then(b=>{ return new Promise((res,rej) =>
+  .then(bh => bh.reduce((d,c)=>[...new Set([...d,c.player_1,c.player_2])],[]))
+  .then(ul=>Promise.resolve(chunk(ul,27).reduce(
+    (memo,ul_chunk)=>memo.then(bl=>
+      Promise.all(ul_chunk.map(u=>getBattleHistory(u).then(genBattleList)))
+      .then(gbl=>[...bl,...gbl.flat()])
+    ),Promise.resolve([])
+  )))
+  .then(bl=>{ return new Promise((res,rej) =>
     readFile(`./data/battle_data${fn}.json`,(e,d)=>{
-      let battlesList = b,__c=b.length;
+      let battlesList = bl,__c=bl.length;
       console.log();
       log(__c,' battles this session');
       if(e){log('Error reading file: ',e)}
@@ -56,4 +60,4 @@ const battles = (player,fn='') => getBattleHistory(player)
   )})
 
 module.exports.battlesList = battles;
-//Promise.resolve(battles('azarmadr')).then(b=>log(b[0],b.at(-1),b.filter(a=>a.teams.length<2).length))
+//Promise.resolve(battles('azarmadr3','-test')).then(b=>log(b[0],b.at(-1),b.filter(a=>a.teams.length<2).length))

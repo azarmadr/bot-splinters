@@ -1,23 +1,21 @@
 const cards = require("./data/cards.json");
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
+const _card = {},_team = {}, _elem = {};
 // Teams and Cards
-const cardColor=(c)=>cards[c[0]-1]?.color;
+/** small function to return id of the card if array or id is given
+ * @param (Any) c if array of [id,level], or id
+ * @returns id of the card */
+const cardToIdx=c=>Array.isArray(c)?c[0]:c;
+_card.color=c=>cards[cardToIdx(c)-1].color;
+_card.name =c=>cards[cardToIdx(c)-1].name;
 const validDecks = ['Red', 'Blue', 'White', 'Black', 'Green']
 const colorToDeck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
 
-const deckValidColor=(accumulator,currentValue)=>validDecks.includes(cardColor(currentValue))?colorToDeck[cardColor(currentValue)]:accumulator;
+const deckValidColor=(accumulator,currentValue)=>validDecks.includes(_card.color(currentValue))?colorToDeck[_card.color(currentValue)]:accumulator;
 
-const teamActualSplinterToPlay=(teamIdsArray,inactive)=>
-  teamIdsArray.reduce(deckValidColor,colorToDeck[validDecks.find(c=>inactive.indexOf(c)<0)])
-const playableTeam = (team,myCards) =>
-  myCards[team.summoner.id]>=team.summoner.level && team.monsters.every(v=>myCards[v.id]>=v.level)//mostly depr
-const addName  =(card)=>{return{...card,name:cards[card.id-1].name}}
-const cleanTeam=(team)=>{return{summoner:team.summoner,monsters:team.monsters}}
-const cleanCard=(card)=>{return{id:card.id,level:card.level}}
-const teamWithNames=(team)=>{
-  return {summoner:addName(team.summoner),monsters:[...team.monsters.map(m=>addName(m))]}
-}//mostly depr
+_team.splinterToPlay=(team,inactive)=>
+  team.reduce(deckValidColor,colorToDeck[validDecks.find(c=>inactive.indexOf(c)<0)])
 
 // general helper functions
 const arrEquals = (a, b) =>
@@ -33,14 +31,17 @@ const checkVer=(a,b)=>{
   }
   return a.length>b.length
 }
-const chunk = (input, size) => {
-  return input.reduce((arr, item, idx) => {
+const chunk = (input_arr, size) => {
+  return input_arr.reduce((arr, item, idx) => {
     return idx % size === 0
       ? [...arr, [item]]
       : [...arr.slice(0, -1), [...arr.slice(-1)[0], item]];
   }, []);
-};
-const chunk2 = t => chunk(t,2);
+}
+const chunk2=arr=>chunk(arr,2);
+
+//const 
+
 function sleep(ms) {
   process.stdout.write("\x1B[?25l");
   [...Array(27).keys()].forEach(()=>process.stdout.write("\u2591"))
@@ -52,7 +53,7 @@ function sleep(ms) {
   }),Promise.resolve())
 }
 
-async function clickOnElement(page, selector, timeout = 20000, delayBeforeClicking = 0) {
+_elem.click = async function(page, selector, timeout = 20000, delayBeforeClicking = 0) {
   try {
     const elem = await page.waitForSelector(selector, { timeout: timeout });
     if (elem) {
@@ -66,21 +67,20 @@ async function clickOnElement(page, selector, timeout = 20000, delayBeforeClicki
   return false;
 }
 
-async function getElementText(page, selector, timeout=20000) {
+_elem.getText = async function(page, selector, timeout=20000) {
   const element = await page.waitForSelector(selector,  { timeout: timeout });
   const text = await element.evaluate(el => el.textContent);
   return text;
 }
 
-async function getElementTextByXpath(page, selector, timeout=20000) {
+_elem.getTextByXpath = async function(page, selector, timeout=20000) {
   const element = await page.waitForXPath(selector,  { timeout: timeout });
   const text = await element.evaluate(el => el.textContent);
   return text;
 }
-//const teamIdsArray = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(teamIdsArray)); console.log(cardColor({"id":224,"level":1,"name":"Drake of Arnak"}))
+//const team = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(team)); console.log(_card.color({"id":224,"level":1,"name":"Drake of Arnak"}))
 
 module.exports = {
-  cardColor,     playableTeam, addName, cleanCard, cleanTeam, teamActualSplinterToPlay,
-  teamWithNames, arrEquals,    cards,   chunk,     chunk2,    arrCmp, checkVer,
-  getElementText, getElementTextByXpath, clickOnElement, sleep, log
+  _card,     _team, _elem, sleep, log,
+  arrEquals,    cards,   chunk,     chunk2,    arrCmp, checkVer,
 };

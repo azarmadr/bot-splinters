@@ -42,9 +42,22 @@ async function battle(type='Ranked'){
   await page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)');
   return cb;
 }
-async function cards(){
+/** Get cards based on the rules set in callback function
+ * @param {String} callback function in string form, to filter cards by. By default function that filters for a playable collection
+ * @returns cards
+ */
+async function cards(callback){
+  callback=callback||`c=>c.owned.filter(o=>
+        !(o.market_id && o.market_listing_status === 0) && (!o.delegated_to || o.delegated_to === SM.Player.name)
+      ).length`;
   log (`Obtaining Cards`);
-  return await page.evaluate(()=>new Promise(res=>SM.LoadCollection(SM.Player.name,0,(c=>res(c.filter(c=>c.owned.filter(o=>!(o.market_id && o.market_listing_status === 0) && (!o.delegated_to || o.delegated_to === SM.Player.name)).length))))))
+  return await page.evaluate(`new Promise((res,rej)=>
+    SM.LoadCollection(
+      SM.Player.name,
+      0,
+      col=>res(col.filter(${callback}))
+    )
+  )`)
 }
 module.exports = {
   login,cards, battle, questClaim, __,

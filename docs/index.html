@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset='utf-8'>
-  <title>bot-splinters 1.7.6 | Documentation</title>
+  <title>bot-splinters 1.8.3 | Documentation</title>
   <meta name='description' content='splinter bot'>
   <meta name='viewport' content='width=device-width,initial-scale=1'>
   <link href='assets/bass.css' rel='stylesheet'>
@@ -15,7 +15,7 @@
       <div id='split-left' class='overflow-auto fs0 height-viewport-100'>
         <div class='py1 px2'>
           <h3 class='mb0 no-anchor'>bot-splinters</h3>
-          <div class='mb1'><code>1.7.6</code></div>
+          <div class='mb1'><code>1.8.3</code></div>
           <input
             placeholder='Filter'
             id='filter-input'
@@ -67,6 +67,26 @@
                 
                 </li>
               
+                
+                <li><a
+                  href='#bettercards'
+                  class="">
+                  betterCards
+                  
+                </a>
+                
+                </li>
+              
+                
+                <li><a
+                  href='#cardtoidx'
+                  class="">
+                  cardToIdx
+                  
+                </a>
+                
+                </li>
+              
             </ul>
           </div>
           <div class='mt1 h6 quiet'>
@@ -87,7 +107,7 @@
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/829888c740a97a9f4c1604abc878bba961efdf5e/score.js#L14-L32'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L15-L33'>
       <span>score.js</span>
       </a>
     
@@ -206,7 +226,7 @@
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/829888c740a97a9f4c1604abc878bba961efdf5e/score.js#L36-L43'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L37-L44'>
       <span>score.js</span>
       </a>
     
@@ -215,7 +235,7 @@
 
   <p>Sorts by score or win rate</p>
 
-    <div class='pre p1 fill-light mt0'>sortByProperty(s: <a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a>)</div>
+    <div class='pre p1 fill-light mt0'>sortByProperty(byWinRate: <a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a>)</div>
   
   
 
@@ -232,7 +252,7 @@
       
         <div class='space-bottom0'>
           <div>
-            <span class='code bold'>s</span> <code class='quiet'>(<a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a>)</code>
+            <span class='code bold'>byWinRate</span> <code class='quiet'>(<a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a>)</code>
 	    if yes, then sorts by win rate, else by score
 
           </div>
@@ -274,7 +294,7 @@
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/829888c740a97a9f4c1604abc878bba961efdf5e/score.js#L47-L57'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L48-L58'>
       <span>score.js</span>
       </a>
     
@@ -283,7 +303,7 @@
 
   <p>Filter battles with losing team less than 90% of the mana_cap. Winning against such team is not difficult</p>
 
-    <div class='pre p1 fill-light mt0'>filterOutByMana(toggle: <a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a>)</div>
+    <div class='pre p1 fill-light mt0'>filterOutByMana(byMana: <a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a>)</div>
   
   
 
@@ -300,7 +320,7 @@
       
         <div class='space-bottom0'>
           <div>
-            <span class='code bold'>toggle</span> <code class='quiet'>(<a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a>)</code>
+            <span class='code bold'>byMana</span> <code class='quiet'>(<a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean">Boolean</a>)</code>
 	    if yes, filter out by mana, else keep them
 
           </div>
@@ -342,7 +362,7 @@
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/829888c740a97a9f4c1604abc878bba961efdf5e/score.js#L105-L123'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L149-L189'>
       <span>score.js</span>
       </a>
     
@@ -506,6 +526,144 @@
       <div class='py1 quiet mt1 prose-big'>Returns</div>
       <code><a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array">Array</a></code>:
         array of playable teams
+
+      
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+</section>
+
+          
+        
+          
+          <section class='p2 mb2 clearfix bg-white minishadow'>
+
+  
+  <div class='clearfix'>
+    
+    <h3 class='fl m0' id='bettercards'>
+      betterCards
+    </h3>
+    
+    
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L153-L171'>
+      <span>score.js</span>
+      </a>
+    
+  </div>
+  
+
+  <p>Get better cards from myCards</p>
+
+    <div class='pre p1 fill-light mt0'>betterCards</div>
+  
+  
+
+  
+  
+  
+  
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+</section>
+
+          
+        
+          
+          <section class='p2 mb2 clearfix bg-white minishadow'>
+
+  
+  <div class='clearfix'>
+    
+    <h3 class='fl m0' id='cardtoidx'>
+      cardToIdx
+    </h3>
+    
+    
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/helper.js#L9-L9'>
+      <span>helper.js</span>
+      </a>
+    
+  </div>
+  
+
+  <p>small function to return id of the card if array or id is given</p>
+
+    <div class='pre p1 fill-light mt0'>cardToIdx</div>
+  
+  
+
+  
+  
+  
+  
+  
+  
+
+  
+    <div class='py1 quiet mt1 prose-big'>Parameters</div>
+    <div class='prose'>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>c</span> <code class='quiet'>(any)</code>
+	    
+          </div>
+          
+        </div>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>null</span> <code class='quiet'>(any)</code>
+	    (Any) c if array of [id,level], or id
+
+          </div>
+          
+        </div>
+      
+    </div>
+  
+
+  
+
+  
+    
+      <div class='py1 quiet mt1 prose-big'>Returns</div>
+      <code>any</code>:
+        id of the card
 
       
     

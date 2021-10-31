@@ -7,7 +7,7 @@ const {table} = require('table');
 const user = require('./user');
 const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
-const {cards, cardColor, teamActualSplinterToPlay, checkVer, sleep,} = require('./helper');
+const {_card, _team, checkVer, sleep,} = require('./helper');
 const battles = require('./battles-data');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
@@ -81,16 +81,16 @@ async function startBotPlayMatch(page, myCards,user) {
   if(!ruleset.includes('Taking Sides')){
     const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
   }
-  log('Summoner:',cards[Summoner[0]-1].name,'Level:',Summoner[1]);
-  Monsters.forEach(m=>log('Monster:',cards[m[0]-1].name,'Level:',m[1]));
+  log('Summoner:',_card.name(Summoner),'Level:',Summoner[1]);
+  Monsters.forEach(m=>log('Monster:',_card.name(m),'Level:',m[1]));
   log('Stats:',['score','count','w','l','d'].map(s=>s+':'+teamsToPlay[0][s]).join())
 
   await page.waitForTimeout(10000);
   try {
     await page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`, { timeout: 10000 }).then(summonerButton => summonerButton.click());
-    if (cardColor(Summoner) === 'Gold') {
-      log('Dragon play TEAMCOLOR', teamActualSplinterToPlay(Monsters,inactive))
-      await page.waitForXPath(`//div[@data-original-title="${teamActualSplinterToPlay(Monsters,inactive)}"]`, { timeout: 10000 }).then(selector => selector.click())
+    if (_card.color(Summoner) === 'Gold') {
+      log('Dragon play TEAMCOLOR', _team.splinterToPlay(Monsters,inactive))
+      await page.waitForXPath(`//div[@data-original-title="${_team.splinterToPlay(Monsters,inactive)}"]`, { timeout: 10000 }).then(selector => selector.click())
     }
     await page.waitForTimeout(5000);
     for(const m of Monsters.values()){
@@ -194,7 +194,8 @@ const preMatch=(__sm)=>{
         SM._(page);
         // Login
         let username = await page.evaluate('SM?.Player?.name');
-        if (username != process.env.ACCOUNT) await SM.login(process.env.LOGIN,process.env.PASSWORD)
+        if (username != process.env.ACCOUNT)
+          await SM.login(process.env.LOGIN,process.env.PASSWORD)
         await page.evaluate(()=>SM.ShowBattleHistory());
         await page.evaluate(()=>{return {Player:SM.Player,settings:SM.settings}})
           .then(preMatch).then(r=>Object.keys(r).forEach(k=>user[k]=r[k]))
