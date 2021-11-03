@@ -150,14 +150,16 @@ const preMatch=(__sm)=>{
 
   //if quest done claim reward
   _return.claimQuestReward = [];
+  _return.quest = null;
   if (Player.quest&&!Player.quest.claim_trx_id){
     const {name,completed_items,total_items,rewards}=Player.quest;
     const quest = settings.quests.find(q=>q.name==name)
-    if(2*Math.random()<1&&JSON.parse(process.env.QUEST_PRIORITY)) _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
-    if(completed_items<=total_items)log('Quest details:'+chalk.yellow(name,'->',completed_items,'/',total_items));
+    if(completed_items<total_items){
+      log('Quest details:'+chalk.yellow(name,'->',completed_items,'/',total_items));
+      if(2*Math.random()<1&&JSON.parse(process.env.QUEST_PRIORITY)) _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
     if(completed_items>=total_items){
       _return.claimQuestReward.push(Player.quest,quest);
-      delete _return.quest;
+      _return.quest = null;
     }
   }
   return _return;

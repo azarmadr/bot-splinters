@@ -1,7 +1,7 @@
 const cards = require("./data/cards.json");
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
-const _card = {},_team = {}, _elem = {};
+const _card = {},_team = {}, _elem = {}, _akmap = {};
 // Teams and Cards
 /** small function to return id of the card if array or id is given
  * @param (Any) c if array of [id,level], or id
@@ -9,6 +9,7 @@ const _card = {},_team = {}, _elem = {};
 const cardToIdx=c=>Array.isArray(c)?c[0]:c;
 _card.color=c=>cards[cardToIdx(c)-1].color;
 _card.name =c=>cards[cardToIdx(c)-1].name;
+_card.mana =c=>[cards[cardToIdx(c)-1].stats.mana].flat()[0];
 const validDecks = ['Red', 'Blue', 'White', 'Black', 'Green']
 const colorToDeck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
 
@@ -40,6 +41,18 @@ const chunk = (input_arr, size) => {
 }
 const chunk2=arr=>chunk(arr,2);
 
+_akmap.toPlainObject = akmap => {
+  const out = {}
+  for (const [path, value] of akmap.entries()) {
+    setAtPath(out, path, value)
+  }
+  return out
+
+  function setAtPath (obj, path, value) {
+    for (const key of path) obj = obj[key] ??= {}
+    obj['__DATA__'] = value
+  }
+}
 //const 
 
 function sleep(ms) {
@@ -81,6 +94,6 @@ _elem.getTextByXpath = async function(page, selector, timeout=20000) {
 //const team = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(team)); console.log(_card.color({"id":224,"level":1,"name":"Drake of Arnak"}))
 
 module.exports = {
-  _card,     _team, _elem, sleep, log,
-  arrEquals,    cards,   chunk,     chunk2,    arrCmp, checkVer,
+  _card,     _team, _elem, _akmap, sleep,  log,
+  arrEquals, cards, chunk, chunk2, arrCmp, checkVer,
 };
