@@ -4,12 +4,15 @@ const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 var pc = 0;
 const RULES_ON_CARDS = 'Broken Arrows,Even Stevens,Keep Your Distance,Little League,Lost Legendaries,Lost Magic,Odd Ones Out,Rise of the Commons,Taking Sides,Up Close & Personal'
 async function getBattleHistory(player = '') {
-  const battleHistory = await require('async-get-json')(`https://game-api.splinterlands.io/battle/history?player=${player}`)
-    .then(b=>b.battles)
-    .catch((error) => {
-      log('There has been a problem with your fetch operation:', error);
-      return [];
-    });
+  const battleHistory = await require('async-get-json')(`https://api2.splinterlands.com/battle/history?player=${player}`)
+    .catch((error) => async function getBattleHistory(player = '') {
+      log('fetching another api');
+      const battleHistory = await require('async-get-json')(`https://game-api.splinterlands.com/battle/history?player=${player}`)
+        .catch((error) => {
+          log('There has been a problem with your fetch operation:', error);
+          return {battles:[]};
+        });
+    }).then(b=>b.battles)
   require('readline').clearLine(process.stdout,0)
   require('readline').cursorTo(process.stdout,0);
   process.stdout.write(`battle-data: ${pc+++' '+player}`);

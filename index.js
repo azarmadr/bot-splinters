@@ -160,7 +160,7 @@ const preMatch=(__sm)=>{
     if(completed_items<=total_items)log('Quest details:'+chalk.yellow(name,'->',completed_items,'/',total_items));
     if(completed_items>=total_items){
       _return.claimQuestReward.push(Player.quest,quest);
-      delete _return.quest;
+      _return.quest = 0;
     }
   }
   return _return;
