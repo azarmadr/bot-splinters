@@ -7,11 +7,7 @@ const {table} = require('table');
 const user = require('./user');
 const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
-const {
-  cards, cardColor, teamActualSplinterToPlay, checkVer, getElementText, getElementTextByXpath,
-  clickOnElement, sleep,
-} = require('./helper');
-const battles = require('./battles-data');
+const { cards, cardColor, teamActualSplinterToPlay, checkVer, sleep, } = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 async function checkForUpdate() {
@@ -34,7 +30,7 @@ async function checkForUpdate() {
 }
 
 async function checkForMissingConfigs() {
-  await ['ACCOUNT','PASSWORD','PAUSE_BEFORE_SUBMIT','QUEST_PRIORITY','HEADLESS','KEEP_BROWSER_OPEN','CLAIM_REWARDS','ERC_THRESHOLD']
+  await ['ACCOUNT','UPDATE_BATTLE_DATA','PASSWORD','PAUSE_BEFORE_SUBMIT','QUEST_PRIORITY','HEADLESS','KEEP_BROWSER_OPEN','CLAIM_REWARDS','ERC_THRESHOLD']
     .reduce((memo,e)=>memo.then(async()=>{
       if (!process.env[e]) {
         log(`Missing ${e} parameter in .env - see updated .env-example!`);
@@ -49,7 +45,10 @@ async function getCards(player=process.env.ACCOUNT.split('@')[0]) {
 }
 
 async function getBattles(player=process.env.ACCOUNT) {
-  return battles.battlesList(player).then(x=>x)
+  const battlesList = process.env.UPDATE_BATTLE_DATA
+    ?(require('./battles-data').battlesList)
+    :((_)=>require('./data/battle_data.json'));
+  return battlesList(player);
 }
 
 async function createBrowser(headless) {
@@ -130,7 +129,7 @@ async function startBotPlayMatch(page, myCards,user) {
   } catch (e) {
     log(e)
     log('failed to submit team, so waiting for user to input manually and close the session')
-    await sleep(123456);
+    await sleep(163456);
     throw new Error(e);
   }
 }
@@ -171,6 +170,7 @@ const preMatch=(__sm)=>{
     const headless = JSON.parse(process.env.HEADLESS.toLowerCase());
     const keepBrowserOpen = JSON.parse(process.env.KEEP_BROWSER_OPEN.toLowerCase());
     const claimRewards = JSON.parse(process.env.CLAIM_REWARDS.toLowerCase());
+    process.env.UPDATE_BATTLE_DATA = JSON.parse(process.env.UPDATE_BATTLE_DATA)||'';
     let users = process.env.ACCOUNT.split(',').map((account,i)=>{return {
       account,
       password:process.env.PASSWORD.split(',')[i],
@@ -184,9 +184,9 @@ const preMatch=(__sm)=>{
     while (true) {
       await checkForUpdate();
       for (const user of users) {
-        process.env['LOGIN'] = user.login || user.account
-        process.env['PASSWORD'] = user.password
-        process.env['ACCOUNT'] = user.account
+        process.env.LOGIN = user.login || user.account
+        process.env.PASSWORD = user.password
+        process.env.ACCOUNT = user.account
 
         if((await browser.process().killed)){
           browser = await createBrowser(headless);
@@ -197,7 +197,11 @@ const preMatch=(__sm)=>{
         SM._(page);
         // Login
         let username = await page.evaluate('SM?.Player?.name');
-        if (username != process.env.ACCOUNT) await SM.login(process.env.LOGIN,process.env.PASSWORD)
+        try{
+          if (username != process.env.ACCOUNT) await SM.login(process.env.LOGIN,process.env.PASSWORD)
+        }catch(e){
+          log(e);continue;
+        }
         await page.evaluate(()=>SM.ShowBattleHistory());
         await page.evaluate(()=>{return {Player:SM.Player,settings:SM.settings}})
           .then(preMatch).then(r=>Object.keys(r).forEach(k=>user[k]=r[k]))
@@ -215,8 +219,8 @@ const preMatch=(__sm)=>{
         await page.evaluate('SM.Logout()');
       }
 
-      console.log(table([['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'],
-        ...users.map(u=>['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'].map(t=>u[t]))]));
+      const table_list = ['account','dec','erc','cp','rating','won','decWon','w','l','d','w_p','l_p','d_p'];
+      console.log(table([table_list, ...users.map(u=>table_list.map(t=>u[t]))]));
       log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
       log('--------------------------End of Battle--------------------------------');
       if(!keepBrowserOpen)browser.close();

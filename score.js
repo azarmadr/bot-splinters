@@ -170,8 +170,10 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
       if(better.length)return[[id],better]
     }).filter(x=>x)
   )
-  let mana=mana_cap,rule=RULES_ON_CARDS.includes(ruleset)?'Standard':ruleset;
-  if(rule!=ruleset) log('Filtering Teams for',ruleset)
+  let [prim_r,sec_r] = ruleset.split('|');
+  let mana=mana_cap,
+    rule=RULES_ON_CARDS.includes(ruleset)?'Standard':RULES_ON_CARDS.includes(sec_r)?prim_r:ruleset;
+  if(rule!=ruleset) log('Filtering Teams for',{ruleset,rule})
   do{
     log('Finding teams based on: '+chalk.yellow(mana)+' mana');
     const scores = teamScores(battles.filter(b=>b.mana==mana&&b.rule==rule));
