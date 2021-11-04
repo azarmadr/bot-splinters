@@ -4,11 +4,9 @@ const puppeteer = require('puppeteer');
 const chalk = require('chalk');
 const {table} = require('table');
 
-const user = require('./user');
-const SM = require('./splinterApi');
+const {SM} = require('./splinterApi');
 const {playableTeams} = require('./score');
 const {_card, _team, checkVer, sleep,} = require('./helper');
-const battles = require('./battles-data');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 async function checkForUpdate() {
@@ -31,7 +29,7 @@ async function checkForUpdate() {
 }
 
 async function checkForMissingConfigs() {
-  await ['ACCOUNT','PASSWORD','PAUSE_BEFORE_SUBMIT','QUEST_PRIORITY','HEADLESS','KEEP_BROWSER_OPEN','CLAIM_REWARDS','ERC_THRESHOLD']
+  await ['ACCOUNT','UPDATE_BATTLE_DATA','PASSWORD','PAUSE_BEFORE_SUBMIT','QUEST_PRIORITY','HEADLESS','KEEP_BROWSER_OPEN','CLAIM_REWARDS','ERC_THRESHOLD']
     .reduce((memo,e)=>memo.then(async()=>{
       if (!process.env[e]) {
         log(`Missing ${e} parameter in .env - see updated .env-example!`);
@@ -40,13 +38,11 @@ async function checkForMissingConfigs() {
     }),Promise.resolve())
 }
 
-// LOAD MY CARDS
-async function getCards(player=process.env.ACCOUNT.split('@')[0]) {
-  return user.getPlayerCards(player).then(x=>x)
-}
-
 async function getBattles(player=process.env.ACCOUNT) {
-  return battles.battlesList(player).then(x=>x)
+  const battlesList = process.env.UPDATE_BATTLE_DATA
+    ?(require('./battles-data').battlesList)
+    :((_)=>require('./data/battle_data.json'));
+  return battlesList(player);
 }
 
 async function createBrowser(headless) {
@@ -81,9 +77,9 @@ async function startBotPlayMatch(page, myCards,user) {
   if(!ruleset.includes('Taking Sides')){
     const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
   }
-  log('Summoner:',_card.name(Summoner),'Level:',Summoner[1]);
-  Monsters.forEach(m=>log('Monster:',_card.name(m),'Level:',m[1]));
-  log('Stats:',['score','count','w','l','d'].map(s=>s+':'+teamsToPlay[0][s]).join())
+  log({Summoner:_card.name(Summoner),Level:Summoner[1]});
+  log(Monsters.map(m=>{return{Monster:_card.name(m),Level:m[1]}}));
+  log({Stats:Object.fromEntries(['score','count','w','l','d'].map(s=>[s,teamsToPlay[0][s]]))})
 
   await page.waitForTimeout(10000);
   try {
@@ -127,7 +123,7 @@ async function startBotPlayMatch(page, myCards,user) {
   } catch (e) {
     log(e)
     log('failed to submit team, so waiting for user to input manually and close the session')
-    await sleep(123456);
+    await sleep(163456);
     throw new Error(e);
   }
 }
@@ -170,6 +166,7 @@ const preMatch=(__sm)=>{
     const headless = JSON.parse(process.env.HEADLESS.toLowerCase());
     const keepBrowserOpen = JSON.parse(process.env.KEEP_BROWSER_OPEN.toLowerCase());
     const claimRewards = JSON.parse(process.env.CLAIM_REWARDS.toLowerCase());
+    process.env.UPDATE_BATTLE_DATA = JSON.parse(process.env.UPDATE_BATTLE_DATA)||'';
     let users = process.env.ACCOUNT.split(',').map((account,i)=>{return {
       account,
       password:process.env.PASSWORD.split(',')[i],
@@ -183,9 +180,9 @@ const preMatch=(__sm)=>{
     while (true) {
       await checkForUpdate();
       for (const user of users) {
-        process.env['LOGIN'] = user.login || user.account
-        process.env['PASSWORD'] = user.password
-        process.env['ACCOUNT'] = user.account
+        process.env.LOGIN = user.login || user.account
+        process.env.PASSWORD = user.password
+        process.env.ACCOUNT = user.account
 
         if((await browser.process().killed)){
           browser = await createBrowser(headless);
@@ -196,8 +193,12 @@ const preMatch=(__sm)=>{
         SM._(page);
         // Login
         let username = await page.evaluate('SM?.Player?.name');
-        if (username != process.env.ACCOUNT)
-          await SM.login(process.env.LOGIN,process.env.PASSWORD)
+        try{
+          if (username != process.env.ACCOUNT)
+            await SM.login(process.env.LOGIN,process.env.PASSWORD)
+        }catch(e){
+          log(e);continue;
+        }
         await page.evaluate(()=>SM.ShowBattleHistory());
         await page.evaluate(()=>{return {Player:SM.Player,settings:SM.settings}})
           .then(preMatch).then(r=>Object.keys(r).forEach(k=>user[k]=r[k]))
@@ -207,16 +208,24 @@ const preMatch=(__sm)=>{
         }
         user.isRanked = user.erc>process.env.ERC_THRESHOLD
         log('getting user cards collection from splinterlands API...')
-        const myCards = await getCards()
-          .then((x)=>{log('cards retrieved'); return x})
-          .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
+        const myCards = await SM.cards()
+          .then(cards => cards.map(c=>
+            c.owned.filter(o =>
+              !(o.market_id && o.market_listing_status === 0) &&
+              (!o.delegated_to || o.delegated_to === username) &&
+              (!(o.last_used_player !== username && Date.parse(o.last_used_date) > Date.now()-86400000))
+            ).map(o=>[c.id,o.level]).sort((a,b)=>a[1]-b[1])).flat()
+          )
+          .then(entries => Object.fromEntries(entries))
+          .then((x)=>{log(x,'cards retrieved'); return x})
+          .catch((e) => log(e,'cards collection api didnt respond. Did you use username? avoid email!'));
         await startBotPlayMatch(page, myCards, user)
           .then(() => { log('Closing battle'); }) .catch(log)
         await page.evaluate('SM.Logout()');
       }
 
-      console.log(table([['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'],
-        ...users.map(u=>['account','dec','erc','rating','won','decWon','w','l','d','w_p','l_p','d_p'].map(t=>u[t]))]));
+      const table_list = ['account','dec','erc','cp','rating','won','decWon','w','l','d','w_p','l_p','d_p'];
+      console.log(table([table_list, ...users.map(u=>table_list.map(t=>u[t]))]));
       log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
       log('--------------------------End of Battle--------------------------------');
       if(!keepBrowserOpen)browser.close();
@@ -225,4 +234,4 @@ const preMatch=(__sm)=>{
   } catch (e) {
     log('Routine error at: ', new Date().toLocaleString(), e)
     throw new Error(e);
-  } })()
+  } })();

@@ -14,7 +14,7 @@ const teamsAsKey = (teams) => {
 }
 
 async function getBattleHistory(player = '', data = {}) {
-  const battleHistory = await fetch('https://game-api.splinterlands.io/battle/history?player=' + player)
+  const battleHistory = await fetch('https://api2.splinterlands.com/battle/history?player=' + player)
     .then((response) => {
       if (!response.ok) { throw new Error('Network response was not ok '+player); }
       return response;

@@ -2,6 +2,7 @@ const AKMap = require('array-keyed-map');
 const {readFile,writeFile} = require('jsonfile');
 const {cards, chunk2} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const chalk = require('chalk');
 
 const basicCards = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id)
 const RULES_ON_CARDS = 'Broken Arrows,Even Stevens,Keep Your Distance,Little League,Lost Legendaries,Lost Magic,Odd Ones Out,Rise of the Commons,Taking Sides,Up Close & Personal'
@@ -16,15 +17,15 @@ const priorByQuest=(teams,{type,value,color})=>{
   var team;
   switch(type){
     case 'splinter':
-      log(`playing for ${value} ${type} quest`);
+      log(chalk`playing for {yellow ${value}} {red ${type}} quest`);
       team=teams.find(t=>cards[t.team[0][0]-1].color===color);
       break;
     case 'no_neutral':
-      log(`playing for ${type} quest`);
+      log(chalk`playing for {yellow ${value}} quest`);
       team = teams.find(t=>t.team.slice(1).every(c=>cards[c[0]-1].color!='Gray'))
       break;
     case 'ability':
-      log(`playing for ${value} ${type} quest`);
+      log(chalk`playing for {yellow ${value}} {red ${type}} quest`);
       team=teams.find(t=>!(t.team.every(c=>!(cards[c[0]-1].stats.abilities?.slice(0,c[1])+'').includes(value))))
       break;
     default: team = null;
@@ -169,14 +170,17 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
       if(better.length)return[[id],better]
     }).filter(x=>x)
   )
-  let mana=mana_cap,rule=RULES_ON_CARDS.includes(ruleset)?'Standard':ruleset;
-  if(rule!=ruleset) log('Filtering Teams for',ruleset)
+  let [prim_r,sec_r] = ruleset.split('|');
+  let mana=mana_cap,
+    rule=RULES_ON_CARDS.includes(ruleset)?'Standard':RULES_ON_CARDS.includes(sec_r)?prim_r:ruleset;
+  if(rule!=ruleset) log('Filtering Teams for',{ruleset,rule})
   do{
+    log('Finding teams based on: '+chalk.yellow(mana)+' mana');
     const scores = teamScores(battles.filter(b=>b.mana==mana&&b.rule==rule));
     var filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
       t.length>2    && chunk2(t).every(c=>inactive.indexOf(cards[c[0]-1].color)<0) &&
       s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1]) &&
-      filterTeamByRules(chunk2(t),ruleset)
+      filterTeamByRules(chunk2(t),sec_r||ruleset)
     )
       .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
     mana--;
