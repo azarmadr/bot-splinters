@@ -180,7 +180,7 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
     var filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
       t.length>2    && chunk2(t).every(c=>inactive.indexOf(cards[c[0]-1].color)<0) &&
       s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1]) &&
-      filterTeamByRules(chunk2(t),ruleset)
+      filterTeamByRules(chunk2(t),sec_r||ruleset)
     )
       .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
     mana--;

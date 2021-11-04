@@ -4,8 +4,7 @@ const puppeteer = require('puppeteer');
 const chalk = require('chalk');
 const {table} = require('table');
 
-const user = require('./user');
-const SM = require('./splinterApi');
+const {SM} = require('./splinterApi');
 const {playableTeams} = require('./score');
 const { cards, cardColor, teamActualSplinterToPlay, checkVer, sleep, } = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
@@ -37,11 +36,6 @@ async function checkForMissingConfigs() {
         await sleep(60000);
       }else if(!e.includes('PASSWORD')) log(`${e}:`,process.env[e]);
     }),Promise.resolve())
-}
-
-// LOAD MY CARDS
-async function getCards(player=process.env.ACCOUNT.split('@')[0]) {
-  return user.getPlayerCards(player).then(x=>x)
 }
 
 async function getBattles(player=process.env.ACCOUNT) {
@@ -83,9 +77,9 @@ async function startBotPlayMatch(page, myCards,user) {
   if(!ruleset.includes('Taking Sides')){
     const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
   }
-  log('Summoner:',cards[Summoner[0]-1].name,'Level:',Summoner[1]);
-  Monsters.forEach(m=>log('Monster:',cards[m[0]-1].name,'Level:',m[1]));
-  log('Stats:',['score','count','w','l','d'].map(s=>s+':'+teamsToPlay[0][s]).join())
+  log({Summoner:cards[Summoner[0]-1].name,Level:Summoner[1]});
+  log(Monsters.map(m=>{return{Monster:cards[m[0]-1].name,Level:m[1]}}));
+  log({Stats:Object.fromEntries(['score','count','w','l','d'].map(s=>[s,teamsToPlay[0][s]]))})
 
   await page.waitForTimeout(10000);
   try {
@@ -211,9 +205,17 @@ const preMatch=(__sm)=>{
         }
         user.isRanked = user.erc>process.env.ERC_THRESHOLD
         log('getting user cards collection from splinterlands API...')
-        const myCards = await getCards()
-          .then((x)=>{log('cards retrieved'); return x})
-          .catch(() => log('cards collection api didnt respond. Did you use username? avoid email!'));
+        const myCards = await SM.cards()
+          .then(cards => cards.map(c=>
+            c.owned.filter(o =>
+              !(o.market_id && o.market_listing_status === 0) &&
+              (!o.delegated_to || o.delegated_to === username) &&
+              (!(o.last_used_player !== username && Date.parse(o.last_used_date) > Date.now()-86400000))
+            ).map(o=>[c.id,o.level]).sort((a,b)=>a[1]-b[1])).flat()
+          )
+          .then(entries => Object.fromEntries(entries))
+          .then((x)=>{log(x,'cards retrieved'); return x})
+          .catch((e) => log(e,'cards collection api didnt respond. Did you use username? avoid email!'));
         await startBotPlayMatch(page, myCards, user)
           .then(() => { log('Closing battle'); }) .catch(log)
         await page.evaluate('SM.Logout()');
