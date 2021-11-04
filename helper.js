@@ -1,8 +1,9 @@
+const AKM  = require('array-keyed-map');
 const cards = require("./data/cards.json");
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 const _card = {},_team = {}, _elem = {}, _akmap = {};
-// Teams and Cards
+/** Card helper functions in _card object */
 /** small function to return id of the card if array or id is given
  * @param (Any) c if array of [id,level], or id
  * @returns id of the card */
@@ -10,13 +11,18 @@ const cardToIdx=c=>Array.isArray(c)?c[0]:c;
 _card.color=c=>cards[cardToIdx(c)-1].color;
 _card.name =c=>cards[cardToIdx(c)-1].name;
 _card.mana =c=>[cards[cardToIdx(c)-1].stats.mana].flat()[0];
-const validDecks = ['Red', 'Blue', 'White', 'Black', 'Green']
-const colorToDeck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
 
-const deckValidColor=(accumulator,currentValue)=>validDecks.includes(_card.color(currentValue))?colorToDeck[_card.color(currentValue)]:accumulator;
-
+/** Team helper functions in _team object */
+const color2Deck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
+const deckValidColor=(validColor,curCard)=>
+  Object.keys(color2Deck).includes(_card.color(curCard))?color2Deck[_card.color(curCard)]:validColor;
 _team.splinterToPlay=(team,inactive)=>
-  team.reduce(deckValidColor,colorToDeck[validDecks.find(c=>inactive.indexOf(c)<0)])
+  team.reduce(deckValidColor,color2Deck[Object.keys(color2Deck).find(c=>inactive.indexOf(c)<0)])
+_team.rules = {
+  primary:"Back to BasicsSilenced SummonersAim TrueSuper SneakWeak MagicUnprotectedTarget PracticeFog of WarArmored UpEqual OpportunityMelee Mayhem",
+  any:"Healed OutEarthquakeReverse SpeedClose RangeHeavy HittersEqualizerNoxious FumesStampedeExplosive WeaponryHoly ProtectionSpreading Fury",
+  secondary:"Keep Your DistanceLost LegendariesTaking SidesRise of the CommonsUp Close & PersonalBroken ArrowsLittle LeagueLost MagicEven StevensOdd Ones Out"
+}
 
 // general helper functions
 const arrEquals = (a, b) =>
@@ -53,7 +59,20 @@ _akmap.toPlainObject = akmap => {
     obj['__DATA__'] = value
   }
 }
-//const 
+_akmap.fromPlainObject = obj => {
+  const akmap = new AKM()
+  for (const [path, value] of allPaths(obj)) {
+    akmap.set(path, value)
+  }
+  return akmap
+
+  function* allPaths(obj, stack = []) {
+    for (let [key, value] of Object.entries(obj)) {
+      if (key === '__DATA__') yield [stack, value]
+      else yield* allPaths(value, stack.concat([key]))
+    }
+  }
+}
 
 function sleep(ms) {
   process.stdout.write("\x1B[?25l");
