@@ -75,7 +75,7 @@ const saveBattleList=(bl,fn='')=>{
  * @returns {Array battle} array of battles
  */
 const battles = (player,fn) => getBattleHistory(player)
-  .then(bh => bh.reduce((d,c)=>[...new Set([...d,c.player_1,c.player_2])],[]))
+  .then(bh => [...new Set(bh.map(c=>[c.player_1,c.player_2]).flat())])
   .then(ul=>userListToBattlesList(ul,27))
   .then(bl=>saveBattleList(bl,fn))
 
