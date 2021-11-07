@@ -8,11 +8,19 @@ const _card = {},_team = {}, _elem = {}, _akmap = {};
  * @param (Any) c if array of [id,level], or id
  * @returns id of the card */
 const cardToIdx=c=>Array.isArray(c)?c[0]:c;
-_card.color=c=>cards[cardToIdx(c)-1].color;
-_card.name =c=>cards[cardToIdx(c)-1].name;
+['color','name','rarity','type','rarity'].forEach(
+  attribute=>_card[attribute]=c=>cards[cardToIdx(c)-1][attribute])
+
 _card.mana =c=>[cards[cardToIdx(c)-1].stats.mana].flat()[0];
 
+_card.abilities=([i,l])=>cards[i-1].stats?.abilities?.slice(0,l)?.flat();
+
+['ranged','magic','attack','speed','armor','health'].forEach(
+  stat=>_card[stat]=([i,l])=>cards[i-1].stats[stat]?.[l-1])
+_card.basic = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id);
+
 /** Team helper functions in _team object */
+_team.mana = t=>t.reduce((a,c)=>_card.mana(c)+a,0)
 const color2Deck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
 const deckValidColor=(validColor,curCard)=>
   Object.keys(color2Deck).includes(_card.color(curCard))?color2Deck[_card.color(curCard)]:validColor;

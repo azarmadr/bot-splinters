@@ -39,10 +39,12 @@ async function checkForMissingConfigs() {
 }
 
 async function getBattles(player=process.env.ACCOUNT) {
-  const battlesList = process.env.UPDATE_BATTLE_DATA
-    ?(require('./battles-data').battlesList)
-    :((_)=>require('./data/battle_data.json'));
-  return battlesList(player);
+  if(process.env.UPDATE_BATTLE_DATA)
+    return require('./battles-data').battlesList(player)
+  else {
+    require('./battles-data').battlesList(player,'-new');
+    return require('./data/battle_data.json')
+  }
 }
 
 async function createBrowser(headless) {
@@ -132,10 +134,9 @@ async function startBotPlayMatch(page, myCards,user) {
 const sleepingTimeInMinutes = process.env.MINUTES_BATTLES_INTERVAL || 30;
 const sleepingTime = sleepingTimeInMinutes * 60000;
 
-const preMatch=(__sm)=>{
+const preMatch=({Player,settings})=>{
   const _return = {};
   const ercThreshold = process.env.ERC_THRESHOLD;
-  const Player = __sm.Player,settings = __sm.settings;
   _return.dec = Player.balances.find(t=>t.token=='DEC')?.balance
   const erc = Math.floor(Math.min((isNaN(parseInt(Player.capture_rate)) ? 1e4 : Player.capture_rate) + (Date.now() - new Date(Player.last_reward_time)) / 3e3 * settings.dec.ecr_regen_rate, 1e4)/100)
   log('Current Energy Capture Rate is ' + (erc>ercThreshold?chalk.green(erc + "%"):chalk.red(erc + "%")));
@@ -153,6 +154,7 @@ const preMatch=(__sm)=>{
     if(completed_items<total_items){
       log('Quest details:'+chalk.yellow(name,'->',completed_items,'/',total_items));
       if(2*Math.random()<1&&JSON.parse(process.env.QUEST_PRIORITY)) _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
+    }
     if(completed_items>=total_items){
       _return.claimQuestReward.push(Player.quest,quest);
       _return.quest = null;
@@ -188,7 +190,7 @@ const preMatch=(__sm)=>{
           browser = await createBrowser(headless);
           page = (await browser.pages())[1];
         }
-        log('//debug');
+        //log('//debug');
         await page.goto('https://splinterlands.com/');
         SM._(page);
         // Login
@@ -217,7 +219,7 @@ const preMatch=(__sm)=>{
             ).map(o=>[c.id,o.level]).sort((a,b)=>a[1]-b[1])).flat()
           )
           .then(entries => Object.fromEntries(entries))
-          .then((x)=>{log(x,'cards retrieved'); return x})
+          .then((x)=>{log('cards retrieved'); return x})
           .catch((e) => log(e,'cards collection api didnt respond. Did you use username? avoid email!'));
         await startBotPlayMatch(page, myCards, user)
           .then(() => { log('Closing battle'); }) .catch(log)

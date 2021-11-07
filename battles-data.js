@@ -1,8 +1,7 @@
 const {readFile,writeFile} = require('jsonfile');
-const {arrEquals,arrCmp,chunk} = require('./helper');
+const {arrEquals,arrCmp,chunk,_team} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 var pc = 0;
-const RULES_ON_CARDS = 'Broken Arrows,Even Stevens,Keep Your Distance,Little League,Lost Legendaries,Lost Magic,Odd Ones Out,Rise of the Commons,Taking Sides,Up Close & Personal'
 async function getBattleHistory(player = '') {
   const battleHistory = await require('async-get-json')(`https://api2.splinterlands.com/battle/history?player=${player}`)
     .catch((error) => async function getBattleHistory(player = '') {
@@ -33,7 +32,10 @@ const genBattleList=(battles)=>battles.map(
       }});
       [team1,team2].forEach(({player},i)=>teams[i].unshift(won[player]));
       teams.sort();
-      return{mana:mana_cap,rule:(RULES_ON_CARDS.includes(ruleset)?'Standard':ruleset),teams}
+      const rule = ruleset.split('|').reduce((rules,cr)=>
+        _team.rules.secondary.includes(cr)?rules:rules.concat(cr)
+      ,[]).sort().join()||'Standard';
+      return{mana:mana_cap,rule,teams}
     }
   }
 ).filter(x=>x)
