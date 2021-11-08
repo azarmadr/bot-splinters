@@ -20,6 +20,7 @@ async function checkForUpdate() {
         log(gitVersion.join('.'),version.join('.'))
         if(checkVer(gitVersion,version)){
           let answer = await question("Newer version exists!!!\nDo you want to continue? (y/N)")
+          log({'Note!!':require('./package.json').description})
           if(answer.match(/y/gi)) log('Continuing with older version');
           else if(answer.match(/n/gi)) throw new Error('git pull or get newer version');
           else throw new Error('choose correctly');
