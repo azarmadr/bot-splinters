@@ -1,6 +1,6 @@
 {
   "name": "bot-splinters",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "run `node _cleanUpBattle.js` after updating",
   "main": "index.js",
   "scripts": {
