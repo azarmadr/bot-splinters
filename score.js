@@ -1,7 +1,7 @@
 const AKMap = require('array-keyed-map');
 const {readFile,writeFile} = require('jsonfile');
 const {_team,_card,chunk2} = require('./helper');
-const log=(...m)=>console.log({'File':__filename.split(/[\\/]/).pop()},...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 const chalk = require('chalk');
 
 /** Finds team satisfying quest rules, and places it at head of the teams array
@@ -216,7 +216,7 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
     const scores = teamScores(battles.filter(b=>b.mana==mana&&b.rule==attr_r.sort().join()));
     log({'Scores Size':scores.size})
     var filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
-      t.length>2    && chunk2(t).every(c=>!inactive.indexOf(_card.color(c))) &&
+      t.length>2    && chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
       s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1])
       && filterTeamByRules(chunk2(t),card_r)
     )
@@ -233,4 +233,10 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
 }
 
 module.exports = {teamScores,playableTeams,scoreMap2Obj};
-log(playableTeams(require('./data/battle_data.json'),'azarmadr3',{  mana_cap: 18, ruleset: 'Rise of the Commons', inactive: 'Red,Green,White,Black',}).length)
+log(playableTeams(require('./data/battle_data.json'),'azarmadr3',{
+  mana_cap: 21,
+  ruleset: 'Fog of War',
+  inactive: 'Red,Gold',
+  quest: null,
+  opponent_player: 'ninhspl2289'
+}).map(({team})=>team.map(c=>_card.name(c))))

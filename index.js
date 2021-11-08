@@ -7,7 +7,7 @@ const {table} = require('table');
 const {SM} = require('./splinterApi');
 const {playableTeams} = require('./score');
 const {_card, _team, checkVer, sleep,} = require('./helper');
-const log=(...m)=>console.log({'File':__filename.split(/[\\/]/).pop()},...m);
+const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
