@@ -1,7 +1,7 @@
 const AKMap = require('array-keyed-map');
 const {readFile,writeFile} = require('jsonfile');
 const {_team,_card,chunk2} = require('./helper');
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const log=(...m)=>console.log({'File':__filename.split(/[\\/]/).pop()},...m);
 const chalk = require('chalk');
 
 /** Finds team satisfying quest rules, and places it at head of the teams array
@@ -107,7 +107,7 @@ const teamWithBetterCards=(betterCards,myCards,mana_cap)=>{
     const fillTeamGap=(team)=>{
       const gap = mana_cap-_team.mana(team);
       if(gap){
-        const card = Object.entries(myCards).find(c=>
+        const card = Object.entries(myCards).filter(c=>c[0]!='gold').map(c=>[Number(c[0]),c[1]]).find(c=>
           co.includes(_card.color(c))&&_card.mana(c)<=gap&&
           team.every(uc=>c[0]!=uc[0])&&team.length<8);
         if(card){
@@ -125,8 +125,8 @@ const teamWithBetterCards=(betterCards,myCards,mana_cap)=>{
   }
 }
 
-const cardPassRules=ruleset=>{
-  switch(ruleset){
+const cardPassRules=rule=>{
+  switch(rule){
     case 'Broken Arrows':
       return c=>_card.ranged(c)==0;break;
     case 'Lost Magic':
@@ -140,7 +140,7 @@ const cardPassRules=ruleset=>{
     case 'Lost Legendaries':
       return c=>_card.rarity(c)<4;break;
     case 'Rise of the Commons':
-      return c=>_card.rarity(c)<2;break;
+      return c=>_card.rarity(c)<3;break;
     case 'Taking Sides':
       return c=>_card.color(c)!='Gray';break
     case 'Even Stevens':
@@ -150,35 +150,39 @@ const cardPassRules=ruleset=>{
     default: return ()=>true;
   }
 }
-const filterTeamByRules=(team,ruleset)=>{
-  if('Little League,Lost Legendaries,Rise of the Commons'.includes(ruleset))
-    return team.every(cardPassRules(ruleset));
-  else if('Taking Sides'===ruleset)
-    return (team.reduce((a,c)=>c[0]==19?a+1:a,0)<2)&&team.slice(1).every(cardPassRules(ruleset));
-  else if(_team.rules.secondary.includes(ruleset))
-    return team.slice(1).every(cardPassRules(ruleset));
+const filterTeamByRules=(team,rule)=>{
+  if('Little League,Lost Legendaries,Rise of the Commons'.includes(rule))
+    return team.every(cardPassRules(rule));
+  else if('Taking Sides'===rule)
+    return (team.reduce((a,c)=>c[0]==19?a+1:a,0)<2)&&team.slice(1).every(cardPassRules(rule));
+  else if(_team.rules.secondary.includes(rule))
+    return team.slice(1).every(cardPassRules(rule));
   else return true
 }
 /**
  * @example log(betterCards(require('./data/azarmadr3_cards.json'),'Standard'))
  */
-const betterCards =(myCards,ruleset)=> Object.fromEntries(
+const betterCards =(myCards,rule)=> Object.fromEntries(
   Object.entries(myCards)
-  .filter(c=>c[0]!='gold'&&_card.type(c)=='Monster'&&cardPassRules(ruleset)(c))
+  .filter(c=>c[0]!='gold'&&_card.type(c)=='Monster'&&cardPassRules(rule)(c))
   .map((c,_,mycards)=>{
     c[0]=Number(c[0]);
     const color = _card.color(c);
-    const allStats = ['mana','ranged','magic','attack','speed','armor','health'];
-    const [,...upStats] = allStats;
+    const allStats = ['abilities','mana','speed','ranged','magic','attack','armor','health'].filter(s=>
+      !(rule.includes('Unprotected')&&s=='armor')&&!(rule.includes('Equalizer')&&s=='health'))
+    const upStats = allStats.slice(rule.includes('Reverse Speed')?3:2);
     const downStats = ['mana'];
     var allowedColors=('RedWhiteBlueBlackGreen'.includes(color)?
       ['Gold',color]:'RedWhiteBlueBlackGreenGold')+
-      (ruleset.includes('Taking Sides')?'':'Gray')
+      (rule.includes('Taking Sides')?'':'Gray')
     const statCmp=oc=>
       !allStats.every(t=>_card[t](c)==_card[t](oc))&&
-        upStats.every(t=>_card[t](c)<=_card[t](oc))&&//speed can be inverted here for a different ruleset
+        upStats.every(t=>_card[t](c)<=_card[t](oc))&&//speed can be inverted here for a different rule
         downStats.every(t=>_card[t](c)>=_card[t](oc))&&
-        (_card.abilities(c).length<1||_card.abilities(c)+''==_card.abilities(oc)+'')
+        (rule.includes('Back to Basics')||
+          (_card.abilities(c).length<1||
+            _card.abilities(c).filter(a=>!(rule.includes('Fog of War')&&a.match(/Sneak|Snipe/)))+''
+            ==_card.abilities(oc).filter(a=>!(rule.includes('Fog of War')&&a.match(/Sneak|Snipe/)))+''))
     const better = mycards.map(c=>[Number(c[0]),c[1]]).filter(oc=>
       c[0]!=oc.id&&
       allowedColors.includes(_card.color(oc))&&statCmp(oc)
@@ -210,17 +214,18 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
   do{
     log('Finding teams based on: '+chalk.yellow(mana)+' mana');
     const scores = teamScores(battles.filter(b=>b.mana==mana&&b.rule==attr_r.sort().join()));
+    log({'Scores Size':scores.size})
     var filteredTeams = [...scores.entries()].filter(([[m,r,...t],s])=>
-      t.length>2    && chunk2(t).every(c=>inactive.indexOf(_card.color(c))<0) &&
-      s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1]) &&
-      filterTeamByRules(chunk2(t),card_r)
+      t.length>2    && chunk2(t).every(c=>!inactive.indexOf(_card.color(c))) &&
+      s.count<2*s.w && chunk2(t).every(c=>myCards[c[0]]>=c[1])
+      && filterTeamByRules(chunk2(t),card_r)
     )
       .map(([[m,r,...t],s])=>{return {team:chunk2(t),...s}})
     mana--;
   }while(filteredTeams.length<1&&(mana>12))
   var filteredTeams_length = filteredTeams.length;
   filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
-  filteredTeams.sort(sortByProperty(sortByWinRate)).splice(1+filteredTeams.length/27)
+  filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams.length/27)
   log('trimming', {filteredTeams_length},'to',filteredTeams.length)
   if(quest)priorByQuest(filteredTeams,quest);
   writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
@@ -228,3 +233,4 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
 }
 
 module.exports = {teamScores,playableTeams,scoreMap2Obj};
+log(playableTeams(require('./data/battle_data.json'),'azarmadr3',{  mana_cap: 18, ruleset: 'Rise of the Commons', inactive: 'Red,Green,White,Black',}).length)

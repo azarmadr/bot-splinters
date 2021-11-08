@@ -7,7 +7,7 @@ const {table} = require('table');
 const {SM} = require('./splinterApi');
 const {playableTeams} = require('./score');
 const {_card, _team, checkVer, sleep,} = require('./helper');
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const log=(...m)=>console.log({'File':__filename.split(/[\\/]/).pop()},...m);
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
@@ -43,7 +43,7 @@ async function getBattles(player=process.env.ACCOUNT) {
     return require('./battles-data').battlesList(player)
   else {
     require('./battles-data').battlesList(player,'-new');
-    return require('./data/battle_data.json')
+    return [...require('./data/battle_data.json'),...require('./data/battle_data-new.json')]
   }
 }
 
@@ -68,7 +68,7 @@ async function startBotPlayMatch(page, myCards,user) {
   await page.waitForTimeout(10000);
   const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle(user.isRanked?'Ranked':'Practice')
 
-  log({mana_cap, ruleset, inactive, opponent_player,})
+  log({mana_cap, ruleset, inactive,quest:user.quest, opponent_player,})
   var battlesList = await getBattles(opponent_player).catch(log);
   const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards,{sortByWinRate:!user.isRanked});
 
