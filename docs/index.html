@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset='utf-8'>
-  <title>bot-splinters 1.8.3 | Documentation</title>
-  <meta name='description' content='splinter bot'>
+  <title>bot-splinters 1.9.1 | Documentation</title>
+  <meta name='description' content='run `node _cleanUpBattle.js` after updating'>
   <meta name='viewport' content='width=device-width,initial-scale=1'>
   <link href='assets/bass.css' rel='stylesheet'>
   <link href='assets/style.css' rel='stylesheet'>
@@ -15,7 +15,7 @@
       <div id='split-left' class='overflow-auto fs0 height-viewport-100'>
         <div class='py1 px2'>
           <h3 class='mb0 no-anchor'>bot-splinters</h3>
-          <div class='mb1'><code>1.8.3</code></div>
+          <div class='mb1'><code>1.9.1</code></div>
           <input
             placeholder='Filter'
             id='filter-input'
@@ -59,16 +59,6 @@
               
                 
                 <li><a
-                  href='#playableteams'
-                  class="">
-                  playableTeams
-                  
-                </a>
-                
-                </li>
-              
-                
-                <li><a
                   href='#bettercards'
                   class="">
                   betterCards
@@ -79,9 +69,69 @@
               
                 
                 <li><a
+                  href='#playableteams'
+                  class="">
+                  playableTeams
+                  
+                </a>
+                
+                </li>
+              
+                
+                <li><a
+                  href='#reduce'
+                  class="">
+                  reduce
+                  
+                </a>
+                
+                </li>
+              
+                
+                <li><a
                   href='#cardtoidx'
                   class="">
                   cardToIdx
+                  
+                </a>
+                
+                </li>
+              
+                
+                <li><a
+                  href='#cardtoidx'
+                  class="">
+                  cardToIdx
+                  
+                </a>
+                
+                </li>
+              
+                
+                <li><a
+                  href='#mana'
+                  class="">
+                  mana
+                  
+                </a>
+                
+                </li>
+              
+                
+                <li><a
+                  href='#userlisttobattleslist'
+                  class="">
+                  userListToBattlesList
+                  
+                </a>
+                
+                </li>
+              
+                
+                <li><a
+                  href='#battles'
+                  class="">
+                  battles
                   
                 </a>
                 
@@ -107,7 +157,7 @@
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L15-L33'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/score.js#L14-L32'>
       <span>score.js</span>
       </a>
     
@@ -226,7 +276,7 @@
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L37-L44'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/score.js#L36-L43'>
       <span>score.js</span>
       </a>
     
@@ -294,7 +344,7 @@
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L48-L58'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/score.js#L47-L55'>
       <span>score.js</span>
       </a>
     
@@ -357,12 +407,92 @@
   
   <div class='clearfix'>
     
+    <h3 class='fl m0' id='bettercards'>
+      betterCards
+    </h3>
+    
+    
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/score.js#L155-L179'>
+      <span>score.js</span>
+      </a>
+    
+  </div>
+  
+
+  
+    <div class='pre p1 fill-light mt0'>betterCards</div>
+  
+  
+
+  
+  
+  
+  
+  
+  
+
+  
+    <div class='py1 quiet mt1 prose-big'>Parameters</div>
+    <div class='prose'>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>myCards</span> <code class='quiet'>(any)</code>
+	    
+          </div>
+          
+        </div>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>rule</span> <code class='quiet'>(any)</code>
+	    
+          </div>
+          
+        </div>
+      
+    </div>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    <div class='py1 quiet mt1 prose-big'>Example</div>
+    
+      
+      <pre class='p1 overflow-auto round fill-light'>log(betterCards(<span class="hljs-built_in">require</span>(<span class="hljs-string">&#x27;./data/azarmadr3_cards.json&#x27;</span>),<span class="hljs-string">&#x27;Standard&#x27;</span>))</pre>
+    
+  
+
+  
+
+  
+
+  
+
+  
+</section>
+
+          
+        
+          
+          <section class='p2 mb2 clearfix bg-white minishadow'>
+
+  
+  <div class='clearfix'>
+    
     <h3 class='fl m0' id='playableteams'>
       playableTeams
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L149-L189'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/score.js#L190-L222'>
       <span>score.js</span>
       </a>
     
@@ -554,12 +684,12 @@
   
   <div class='clearfix'>
     
-    <h3 class='fl m0' id='bettercards'>
-      betterCards
+    <h3 class='fl m0' id='reduce'>
+      reduce
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/score.js#L153-L171'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/score.js#L194-L197'>
       <span>score.js</span>
       </a>
     
@@ -568,7 +698,7 @@
 
   <p>Get better cards from myCards</p>
 
-    <div class='pre p1 fill-light mt0'>betterCards</div>
+    <div class='pre p1 fill-light mt0'>reduce</div>
   
   
 
@@ -613,7 +743,74 @@
     </h3>
     
     
-      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/bf05618839931eb196e0742b59b9df041fe67a32/helper.js#L9-L9'>
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/helper.js#L10-L10'>
+      <span>helper.js</span>
+      </a>
+    
+  </div>
+  
+
+  <p>Card helper functions in _card object</p>
+
+    <div class='pre p1 fill-light mt0'>cardToIdx</div>
+  
+  
+
+  
+  
+  
+  
+  
+  
+
+  
+    <div class='py1 quiet mt1 prose-big'>Parameters</div>
+    <div class='prose'>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>c</span> <code class='quiet'>(any)</code>
+	    
+          </div>
+          
+        </div>
+      
+    </div>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+</section>
+
+          
+        
+          
+          <section class='p2 mb2 clearfix bg-white minishadow'>
+
+  
+  <div class='clearfix'>
+    
+    <h3 class='fl m0' id='cardtoidx'>
+      cardToIdx
+    </h3>
+    
+    
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/helper.js#L10-L10'>
       <span>helper.js</span>
       </a>
     
@@ -667,6 +864,238 @@
 
       
     
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+</section>
+
+          
+        
+          
+          <section class='p2 mb2 clearfix bg-white minishadow'>
+
+  
+  <div class='clearfix'>
+    
+    <h3 class='fl m0' id='mana'>
+      mana
+    </h3>
+    
+    
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/helper.js#L23-L23'>
+      <span>helper.js</span>
+      </a>
+    
+  </div>
+  
+
+  <p>Team helper functions in _team object</p>
+
+    <div class='pre p1 fill-light mt0'>mana(t: any)</div>
+  
+  
+
+  
+  
+  
+  
+  
+  
+
+  
+    <div class='py1 quiet mt1 prose-big'>Parameters</div>
+    <div class='prose'>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>t</span> <code class='quiet'>(any)</code>
+	    
+          </div>
+          
+        </div>
+      
+    </div>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+</section>
+
+          
+        
+          
+          <section class='p2 mb2 clearfix bg-white minishadow'>
+
+  
+  <div class='clearfix'>
+    
+    <h3 class='fl m0' id='userlisttobattleslist'>
+      userListToBattlesList
+    </h3>
+    
+    
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/battles-data.js#L49-L54'>
+      <span>battles-data.js</span>
+      </a>
+    
+  </div>
+  
+
+  <p>Generates battles list from an array of users. First it is chunked to an array of smaller array, and then gets battlesList for each chunk, concats them all to a final array.</p>
+
+    <div class='pre p1 fill-light mt0'>userListToBattlesList</div>
+  
+  
+
+  
+  
+  
+  
+  
+  
+
+  
+    <div class='py1 quiet mt1 prose-big'>Parameters</div>
+    <div class='prose'>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>ul</span> <code class='quiet'>(any)</code>
+	    
+          </div>
+          
+        </div>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>cl</span> <code class='quiet'>(<a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number">Number</a>
+            = <code>27</code>)</code>
+	    chunk length
+
+          </div>
+          
+        </div>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>fn</span> <code class='quiet'>(<a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String">String</a>)</code>
+	    additional filename postfix to be added to 
+<code>./data/battle_data</code>
+
+          </div>
+          
+        </div>
+      
+    </div>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+</section>
+
+          
+        
+          
+          <section class='p2 mb2 clearfix bg-white minishadow'>
+
+  
+  <div class='clearfix'>
+    
+    <h3 class='fl m0' id='battles'>
+      battles
+    </h3>
+    
+    
+      <a class='fr fill-darken0 round round pad1x quiet h5' href='https://github.com/azarmadr/bot-splinters/blob/fa54b4b73b9177cfb681bf45feb5a940d72f387d/battles-data.js#L79-L82'>
+      <span>battles-data.js</span>
+      </a>
+    
+  </div>
+  
+
+  <p>Generates user list from a given player battle history, and passes it on to userListToBattlesList function to create aggregate battles list, and saves it to a file</p>
+
+    <div class='pre p1 fill-light mt0'>battles</div>
+  
+  
+
+  
+  
+  
+  
+  
+  
+
+  
+    <div class='py1 quiet mt1 prose-big'>Parameters</div>
+    <div class='prose'>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>player</span> <code class='quiet'>(<a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String">String</a>)</code>
+	    Splinterlands account name of a player
+
+          </div>
+          
+        </div>
+      
+        <div class='space-bottom0'>
+          <div>
+            <span class='code bold'>fn</span> <code class='quiet'>(<a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String">String</a>)</code>
+	    additional filename postfix to be added to 
+<code>./data/battle_data</code>
+
+          </div>
+          
+        </div>
+      
+    </div>
+  
+
+  
+
   
 
   

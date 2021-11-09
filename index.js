@@ -148,7 +148,7 @@ const preMatch=({Player,settings})=>{
 
   //if quest done claim reward
   _return.claimQuestReward = [];
-  _return.quest = null;
+  _return.quest = 0;
   if (Player.quest&&!Player.quest.claim_trx_id){
     const {name,completed_items,total_items,rewards}=Player.quest;
     const quest = settings.quests.find(q=>q.name==name)
@@ -158,7 +158,7 @@ const preMatch=({Player,settings})=>{
     }
     if(completed_items>=total_items){
       _return.claimQuestReward.push(Player.quest,quest);
-      _return.quest = null;
+      _return.quest = 0;
     }
   }
   return _return;
@@ -237,4 +237,4 @@ const preMatch=({Player,settings})=>{
   } catch (e) {
     log('Routine error at: ', new Date().toLocaleString(), e)
     throw new Error(e);
-  } })();
+  } })()
