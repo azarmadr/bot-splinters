@@ -6,7 +6,8 @@ const {table} = require('table');
 
 const {SM} = require('./splinterApi');
 const {playableTeams} = require('./score');
-const {_card, _team, checkVer, sleep,} = require('./helper');
+const battles = require('./battles-data');
+const {_card, _team, _arr, sleep,} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 async function checkForUpdate() {
@@ -14,17 +15,15 @@ async function checkForUpdate() {
     .then(async v=>{
       const gitVersion = v.version.replace(/(\.0+)+$/,'').split('.');
       const version = require('./package.json').version.replace(/(\.0+)+$/,'').split('.');
-      if(checkVer(gitVersion,version)){
+      if(_arr.checkVer(gitVersion,version)){
         const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
         const question = require('util').promisify(rl.question).bind(rl);
         log(gitVersion.join('.'),version.join('.'))
-        if(checkVer(gitVersion,version)){
-          let answer = await question("Newer version exists!!!\nDo you want to continue? (y/N)")
-          log({'Note!!':require('./package.json').description})
-          if(answer.match(/y/gi)) log('Continuing with older version');
-          else if(answer.match(/n/gi)) throw new Error('git pull or get newer version');
-          else throw new Error('choose correctly');
-        }
+        let answer = await question("Newer version exists!!!\nDo you want to continue? (y/N)")
+        log({'Note!!':require('./package.json').description})
+        if(answer.match(/y/gi)) log('Continuing with older version');
+        else if(answer.match(/n/gi)) throw new Error('git pull or get newer version');
+        else throw new Error('choose correctly');
       }
     })
 }
@@ -41,10 +40,12 @@ async function checkForMissingConfigs() {
 
 async function getBattles(player=process.env.ACCOUNT) {
   if(process.env.UPDATE_BATTLE_DATA)
-    return require('./battles-data').battlesList(player)
+    return battles.fromUser(player)
   else {
-    require('./battles-data').battlesList(player,'-new');
-    return [...require('./data/battle_data.json'),...require('./data/battle_data-new.json')]
+    battles.fromUser(player,'-new');
+    const bl = require('./data/battle_data.json');
+    battles.merge(bl,require('./data/battle_data-new.json'));
+    return bl;
   }
 }
 
@@ -80,8 +81,8 @@ async function startBotPlayMatch(page, myCards,user) {
   if(!ruleset.includes('Taking Sides')){
     const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
   }
-  log({Summoner:_card.name(Summoner),Level:Summoner[1]});
-  log(Monsters.map(m=>{return{Monster:_card.name(m),Level:m[1]}}));
+  log([{Summoner:_card.name(Summoner),Level:Summoner[1]},
+    ...Monsters.map(m=>{return{Monster:_card.name(m),Level:m[1]}})]);
   log({Stats:Object.fromEntries(['score','count','w','l','d'].map(s=>[s,teamsToPlay[0][s]]))})
 
   await page.waitForTimeout(10000);

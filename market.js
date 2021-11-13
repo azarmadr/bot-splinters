@@ -1,4 +1,4 @@
-const {_card, _team, _elem, checkVer, sleep,} = require('./helper');
+const {_card, _team, _elem, sleep,} = require('./helper');
 const {SM} = require('./splinterApi');
 require('dotenv').config()
 const puppeteer = require('puppeteer');
