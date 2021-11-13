@@ -2,7 +2,7 @@ const AKM  = require('array-keyed-map');
 const cards = require("./data/cards.json");
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
-const _card = {},_team = {}, _elem = {}, _akmap = {};
+const _card = {},_team = {}, _elem = {}, _akmap = {}, _dbug = {},_arr = {};
 /** Card helper functions in _card object */
 /** small function to return id of the card if array or id is given
  * @param (Any) c if array of [id,level], or id
@@ -20,12 +20,13 @@ _card.abilities=([i,l])=>cards[i-1].stats?.abilities?.slice(0,l)?.flat();
 _card.basic = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id);
 
 /** Team helper functions in _team object */
-_team.mana = t=>t.reduce((a,c)=>_card.mana(c)+a,0)
+const teamAdpt=t=>Array.isArray(t[0])?t:_arr.chunk2(t);
+_team.mana = t=>teamAdpt(t).reduce((a,c)=>_card.mana(c)+a,0)
 const color2Deck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
 const deckValidColor=(validColor,curCard)=>
   Object.keys(color2Deck).includes(_card.color(curCard))?color2Deck[_card.color(curCard)]:validColor;
 _team.splinterToPlay=(team,inactive)=>
-  team.reduce(deckValidColor,color2Deck[Object.keys(color2Deck).find(c=>inactive.indexOf(c)<0)])
+  teamAdpt(team).reduce(deckValidColor,color2Deck[Object.keys(color2Deck).find(c=>inactive.indexOf(c)<0)])
 _team.rules = {
   primary:"Back to BasicsSilenced SummonersAim TrueSuper SneakWeak MagicUnprotectedTarget PracticeFog of WarArmored UpEqual OpportunityMelee Mayhem",
   any:"Healed OutEarthquakeReverse SpeedClose RangeHeavy HittersEqualizerNoxious FumesStampedeExplosive WeaponryHoly ProtectionSpreading Fury",
@@ -33,27 +34,27 @@ _team.rules = {
 }
 
 // general helper functions
-const arrEquals = (a, b) =>
+_arr.eq = (a, b) =>
   a.length === b.length &&
-    a.every((v, i) => Array.isArray(v)?arrEquals(v,b[i]):v === b[i]);
-const arrCmp = (a,b)=> // return a>b
+    a.every((v, i) => Array.isArray(v)?_arr.eq(v,b[i]):v === b[i]);
+_arr.cmp = (a,b)=> // return a>b
   a.length === b.length ?
-    a.reduce((r,v,i)=>r+(Array.isArray(v)?arrCmp(v,b[i]):v-b[i]),0):a.length-b.length;
-const checkVer=(a,b)=>{
+    a.reduce((r,v,i)=>r+(Array.isArray(v)?_arr.cmp(v,b[i]):v-b[i]),0):a.length-b.length;
+_arr.checkVer=(a,b)=>{
   for(const i of Array(Math.min(a.length,b.length)).keys()){
     if(Number(a[i])>Number(b[i]))return true;
     else if(Number(a[i])<Number(b[i]))return false;
   }
   return a.length>b.length
 }
-const chunk = (input_arr, size) => {
+_arr.chunk = (input_arr, size) => {
   return input_arr.reduce((arr, item, idx) => {
     return idx % size === 0
       ? [...arr, [item]]
       : [...arr.slice(0, -1), [...arr.slice(-1)[0], item]];
   }, []);
 }
-const chunk2=arr=>chunk(arr,2);
+_arr.chunk2=arr=>_arr.chunk(arr,2);
 
 _akmap.toPlainObject = akmap => {
   const out = {}
@@ -120,7 +121,15 @@ _elem.getTextByXpath = async function(page, selector, timeout=20000) {
 }
 //const team = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(team)); console.log(_card.color({"id":224,"level":1,"name":"Drake of Arnak"}))
 
+/** debug helpers
+ */
+_dbug.in1 = m=>{
+  require('readline').clearLine(process.stdout,0)
+  require('readline').cursorTo(process.stdout,0);
+  process.stdout.write(`tt: ${m}`);
+}
+
 module.exports = {
-  _card,     _team, _elem, _akmap, sleep,  log,
-  arrEquals, cards, chunk, chunk2, arrCmp, checkVer,
+  _card,     _team, _elem, _akmap, _dbug,  sleep,  log,
+  _arr, cards,
 };

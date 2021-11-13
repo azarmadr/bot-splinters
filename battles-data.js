@@ -1,6 +1,8 @@
 const {readFile,writeFile} = require('jsonfile');
-const {arrEquals,arrCmp,chunk,_team} = require('./helper');
+const {_arr,_team,_dbug} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+
+const _battles = {};
 var pc = 0;
 async function getBattleHistory(player = '') {
   const battleHistory = await require('async-get-json')(`https://api2.splinterlands.com/battle/history?player=${player}`)
@@ -20,25 +22,28 @@ async function getBattleHistory(player = '') {
 
 const __medusa=(m)=>(m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
 const xtractTeam=(t)=>[...[t.summoner,...t.monsters].map(m=>[__medusa(m),m.level])]
-const genBattleList=(battles)=>battles.map(
-  ({ruleset,mana_cap,created_date,details})=>{
+const genBattleList=(battles,battle_obj)=>battles.reduce(
+  (battle_obj,{ruleset,mana_cap,created_date,details})=>{
     const {winner,team1,team2} = JSON.parse(details);
-    if (Date.parse(created_date)>1631856895886) {
-      const teams = [team1,team2].map(xtractTeam);
-      if(arrEquals(...teams)){return undefined}
+    //if (Date.parse(created_date)>1631856895886) {
+    const teams = [team1,team2].map(xtractTeam);
+    if(!_arr.eq(...teams)){
       const won = new Proxy({winner},{get: (t,p,r)=>{//target,prop,reciever
         if(t.winner=='DRAW'){return 'd'}
         return t.winner==p?'w':'l';
       }});
       [team1,team2].forEach(({player},i)=>teams[i].unshift(won[player]));
-      teams.sort();
-      const rule = ruleset.split('|').reduce((rules,cr)=>
+      let obj = battle_obj;
+      const [_,...rem] = teams.sort().flat(2);
+      for(let path of (ruleset.split('|').reduce((rules,cr)=>
         _team.rules.secondary.includes(cr)?rules:rules.concat(cr)
-      ,[]).sort().join()||'Standard';
-      return{mana:mana_cap,rule,teams}
+        ,[]).sort().join()||'Standard').split(','))obj=obj[path]??={};
+      obj=obj[mana_cap]??=[];
+      obj.push(rem);
     }
-  }
-).filter(x=>x)
+    return battle_obj
+  },battle_obj
+)
 
 /** Generates battles list from an array of users. First it is chunked to an array of smaller array, and then gets battlesList for each chunk, concats them all to a final array.
  * @param {Array String} ul array of users
@@ -46,42 +51,47 @@ const genBattleList=(battles)=>battles.map(
  * @param {String} fn additional filename postfix to be added to `./data/battle_data`
  * @returns {Array battle} array of battles and saves the same
  */
-const userListToBattlesList=(ul,cl=27)=>Promise.resolve(chunk(ul,cl).reduce(
+_battles.fromUserList=(ul,cl=27)=>Promise.resolve(_arr.chunk(ul,cl).reduce(
   (memo,ul_chunk)=>memo.then(bl=>
-    Promise.all(ul_chunk.map(u=>getBattleHistory(u).then(genBattleList)))
-    .then(gbl=>[...bl,...gbl.flat()])
-  ),Promise.resolve([])
+    Promise.all(ul_chunk.map(u=>getBattleHistory(u).then(b=>genBattleList(b,bl)))).then(()=>bl)
+  ),Promise.resolve({})
 ))
 
-const saveBattleList=(bl,fn='')=>{
+_battles.merge=(obj,obj2merge)=>{
+  let count = 0;
+  for(let[key,value] of Object.entries(obj2merge)){
+    if(Array.isArray(value)){
+      obj[key]??=[];
+      obj[key]= [...new Map([...obj[key],...value].map(i=>[i+'',i])).values()]
+      if(value.length!=obj[key].length)
+        _dbug.in1(JSON.stringify({
+          '#':count++,'original array':value.length,'by#':value.length-obj[key].length,'new uniqBattles':obj[key].length
+        }))
+    }
+    else _battles.merge(obj[key]??={},value);
+  }
+}
+_battles.save=(bl,fn='')=>{
   return new Promise((res,rej) =>
     readFile(`./data/battle_data${fn}.json`,(e,d)=>{
-      let battlesList = bl,__c=bl.length;
+      let battlesList = d||{};
       console.log();
-      log(__c,' battles this session');
       if(e){log('Error reading file: ',e)}
-      else{ d && (battlesList = [...d,...battlesList])}
-      log('battles',__c=battlesList.length-__c);
-      battlesList = [...new Map(battlesList.map(item =>
-        [JSON.stringify(item),item]
-      )).values()]
-      log('battles',battlesList.length-__c,' added')
+      _battles.merge(battlesList,bl)
       writeFile(`data/battle_data${fn}.json`, battlesList).catch(e=>log(e))
       res(battlesList);
     })
   )}
 
-/** Generates user list from a given player battle history, and passes it on to userListToBattlesList function to create aggregate battles list, and saves it to a file
+/** Generates user list from a given player battle history, and passes it on to _battles.fromUserList function to create aggregate battles list, and saves it to a file
  * @param {String} player Splinterlands account name of a player
  * @param {String} fn additional filename postfix to be added to `./data/battle_data`
  * @returns {Array battle} array of battles
  */
-const battles = (player,fn) => getBattleHistory(player)
+_battles.fromUser = (player,fn) => getBattleHistory(player)
   .then(bh => [...new Set(bh.map(c=>[c.player_1,c.player_2]).flat())])
-  .then(ul=>userListToBattlesList(ul,27))
-  .then(bl=>saveBattleList(bl,fn))
+  .then(ul=>_battles.fromUserList(ul,27))
+  .then(bl=>_battles.save(bl,fn))
 
-module.exports = {
-  battlesList: battles, userListToBattlesList,saveBattleList
-}
-//Promise.resolve(battles('azarmadr','-test')).then(b=>log(b[0],b.at(-1)))
+module.exports = _battles;
+//Promise.resolve(_battles.fromUser('azarmadr3','-test')).then(b=>log('a'))
