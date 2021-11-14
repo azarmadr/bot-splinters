@@ -18,17 +18,19 @@ const headless=0;
   await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
   let users = process.env.ACCOUNT.split(',').map((account,i)=>{return {
     account,
-    password:process.env.PASSWORD.split(',')[i],
-    login:process.env?.EMAIL?.split(',')[i],
+    password:   process.env.PASSWORD.split(',')[i],
+    active_key: process.env.ACTIVE_KEY.split(',')[i],
+    login:      process.env?.EMAIL?.split(',')[i],
   }})
   SM._(page);
   while(users.length){
     log('users:',users.length);
     for (const [idx,user] of users.entries()) {
       await page.goto('https://splinterlands.com/');
-      process.env['LOGIN'] = user.login || user.account
-      process.env['PASSWORD'] = user.password
-      process.env['ACCOUNT'] = user.account
+      process.env.LOGIN      = user.login || user.account
+      process.env.PASSWORD   = user.password
+      process.env.ACTIVE_KEY = user.active_key
+      process.env.ACCOUNT    = user.account
       await SM.login(process.env.LOGIN,process.env.PASSWORD)
       const cb=c=>!c.owned.filter(o=>
         !o.uid.includes('starter')&&
@@ -36,7 +38,7 @@ const headless=0;
         (!o.delegated_to || o.delegated_to === user.account)
       ).length
       const card_ids = await SM.cards().then(c=>c.filter(cb).map(c=>c.id))
-      log('card_ids',card_ids.length)
+      log({'card ids':card_ids.length})
       const _ctn = await page.evaluate(`SM.Player.collection_power>=1000`);
       if(_ctn){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
 
@@ -58,7 +60,7 @@ const headless=0;
       }
       await page.waitForSelector('tbody > tr:nth-child(1) > .price')
       const _credits = await page.evaluate(
-        `SM.Player.balances.find(a=>a.token==='CREDITS').balance>5*${max_price}`)
+        `SM.Player.balances.find(a=>a.token==='CREDITS').balance>81*${max_price}`)
       await page.select('#payment_currency',_credits?'CREDITS':'DEC')
       const id = await page.$$eval('tbody > tr > .price',
         (tb,max_price)=>
@@ -74,10 +76,11 @@ const headless=0;
             await page.waitForSelector('#active_key')
             await sleep(1231);
             await page.focus('#active_key')
-            await page.type('#active_key',process.env.PASSWORD)
+            await page.type('#active_key',process.env.ACTIVE_KEY)
             await _elem.click(page,'#approve_tx')
           }catch(e){log(e)}
         }
+        await sleep(333);
         await page.waitForSelector('.loading',{hidden:true})
       }
       await sleep(12312);

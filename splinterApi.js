@@ -7,14 +7,14 @@ SM.login = async function(acc,pwd){
   log(`Logging ${acc}`)
   if(acc.indexOf('@')>0)
     await page.evaluate(([acc,pwd])=>
-      new Promise((res,rej)=>SM.EmailLogin(acc,pwd).then(r=>(r&&r.success)?res(r):rej(r))),
+      new Promise((res,rej)=>SM.EmailLogin(acc,pwd).then(r=>(r&&r.success)?res(r):rej(r.error))),
       [acc,pwd]
-    );
+    ).catch(log);
   else{
     await page.evaluate(([acc,pwd])=>
-      new Promise((res,rej)=>SM.Login(acc,pwd,r=>(r&&r.success)?res(r):rej(r))),
+      new Promise((res,rej)=>SM.Login(acc,pwd,r=>(r&&r.success)?res(r):rej(r.error))),
       [acc,pwd]
-    );
+    ).catch(log);
     await page.evaluate('SM.OnLogin(0)')
   }
   await page.evaluate(async()=>{await sleep(1729);SM.HideDialog()})

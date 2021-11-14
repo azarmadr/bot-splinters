@@ -44,7 +44,8 @@ async function getBattles(player=process.env.ACCOUNT) {
   else {
     battles.fromUser(player,'-new');
     const bl = require('./data/battle_data.json');
-    battles.merge(bl,require('./data/battle_data-new.json'));
+    try{let blNew = require('./data/battle_data-new.json');}catch(e){blNew={}}
+    battles.merge(bl,blNew);
     return bl;
   }
 }
