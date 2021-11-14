@@ -2,7 +2,6 @@ const AKMap = require('array-keyed-map');
 const {readFile,writeFile} = require('jsonfile');
 const {_team,_card,_arr} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
-const chalk = require('chalk');
 
 /** Finds team satisfying quest rules, and places it at head of the teams array
  * @param {Array team} teams Better to have high scoring teams
@@ -15,15 +14,15 @@ const priorByQuest=(teams,{type,value,color})=>{
   var team;
   switch(type){
     case 'splinter':
-      log(chalk`playing for {yellow ${value}} {red ${type}} quest`);
+      log({'Playing for Quest':{[value]:type}});
       team=teams.find(t=>_card.color(t.team[0])===color);
       break;
     case 'no_neutral':
-      log(chalk`playing for {yellow ${value}} quest`);
+      log({'Playing for Quest':type});
       team = teams.find(t=>t.team.slice(1).every(c=>_card.color(c)!='Gray'))
       break;
     case 'ability':
-      log(chalk`playing for {yellow ${value}} {red ${type}} quest`);
+      log({'Playing for Quest':{[value]:type}});
       team=teams.find(t=>!(t.team.every(c=>!(_card.abilities(c)+'').includes(value))))
       break;
     default: team = null;
@@ -82,7 +81,7 @@ const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
         (acc,[i])=>'RedWhiteBlueBlackGreen'.includes(_card.color(i))?_card.color(i):acc,'Red')
     team.team = team.team.map(([i,l])=>{
       const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!team.team.flat().includes(c.id));
-      if(bc)log('Better Cards: Replaced',_card.name(i),'with',_card.name(bc.id),'for team Rank',idx);
+      if(bc)log({'Better Cards: Replaced':_card.name(i),'with ':_card.name(bc.id),'for team Rank':idx});
       return bc?[bc.id,bc.level]:[i,l]
     })
     const fillTeamGap=(team)=>{
