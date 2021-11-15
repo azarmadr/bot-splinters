@@ -48,7 +48,7 @@ SM.cards = async function(){
   return await page.evaluate(`new Promise((res,rej)=>
     SM.LoadCollection(
       SM.Player.name,
-      0,
+      1,
       col=>res(col)
     )
   )`)

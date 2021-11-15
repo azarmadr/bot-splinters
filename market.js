@@ -39,7 +39,7 @@ const headless=0;
       ).length
       const card_ids = await SM.cards().then(c=>c.filter(cb).map(c=>c.id))
       log({'card ids':card_ids.length})
-      const _ctn = await page.evaluate(`SM.Player.collection_power>=1000`);
+      const _ctn = await page.evaluate(`SM.Player.collection_power>=5000`);
       if(_ctn){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
 
       await page.evaluate(`SM.ShowMarket('rentals')`)

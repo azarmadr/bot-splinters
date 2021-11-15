@@ -217,15 +217,14 @@ const preMatch=({Player,settings})=>{
           .then(cards => cards.map(c=>
             c.owned.filter(o =>
               !(o.market_id && o.market_listing_status === 0) &&
-              (!o.delegated_to || o.delegated_to === username) &&
-              (!(o.last_used_player !== username && Date.parse(o.last_used_date) > Date.now()-86400000))
+              (!o.delegated_to || o.delegated_to === process.env.ACCOUNT) &&
+              (!(o.last_used_player !== process.env.ACCOUNT && Date.parse(o.last_used_date) > Date.now()-86400000))
             ).map(o=>[c.id,o.level]).sort((a,b)=>a[1]-b[1])).flat()
           )
           .then(entries => Object.fromEntries(entries))
           .then((x)=>{log('cards retrieved'); return x})
           .catch((e) => log(e,'cards collection api didnt respond. Did you use username? avoid email!'));
-        await startBotPlayMatch(page, myCards, user)
-          .then(() => { log('Closing battle'); }) .catch(log)
+        await startBotPlayMatch(page,myCards,user).then(()=>log('Closing battle')).catch(log)
         await page.evaluate('SM.Logout()');
       }
 
