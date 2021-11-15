@@ -75,29 +75,28 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5}}={},fn) => {
 
 const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
   return (team,idx)=>{
-    const co = 'Gray'
-      +(_card.color(team.team[0])=='Gold'?'Gold':'')
-      +team.team.reduce(
-        (acc,[i])=>'RedWhiteBlueBlackGreen'.includes(_card.color(i))?_card.color(i):acc,'Red')
-    team.team = team.team.map(([i,l])=>{
-      const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!team.team.flat().includes(c.id));
-      if(bc)log({'Better Cards: Replaced':_card.name(i),'with ':_card.name(bc.id),'for team Rank':idx});
-      return bc?[bc.id,bc.level]:[i,l]
-    })
-    const fillTeamGap=(team)=>{
-      const gap = mana_cap-_team.mana(team);
-      if(gap){
+    if(idx<3){
+      const co = 'Gray'
+        +(_card.color(team.team[0])=='Gold'?'Gold':'')
+        +team.team.reduce(
+          (acc,[i])=>'RedWhiteBlueBlackGreen'.includes(_card.color(i))?_card.color(i):acc,'Red')
+      team.team = team.team.map(([i,l])=>{
+        const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!team.team.flat().includes(c.id));
+        if(bc)log({'Better Cards: Replaced':_card.name(i),'with ':_card.name(bc.id),'for team Rank':idx});
+        return bc?[bc.id,bc.level]:[i,l]
+      })
+      const fillTeamGap=(team)=>{
+        const gap = mana_cap-_team.mana(team);
         const card = mycards.find(c=>
           co.includes(_card.color(c))&&_card.mana(c)<=gap&&
-          team.every(uc=>c[0]!=uc[0])&&team.length<7);
-        if(card){
-          team.push(card);
-          log({'adding card':_card.name(card),'Team of Rank':idx})
-          fillTeamGap(team);
-        }
+          _card.type(c) === 'Monster' &&
+            team.every(uc=>c[0]!=uc[0])&&team.length<7);
+          if(card){
+            team.push(card);
+            log({'adding card':_card.name(card),'Team of Rank':idx})
+            fillTeamGap(team);
+          }
       }
-    }
-    if(idx<3){
       //log({'Mana Cap':mana_cap,'Team Current Mana':_team.mana(team.team), 'DIFFERENCE':mana_cap-_team.mana(team.team),'for Team of Rank':idx});
       fillTeamGap(team.team);
     }

@@ -146,7 +146,8 @@ const preMatch=({Player,settings})=>{
   _return.erc = erc;
   _return.rating = Player.rating;
   log('Current Rating is ' + chalk.yellow(Player.rating));
-  _return.claimSeasonReward = process.env.CLAIM_SEASON_REWARD === 'true'&&Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
+  _return.claimSeasonReward =
+    process.env.CLAIM_SEASON_REWARD && Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
 
   //if quest done claim reward
   _return.claimQuestReward = [];
@@ -156,7 +157,8 @@ const preMatch=({Player,settings})=>{
     const quest = settings.quests.find(q=>q.name==name)
     if(completed_items<total_items){
       log('Quest details:'+chalk.yellow(name,'->',completed_items,'/',total_items));
-      if(2*Math.random()<1&&JSON.parse(process.env.QUEST_PRIORITY)) _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
+      if(2*Math.random()<1&&JSON.parse(process.env.QUEST_PRIORITY))
+        _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
     }
     if(completed_items>=total_items){
       _return.claimQuestReward.push(Player.quest,quest);
@@ -168,10 +170,8 @@ const preMatch=({Player,settings})=>{
 ;(async () => {
   try {
     await checkForMissingConfigs();
-    const headless = JSON.parse(process.env.HEADLESS.toLowerCase());
-    const keepBrowserOpen = JSON.parse(process.env.KEEP_BROWSER_OPEN.toLowerCase());
-    const claimRewards = JSON.parse(process.env.CLAIM_REWARDS.toLowerCase());
-    process.env.UPDATE_BATTLE_DATA = JSON.parse(process.env.UPDATE_BATTLE_DATA)||'';
+    for(let env of ['HEADLESS','KEEP_BROWSER_OPEN','CLAIM_SEASON_REWARD','CLAIM_REWARDS','UPDATE_BATTLE_DATA'])
+      process.env[env]=JSON.parse(process.env[env].toLowerCase())||'';
     let users = process.env.ACCOUNT.split(',').map((account,i)=>{return {
       account,
       password:process.env.PASSWORD.split(',')[i],
@@ -179,7 +179,7 @@ const preMatch=({Player,settings})=>{
       w:0,l:0,d:0,w_p:0,l_p:0,d_p:0,
     }})
     log('Opening a browser');
-    let browser = await createBrowser(headless);
+    let browser = await createBrowser(process.env.HEADLESS);
     let page = (await browser.pages())[1];
 
     while (true) {
@@ -190,7 +190,7 @@ const preMatch=({Player,settings})=>{
         process.env.ACCOUNT = user.account
 
         if((await browser.process().killed)){
-          browser = await createBrowser(headless);
+          browser = await createBrowser(process.env.HEADLESS);
           page = (await browser.pages())[1];
         }
         //log('//debug');
@@ -207,7 +207,7 @@ const preMatch=({Player,settings})=>{
         await page.evaluate(()=>SM.ShowBattleHistory());
         await page.evaluate(()=>{return {Player:SM.Player,settings:SM.settings}})
           .then(preMatch).then(r=>Object.keys(r).forEach(k=>user[k]=r[k]))
-        if(claimRewards){
+        if(process.env.CLAIM_REWARDS){
           if(user.claimSeasonReward)                         await page.evaluate(()=>claim());
           if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
         }
@@ -232,7 +232,7 @@ const preMatch=({Player,settings})=>{
       console.log(table([table_list, ...users.map(u=>table_list.map(t=>u[t]))]));
       log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
       log('--------------------------End of Battle--------------------------------');
-      if(!keepBrowserOpen)browser.close();
+      if(!process.env.KEEP_BROWSER_OPEN)browser.close();
       await sleep(sleepingTime);
     }
   } catch (e) {

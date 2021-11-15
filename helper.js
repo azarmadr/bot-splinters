@@ -47,12 +47,11 @@ _arr.checkVer=(a,b)=>{
   }
   return a.length>b.length
 }
-_arr.chunk = (input_arr, size) => {
-  return input_arr.reduce((arr, item, idx) => {
-    return idx % size === 0
-      ? [...arr, [item]]
-      : [...arr.slice(0, -1), [...arr.slice(-1)[0], item]];
-  }, []);
+_arr.chunk = (arr, n) => {
+  if(n<=0)throw new Error('First argument to splitEvery must be a positive integer')
+  var result = [],idx = 0;
+  while(idx<arr.length)result.push(arr.slice(idx,idx+=n))
+  return result
 }
 _arr.chunk2=arr=>_arr.chunk(arr,2);
 
@@ -96,7 +95,7 @@ function sleep(ms) {
 
 _elem.click = async function(page, selector, timeout = 20000, delayBeforeClicking = 0) {
   try {
-    const elem = await page.waitForSelector(selector, { timeout: timeout });
+    const elem = await page.waitForSelector(selector, { timeout });
     if (elem) {
       await sleep(delayBeforeClicking);
       log('Clicking element ' + selector);
@@ -119,7 +118,6 @@ _elem.getTextByXpath = async function(page, selector, timeout=20000) {
   const text = await element.evaluate(el => el.textContent);
   return text;
 }
-//const team = [{"id":62,"level":1,"name":"Living Lava"},{"id":61,"level":1,"name":"Kobold Miner"}]; console.log(teamActualSplinterToPlay(team)); console.log(_card.color({"id":224,"level":1,"name":"Drake of Arnak"}))
 
 /** debug helpers
  */

@@ -73,7 +73,7 @@ const headless=0;
         await _elem.click(page,'#btn_rent_popup_rent')
         if(user.account!='azarmadr3'){
           try{
-            await page.waitForSelector('#active_key')
+            await page.waitForSelector('#active_key',{timeout:10000})
             await sleep(1231);
             await page.focus('#active_key')
             await page.type('#active_key',process.env.ACTIVE_KEY)
@@ -83,7 +83,7 @@ const headless=0;
         await sleep(333);
         await page.waitForSelector('.loading',{hidden:true})
       }
-      await sleep(12312);
+      //await sleep(12312);
       await page.evaluate('SM.Logout()');
       //await sleep(123123);
     }}
