@@ -2,7 +2,7 @@ const AKM  = require('array-keyed-map');
 const cards = require("./data/cards.json");
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
-const _card = {},_team = {}, _elem = {}, _akmap = {}, _dbug = {},_arr = {};
+const _card = {},_team = {}, _elem = {}, _akmap = {}, _dbug = {},_arr = {},_func={};
 /** Card helper functions in _card object */
 /** small function to return id of the card if array or id is given
  * @param (Any) c if array of [id,level], or id
@@ -20,13 +20,13 @@ _card.abilities=([i,l])=>cards[i-1].stats?.abilities?.slice(0,l)?.flat();
 _card.basic = cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id);
 
 /** Team helper functions in _team object */
-const teamAdpt=t=>Array.isArray(t[0])?t:_arr.chunk2(t);
-_team.mana = t=>teamAdpt(t).reduce((a,c)=>_card.mana(c)+a,0)
+_team.adpt=t=>Array.isArray(t[0])?t:_arr.chunk2(t);
+_team.mana = t=>_team.adpt(t).reduce((a,c)=>_card.mana(c)+a,0)
 const color2Deck = { 'Red': 'Fire', 'Blue': 'Water', 'White': 'Life', 'Black': 'Death', 'Green': 'Earth' }
 const deckValidColor=(validColor,curCard)=>
   Object.keys(color2Deck).includes(_card.color(curCard))?color2Deck[_card.color(curCard)]:validColor;
 _team.splinterToPlay=(team,inactive)=>
-  teamAdpt(team).reduce(deckValidColor,color2Deck[Object.keys(color2Deck).find(c=>inactive.indexOf(c)<0)])
+  _team.adpt(team).reduce(deckValidColor,color2Deck[Object.keys(color2Deck).find(c=>inactive.indexOf(c)<0)])
 _team.rules = {
   primary:"Back to BasicsSilenced SummonersAim TrueSuper SneakWeak MagicUnprotectedTarget PracticeFog of WarArmored UpEqual OpportunityMelee Mayhem",
   any:"Healed OutEarthquakeReverse SpeedClose RangeHeavy HittersEqualizerNoxious FumesStampedeExplosive WeaponryHoly ProtectionSpreading Fury",
@@ -127,7 +127,19 @@ _dbug.in1 = m=>{
   process.stdout.write(`tt: ${m}`);
 }
 
+_func.retryFor=async(n,to,func)=>{
+  try{
+    return await func()
+  }catch(e){
+    log({'nth retry':n})
+    await sleep(to);
+    if(--n==0)throw e;
+    _func.retryFor(n,to,func);
+  }
+}
+
 module.exports = {
   _card,     _team, _elem, _akmap, _dbug,  sleep,  log,
-  _arr, cards,
+  _arr, cards,_func,
 };
+//**/log(_func.retryFor(3,33,()=>{throw new Error(3)}))///(async()=>_func.retryFor(3,33,()=>{throw new Error(3)}))()

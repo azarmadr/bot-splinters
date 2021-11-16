@@ -1,5 +1,5 @@
 const AKMap = require('array-keyed-map');
-const {readFile,writeFile} = require('jsonfile');
+const {readFileSync,writeFileSync} = require('jsonfile');
 const {_team,_card,_arr} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
@@ -52,20 +52,19 @@ function filterOutByMana(byMana=99){
   }
 }
 
-const _rarityScore=(id,level)=>_card.basic.includes(id)?1:(8**_card.rarity(id))
+const _rarityScore=(id,level)=>(level==1&&_card.basic.includes(id))?1:(8**_card.rarity(id)*level)
 const scoreXer=team=>
-  team.reduce((s,[id,level])=>_rarityScore(id,level)*(_card.mana(id)||1)+s,0)
+  _team.adpt(team).reduce((s,[id,level])=>_rarityScore(id,level)*(_card.mana(id)||1)+s,0)
 
 const _toPrecision3=x=>Number(x.toFixed(3));
-const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5}}={},fn) => {
+const teamScores = (battles,{mana,verdictToScore={w:1,l:-1,d:-0.5}}={},fn) => {
   const scores = new AKMap();
   battles.forEach(k=>{
     const result = k.find(a=>a=='d'||a=='w');
     const idx = k.indexOf(result);
     [k.slice(0,idx),k.slice(idx+1)].forEach((t,i)=>{
       const s = scores.has(t)?scores.get(t):{w:0,l:0,d:0,count:0}
-      s.count++;
-      if(result=='d'){s.d++}else{s[['l','w'][i]]++}
+      if(result=='d'){s.d++}else{s[['l','w'][i]]++}s.count++;
       scores.set(t,s);
     })
   })
@@ -74,6 +73,7 @@ const teamScores = (battles,{verdictToScore={w:1,l:-1,d:-0.5}}={},fn) => {
 }
 
 const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
+  mycards.sort((a,b)=>_card.mana(b)-_card.mana(a))
   return (team,idx)=>{
     if(idx<3){
       const co = 'Gray'
@@ -177,20 +177,25 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
   attr_r.length||attr_r.push('Standard');
   let mana=mana_cap;
   log('Filtering Teams for',{ruleset,card_r,attr_r})
+  var filteredTeams=[];
   do{
+    const xerDist = {};
     log({'Finding teams for mana':mana});
     var battlesList = battles;
     for(let i of [...attr_r,mana])battlesList=battlesList[i];
-    const scores = teamScores(battlesList.filter(filterOutByMana(mana)));
+    const scores = teamScores(battlesList/*.filter(filterOutByMana(mana))*/);
     log({'battlesList length':battlesList.length,'Scores Size':scores.size})
-    var filteredTeams = [...scores.entries()].filter(([t,s])=>
+    log({'Adding teams':filteredTeams.push(...[...scores.entries()].filter(([t,s])=>
       t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
       s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
       && filterTeamByRules(_arr.chunk2(t),card_r)
-    )
-      .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
+    ).map(([t,s])=>{return {team:_arr.chunk2(t),...s}}))})
+    filteredTeams.forEach(t=>xerDist[scoreXer(t.team)]=Math.max(xerDist[scoreXer(t.team)]||0,t.count))
+    try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
+    xer[mana]=xerDist;writeFileSync('./data/xer.json',xer);
+    log({xerDist})
     mana--;
-  }while(filteredTeams.length<1&&(mana>12))
+  }while(filteredTeams.length<27&&(mana>12))
   var filteredTeams_length = filteredTeams.length;
   filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams.length/27)

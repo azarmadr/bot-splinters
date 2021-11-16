@@ -93,7 +93,7 @@ _battles.fromUser = (player,fn) => getBattleHistory(player)
   .then(ul=>_battles.userList2Battles(ul,27))
   .then(bl=>_battles.save(bl,fn))
 
-_battles.fromUserList = (players,cl=27,fn) =>Promise.resolve(
+_battles.fromUserList = (players,fn,cl=27) =>Promise.resolve(
   _arr.chunk(Array.isArray(players)?players:players.split(','),cl).reduce(
     (memo,ul_chunk)=>memo.then(us=>
       Promise.all(ul_chunk.map(u=>getBattleHistory(u).then(bh=>
@@ -105,4 +105,4 @@ _battles.fromUserList = (players,cl=27,fn) =>Promise.resolve(
   .then(bl=>_battles.save(bl,fn))
 
 module.exports = _battles;
-//Promise.resolve(_battles.fromUserList('azarmadr3,azarmadr,enochroot',28,'')).then(b=>log('a'))
+//Promise.resolve(_battles.fromUserList('azarmadr3,azarmadr,enochroot','')).then(b=>log('a'))

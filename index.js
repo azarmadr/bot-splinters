@@ -7,8 +7,11 @@ const {table} = require('table');
 const {SM} = require('./splinterApi');
 const {playableTeams} = require('./score');
 const battles = require('./battles-data');
-const {_card, _team, _arr, sleep,} = require('./helper');
+const {_card, _team, _arr,_func, sleep,} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+
+let _count = 1;
+const sleepingTime = 60000 * (process.env.MINUTES_BATTLES_INTERVAL || 30);
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
@@ -42,9 +45,8 @@ async function getBattles(player=process.env.ACCOUNT) {
   if(process.env.UPDATE_BATTLE_DATA)
     return battles.fromUser(player)
   else {
-    battles.fromUser(player,'-new');
+    const blNew = battles.fromUser(player,'-new');
     const bl = require('./data/battle_data.json');
-    try{let blNew = require('./data/battle_data-new.json');}catch(e){blNew={}}
     battles.merge(bl,blNew);
     return bl;
   }
@@ -66,13 +68,14 @@ async function createBrowser(headless) {
 }
 
 async function startBotPlayMatch(page, myCards,user) {
-  log(process.env.ACCOUNT, ' deck size: '+Object.keys(myCards).length)
+  log({account:process.env.ACCOUNT,'deck size':Object.keys(myCards).length})
 
   await page.waitForTimeout(10000);
   const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle(user.isRanked?'Ranked':'Practice')
 
   log({mana_cap, ruleset, inactive,quest:user.quest, opponent_player,})
-  var battlesList = await getBattles(opponent_player).catch(log);
+  var battlesList = await getBattles(opponent_player)
+    .catch(e=>{log(e);return require('./data/battle_data.json')});
   const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards,{sortByWinRate:!user.isRanked});
 
   //TEAM SELECTION
@@ -99,16 +102,10 @@ async function startBotPlayMatch(page, myCards,user) {
       await page.waitForXPath(`//div[@card_detail_id="${m[0].toString()}"]`, { timeout: 10000 }).then(selector => selector.click());
       await page.waitForTimeout(1000);
     }
-    if(user.isRanked)await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
-    try {
-      await page.click('.btn-green')[0]; //start fight
-    } catch {
-      log('Start Fight didnt work, waiting 5 sec and retry');
-      await page.waitForTimeout(5000);
-      await page.click('.btn-green')[0]; //start fight
-    }
+    if(!process.env.HEADLESS&&user.isRanked)
+      await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
+    await _func.retryFor(3,300,()=>page.click('.btn-green')[0]);
     log('Team submitted, Waiting for opponent');
-    await page.waitForTimeout(5000);
     await page.waitForSelector('#btnRumble', { timeout: 160000 }).then(() => log('btnRumble visible')).catch(() => log('btnRumble not visible'));
     await page.waitForTimeout(5000);
     await page.$eval('#btnRumble', elem => elem.click()).then(()=>log('btnRumble clicked')).catch(()=>log('btnRumble didnt click')); //start rumble
@@ -124,7 +121,6 @@ async function startBotPlayMatch(page, myCards,user) {
     })
     await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
     await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
-  if(!user.isRanked)battlesList = await getBattles().catch(log);
   } catch (e) {
     log(e)
     log('failed to submit team, so waiting for user to input manually and close the session')
@@ -132,10 +128,6 @@ async function startBotPlayMatch(page, myCards,user) {
     throw new Error(e);
   }
 }
-
-// 30 MINUTES INTERVAL BETWEEN EACH MATCH (if not specified in the .env file)
-const sleepingTimeInMinutes = process.env.MINUTES_BATTLES_INTERVAL || 30;
-const sleepingTime = sleepingTimeInMinutes * 60000;
 
 const preMatch=({Player,settings})=>{
   const _return = {};
@@ -157,7 +149,7 @@ const preMatch=({Player,settings})=>{
     const quest = settings.quests.find(q=>q.name==name)
     if(completed_items<total_items){
       log('Quest details:'+chalk.yellow(name,'->',completed_items,'/',total_items));
-      if(2*Math.random()<1&&JSON.parse(process.env.QUEST_PRIORITY))
+      if(2*Math.random()<1&&process.env.QUEST_PRIORITY)
         _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
     }
     if(completed_items>=total_items){
@@ -170,7 +162,7 @@ const preMatch=({Player,settings})=>{
 ;(async () => {
   try {
     await checkForMissingConfigs();
-    for(let env of ['HEADLESS','KEEP_BROWSER_OPEN','CLAIM_SEASON_REWARD','CLAIM_REWARDS','UPDATE_BATTLE_DATA'])
+    for(let env of ['HEADLESS','KEEP_BROWSER_OPEN','QUEST_PRIORITY',/*'CLAIM_SEASON_REWARD',*/'CLAIM_REWARDS','UPDATE_BATTLE_DATA'])
       process.env[env]=JSON.parse(process.env[env].toLowerCase())||'';
     let users = process.env.ACCOUNT.split(',').map((account,i)=>{return {
       account,
@@ -218,7 +210,7 @@ const preMatch=({Player,settings})=>{
             c.owned.filter(o =>
               !(o.market_id && o.market_listing_status === 0) &&
               (!o.delegated_to || o.delegated_to === process.env.ACCOUNT) &&
-              (!(o.last_used_player !== process.env.ACCOUNT && Date.parse(o.last_used_date) > Date.now()-86400000))
+              (!(o.last_used_player!==process.env.ACCOUNT&&Date.parse(o.last_used_date)>Date.now()-86400000))
             ).map(o=>[c.id,o.level]).sort((a,b)=>a[1]-b[1])).flat()
           )
           .then(entries => Object.fromEntries(entries))
@@ -234,6 +226,8 @@ const preMatch=({Player,settings})=>{
       log('--------------------------End of Battle--------------------------------');
       if(!process.env.KEEP_BROWSER_OPEN)browser.close();
       await sleep(sleepingTime);
+      if(++_count>27)
+        _count=1&&battles.fromUserList(users.map(u=>u.account),process.env.UPDATE_BATTLE_DATA?'':'-new')
     }
   } catch (e) {
     log('Routine error at: ', new Date().toLocaleString(), e)
