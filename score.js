@@ -33,12 +33,12 @@ const priorByQuest=(teams,{type,value,color})=>{
  * @param {Boolean} byWinRate if yes, then sorts by win rate, else by score
  */
 function sortByProperty(byWinRate){
-  if(byWinRate) return (a,b)=>{
+  return (...e)=>{
+    const [a,b] = e.map(x=>Array.isArray(x)?x[1]:x);
     const _byCount = b.w*a.count-a.w*b.count;
-    if(_byCount==0)return b.score-a.score;
+    if(!(_byCount||byWinRate))return b.score-a.score;
     return _byCount;
   }
-  else return (a,b)=>b.score-a.score
 }
 /** Filter battles with losing team less than 90% of the mana_cap. Winning against such team is not difficult
  * @param {Boolean} byMana if yes, filter out by mana, else keep them
@@ -106,16 +106,16 @@ const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
 
 const cardPassRules=rule=>{
   switch(rule){
-    case 'Broken Arrows':       return c=>_card.ranged(c) ==0;      break;
-    case 'Lost Magic':          return c=>_card.magic(c)  ==0;      break;
-    case 'Keep Your Distance':  return c=>_card.attack(c) ==0;      break;
-    case 'Up Close & Personal': return c=>_card.attack(c) >0;       break;
-    case 'Little League':       return c=>_card.mana(c)   <4;       break;
-    case 'Lost Legendaries':    return c=>_card.rarity(c) <4;       break;
-    case 'Rise of the Commons': return c=>_card.rarity(c) <3;       break;
-    case 'Taking Sides':        return c=>_card.color(c)  !='Gray'; break;
-    case 'Even Stevens':        return c=>_card.mana(c)%2==0;       break;
-    case 'Odd Ones Out':        return c=>_card.mana(c)   %2;       break;
+    case 'Broken Arrows':       return c=>_card.ranged(c) ==0
+    case 'Lost Magic':          return c=>_card.magic(c)  ==0
+    case 'Keep Your Distance':  return c=>_card.attack(c) ==0
+    case 'Up Close & Personal': return c=>_card.attack(c) >0
+    case 'Little League':       return c=>_card.mana(c)   <4
+    case 'Lost Legendaries':    return c=>_card.rarity(c) <4
+    case 'Rise of the Commons': return c=>_card.rarity(c) <3
+    case 'Taking Sides':        return c=>_card.color(c)  !='Gray'
+    case 'Even Stevens':        return c=>_card.mana(c)%2==0
+    case 'Odd Ones Out':        return c=>_card.mana(c)   %2
     default:                    return ()=>true;
   }
 }
@@ -182,20 +182,24 @@ const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=
     const xerDist = {};
     log({'Finding teams for mana':mana});
     var battlesList = battles;
-    for(let i of [...attr_r,mana])battlesList=battlesList[i];
+    for(let i of [...attr_r,mana])battlesList=battlesList[i];//need some clarity
     const scores = teamScores(battlesList/*.filter(filterOutByMana(mana))*/);
     log({'battlesList length':battlesList.length,'Scores Size':scores.size})
-    log({'Adding teams':filteredTeams.push(...[...scores.entries()].filter(([t,s])=>
-      t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
-      s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
-      && filterTeamByRules(_arr.chunk2(t),card_r)
-    ).map(([t,s])=>{return {team:_arr.chunk2(t),...s}}))})
+    log({'Adding teams':filteredTeams.push(
+      ...[...scores.entries()].filter(([t,s])=>
+        t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
+        s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
+        && filterTeamByRules(_arr.chunk2(t),card_r)
+      ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/27)
+      .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
+      )})
+    // for research
     filteredTeams.forEach(t=>xerDist[scoreXer(t.team)]=Math.max(xerDist[scoreXer(t.team)]||0,t.count))
     try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
     xer[mana]=xerDist;writeFileSync('./data/xer.json',xer);
-    log({xerDist})
+    // for research
     mana--;
-  }while(filteredTeams.length<27&&(mana>12))
+  }while(filteredTeams.length<1&&(mana>11))
   var filteredTeams_length = filteredTeams.length;
   filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams.length/27)

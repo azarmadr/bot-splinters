@@ -12,8 +12,8 @@ const headless=0;
       ' --disable-site-isolation-trials'],
   });
   const page = await browser.newPage();
-  await page.setDefaultNavigationTimeout(500000);
-  await page.on('dialog', async dialog => { await dialog.accept(); });
+  page.setDefaultNavigationTimeout(500000);
+  page.on('dialog', async dialog => { await dialog.accept(); });
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
   await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
   let users = process.env.ACCOUNT.split(',').map((account,i)=>{return {

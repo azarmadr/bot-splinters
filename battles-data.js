@@ -6,7 +6,7 @@ const _battles = {};
 var _bc={count:0,pc:0,'original battles':0,'battles this session':0,'uniq Battles':0};
 async function getBattleHistory(player = '') {
   const battleHistory = await require('async-get-json')(`https://api2.splinterlands.com/battle/history?player=${player}`)
-    .catch((error) => async function getBattleHistory(player = '') {
+    .catch(() => async function getBattleHistory(player = '') {
       log('fetching another api');
       const battleHistory = await require('async-get-json')(`https://game-api.splinterlands.com/battle/history?player=${player}`)
         .catch((error) => {
@@ -23,12 +23,12 @@ async function getBattleHistory(player = '') {
 const __medusa=(m)=>(m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
 const xtractTeam=(t)=>[...[t.summoner,...t.monsters].map(m=>[__medusa(m),m.level])]
 const genBattleList=(battles,battle_obj)=>battles.reduce(
-  (battle_obj,{ruleset,mana_cap,created_date,details})=>{
+  (battle_obj,{ruleset,mana_cap,details})=>{
     const {winner,team1,team2} = JSON.parse(details);
     //if (Date.parse(created_date)>1631856895886) {
     const teams = [team1,team2].map(xtractTeam);
     if(!_arr.eq(...teams)){
-      const won = new Proxy({winner},{get: (t,p,r)=>{//target,prop,reciever
+      const won = new Proxy({winner},{get: (t,p)=>{//target,prop,reciever
         if(t.winner=='DRAW'){return 'd'}
         return t.winner==p?'w':'l';
       }});
@@ -60,7 +60,7 @@ _battles.merge=(obj,obj2merge)=>{
   }
 }
 _battles.save=(bl,fn='')=>{
-  return new Promise((res,rej) =>
+  return new Promise(res =>
     readFile(`./data/battle_data${fn}.json`,(e,d)=>{
       let battlesList = d||{};
       console.log()

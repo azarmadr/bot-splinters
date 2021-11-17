@@ -127,14 +127,14 @@ _dbug.in1 = m=>{
   process.stdout.write(`tt: ${m}`);
 }
 
-_func.retryFor=async(n,to,func)=>{
+_func.retryFor=async(n,to,continueAfterAllRetries=0,func)=>{
   try{
     return await func()
   }catch(e){
     log({'nth retry':n})
     await sleep(to);
-    if(--n==0)throw e;
-    _func.retryFor(n,to,func);
+    if(!--n)if(continueAfterAllRetries)return; else throw e;
+    _func.retryFor(n,to,continueAfterAllRetries,func);
   }
 }
 
@@ -142,4 +142,4 @@ module.exports = {
   _card,     _team, _elem, _akmap, _dbug,  sleep,  log,
   _arr, cards,_func,
 };
-//**/log(_func.retryFor(3,33,()=>{throw new Error(3)}))///(async()=>_func.retryFor(3,33,()=>{throw new Error(3)}))()
+//**/log(_func.retryFor(3,33,0,()=>{throw new Error(3)}))///(async()=>_func.retryFor(3,33,()=>{throw new Error(3)}))()
