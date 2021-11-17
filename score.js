@@ -57,7 +57,7 @@ const scoreXer=team=>
   _team.adpt(team).reduce((s,[id,level])=>_rarityScore(id,level)*(_card.mana(id)||1)+s,0)
 
 const _toPrecision3=x=>Number(x.toFixed(3));
-const teamScores = (battles,{mana,verdictToScore={w:1,l:-1,d:-0.5}}={},fn) => {
+const teamScores = (battles,{mana,verdictToScore={w:1,l:-1,d:-0.5}}={}) => {
   const scores = new AKMap();
   battles.forEach(k=>{
     const result = k.find(a=>a=='d'||a=='w');
@@ -166,40 +166,36 @@ const betterCards =(myCards,rule)=> Object.fromEntries(
  * @param {String} fn file name to store the array of playable teams
  * @returns {Array} array of playable teams
  */
-const playableTeams = (battles,player,{mana_cap,ruleset,inactive,quest},myCards=Object.fromEntries(_card.basic.map(c=>[c,1])),{sortByWinRate}={},fn='lastMatch') => {
+const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.fromEntries(_card.basic.map(c=>[c,1])),{sortByWinRate}={}/*,fn='lastMatch'*/) => {
   //const score = verdictToScore[v]*(_card.basic.includes(c[0])?1:_card.rarity(c))/4;
   //ruleset matching could be improved
   /** Get better cards from myCards*/
   let {attr_r, card_r} = ruleset.split('|').reduce((rules,cr)=>{
     _team.rules.secondary.includes(cr)?(rules.card_r=cr):rules.attr_r.push(cr);
-    return rules
-  },{attr_r:[]})
-  attr_r.length||attr_r.push('Standard');
-  let mana=mana_cap;
+    return rules},{attr_r:[]})
+  attr_r[0]??='Standard'
   log('Filtering Teams for',{ruleset,card_r,attr_r})
-  var filteredTeams=[];
-  do{
-    const xerDist = {};
-    log({'Finding teams for mana':mana});
-    var battlesList = battles;
-    for(let i of [...attr_r,mana])battlesList=battlesList[i];//need some clarity
-    const scores = teamScores(battlesList/*.filter(filterOutByMana(mana))*/);
-    log({'battlesList length':battlesList.length,'Scores Size':scores.size})
-    log({'Adding teams':filteredTeams.push(
-      ...[...scores.entries()].filter(([t,s])=>
-        t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
-        s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
-        && filterTeamByRules(_arr.chunk2(t),card_r)
-      ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/27)
-      .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
-      )})
+  var filteredTeams=[],battlesList = battles;
+  for(let path of attr_r)battlesList=battlesList[path];//This assumes object exists
+  for(let mana of Object.keys(battlesList).filter(x=>x<=mana_cap&&Number(x)).sort((a,b)=>b-a)){
+    const scores = teamScores(battlesList[mana]/*.filter(filterOutByMana(mana))*/);
+    log({[`battles length for ${mana}`]:battlesList[mana].length,'Scores Size':scores.size,
+      'Adding teams':filteredTeams.push(
+        ...[...scores.entries()].filter(([t,s])=>
+          t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
+          s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
+          && filterTeamByRules(_arr.chunk2(t),card_r)
+        ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/27)
+        .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
+      ),'New team`s count':filteredTeams.length})
     // for research
+    const xerDist = {};
     filteredTeams.forEach(t=>xerDist[scoreXer(t.team)]=Math.max(xerDist[scoreXer(t.team)]||0,t.count))
     try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
     xer[mana]=xerDist;writeFileSync('./data/xer.json',xer);
     // for research
-    mana--;
-  }while(filteredTeams.length<1&&(mana>11))
+    if(filteredTeams.length>243)break;
+  }
   var filteredTeams_length = filteredTeams.length;
   filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams.length/27)

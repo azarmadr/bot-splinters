@@ -76,7 +76,7 @@ async function startBotPlayMatch(page, myCards,user) {
   log({mana_cap, ruleset, inactive,quest:user.quest, opponent_player,})
   var battlesList = await getBattles(opponent_player)
     .catch(e=>{log(e);return require('./data/battle_data.json')});
-  const teamsToPlay = playableTeams(battlesList,process.env.ACCOUNT,{mana_cap,ruleset,inactive,quest:user.quest},myCards,{sortByWinRate:!user.isRanked});
+  const teamsToPlay = playableTeams(battlesList,{mana_cap,ruleset,inactive,quest:user.quest},myCards,{sortByWinRate:!user.isRanked});
 
   //TEAM SELECTION
   //Can do further analysin on teamsToPlay
