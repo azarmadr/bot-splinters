@@ -47,7 +47,7 @@ function filterOutByMana(byMana=99){
   return battle => {
     if(byMana == 99) return true;
     const losing_team = battle.slice(0,battle.findIndex(a=>a=='d'||a=='w'))
-    if(losing_team) return _team.mana(losing_team) > byMana*.9
+    if(losing_team) return _team.mana(losing_team) > byMana*.81
     else return true
   }
 }
@@ -57,23 +57,26 @@ const scoreXer=team=>
   _team.adpt(team).reduce((s,[id,level])=>_rarityScore(id,level)*(_card.mana(id)||1)+s,0)
 
 const _toPrecision3=x=>Number(x.toFixed(3));
-const teamScores = (battles,{mana,verdictToScore={w:1,l:-1,d:-0.5}}={}) => {
+const teamScores = (battles,{cardscores={},myCards,verdictToScore={w:1,l:-1,d:-0.5},mana_cap}={}) => {
   const scores = new AKMap();
   battles.forEach(k=>{
     const result = k.find(a=>a=='d'||a=='w');
     const idx = k.indexOf(result);
     [k.slice(0,idx),k.slice(idx+1)].forEach((t,i)=>{
-      const s = scores.has(t)?scores.get(t):{w:0,l:0,d:0,count:0}
-      if(result=='d'){s.d++}else{s[['l','w'][i]]++}s.count++;
-      scores.set(t,s);
+      const cardScrs  = [scores.has(t)?scores.get(t):{w:0,l:0,d:0,count:0},
+        ..._arr.chunk2(t).filter(c=>c[0]in myCards).map(([c],x,{length})=>(cardscores[c]??={})[x>length/2?x-length:x]??={w:0,l:0,d:0,count:0})]
+      if(result=='d'){cardScrs.forEach(cs=>cs.d++)}else{cardScrs.forEach(cs=>cs[['l','w'][i]]++)}
+      cardScrs.forEach(cs=>cs.count++)
+      scores.set(t,cardScrs[0]);
     })
   })
-  scores.forEach(s=>s.score=_toPrecision3(['w','l','d'].reduce((sc,t)=>sc+s[t]*verdictToScore[t],0)));
+  Object.entries(cardscores).forEach(([c,cs])=>cs.score=Object.values(cs).reduce((tt,s)=>tt+(s.score=_toPrecision3(_rarityScore(c,myCards[c])*['w','l','d'].reduce((sc,k)=>sc+s[k]*verdictToScore[k],0))),0))
+  scores.forEach((s,t)=>s.score=_toPrecision3(scoreXer(t)/mana_cap*['w','l','d'].reduce((sc,k)=>sc+s[k]*verdictToScore[k],0)));
   return scores
 }
+//var cardscores={};teamScores(require('./data/battle_data.json').Standard[13],{cardscores,mana_cap:13,myCards:Object.fromEntries(_card.basic.map(c=>[c,1]))});log(cardscores)//Example
 
 const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
-  mycards.sort((a,b)=>_card.mana(b)-_card.mana(a))
   return (team,idx)=>{
     if(idx<3){
       const co = 'Gray'
@@ -156,6 +159,12 @@ const betterCards =(myCards,rule)=> Object.fromEntries(
     if(better.length)return[_card.name(c),better]
   }).filter(x=>x)
 )
+const sortMyCards=cardscores=>{
+  return (...c)=>{
+    const [as,bs] = c.map(x=>cardscores[x[0]].score);
+    return bs-as
+  }
+}
 /** Generate an array of playable Teams by scoring and sorting by score or winrate
  * @param {Array} battles handle to array of battlesList
  * @param {String} player username to filter teams based on their capacity to play the team
@@ -175,19 +184,19 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
     return rules},{attr_r:[]})
   attr_r[0]??='Standard'
   log('Filtering Teams for',{ruleset,card_r,attr_r})
-  var filteredTeams=[],battlesList = battles;
+  var filteredTeams=[],cardscores={},battlesList = battles;
   for(let path of attr_r)battlesList=battlesList[path];//This assumes object exists
   for(let mana of Object.keys(battlesList).filter(x=>x<=mana_cap&&Number(x)).sort((a,b)=>b-a)){
-    const scores = teamScores(battlesList[mana]/*.filter(filterOutByMana(mana))*/);
+    const scores = teamScores(battlesList[mana].filter(filterOutByMana(mana)),{mana_cap,cardscores,myCards});
     log({[`battles length for ${mana}`]:battlesList[mana].length,'Scores Size':scores.size,
       'Adding teams':filteredTeams.push(
         ...[...scores.entries()].filter(([t,s])=>
           t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
           s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
           && filterTeamByRules(_arr.chunk2(t),card_r)
-        ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/27)
+        ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
         .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
-      ),'New team`s count':filteredTeams.length})
+      )})
     // for research
     const xerDist = {};
     filteredTeams.forEach(t=>xerDist[scoreXer(t.team)]=Math.max(xerDist[scoreXer(t.team)]||0,t.count))
@@ -197,13 +206,13 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
     if(filteredTeams.length>243)break;
   }
   var filteredTeams_length = filteredTeams.length;
-  filteredTeams.forEach(t=>t.score=_toPrecision3(t.score*scoreXer(t.team)/mana_cap))
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams.length/27)
   log('trimming', {filteredTeams_length},'to',filteredTeams.length)
   if(quest)priorByQuest(filteredTeams,quest);
   //writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
   const mycards = Object.entries(myCards).filter(c=>c[0]!='gold'&&cardPassRules(card_r)(c))
-    .map(c=>[Number(c[0]),c[1]])
+    .map(c=>[Number(c[0]),c[1]]).sort(sortMyCards(cardscores))
+  mycards.sort((a,b)=>_card.mana(b)-_card.mana(a))
   return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,mana_cap));
 }
 
