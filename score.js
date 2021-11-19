@@ -23,7 +23,7 @@ const priorByQuest=(teams,{type,value,color})=>{
       break;
     case 'ability':
       log({'Playing for Quest':{[value]:type}});
-      team=teams.find(t=>!(t.team.every(c=>!(_card.abilities(c)+'').includes(value))))
+      team=teams.find(t=>t.team.some(c=>(_card.abilities(c)+'').includes(value)))
       break;
     default: team = null;
   }
@@ -36,7 +36,7 @@ function sortByProperty(byWinRate){
   return (...e)=>{
     const [a,b] = e.map(x=>Array.isArray(x)?x[1]:x);
     const _byCount = b.w*a.count-a.w*b.count;
-    if(!(_byCount||byWinRate))return b.score-a.score;
+    if(!byWinRate||!_byCount)return b.score-a.score;
     return _byCount;
   }
 }
@@ -63,15 +63,20 @@ const teamScores = (battles,{cardscores={},myCards,verdictToScore={w:1,l:-1,d:-0
     const result = k.find(a=>a=='d'||a=='w');
     const idx = k.indexOf(result);
     [k.slice(0,idx),k.slice(idx+1)].forEach((t,i)=>{
+      if(!t.every((c,i)=>i%2?c in myCards:1))return;
       const cardScrs  = [scores.has(t)?scores.get(t):{w:0,l:0,d:0,count:0},
-        ..._arr.chunk2(t).filter(c=>c[0]in myCards).map(([c],x,{length})=>(cardscores[c]??={})[x>length/2?x-length:x]??={w:0,l:0,d:0,count:0})]
+        ..._arr.chunk2(t).map(([c],x,{length})=>(cardscores[c]??={p:{}}).p[x>length/2?x-length:x]??={w:0,l:0,d:0,count:0})]
       if(result=='d'){cardScrs.forEach(cs=>cs.d++)}else{cardScrs.forEach(cs=>cs[['l','w'][i]]++)}
       cardScrs.forEach(cs=>cs.count++)
       scores.set(t,cardScrs[0]);
     })
   })
-  Object.entries(cardscores).forEach(([c,cs])=>cs.score=Object.values(cs).reduce((tt,s)=>tt+(s.score=_toPrecision3(_rarityScore(c,myCards[c])*['w','l','d'].reduce((sc,k)=>sc+s[k]*verdictToScore[k],0))),0))
-  scores.forEach((s,t)=>s.score=_toPrecision3(scoreXer(t)/mana_cap*['w','l','d'].reduce((sc,k)=>sc+s[k]*verdictToScore[k],0)));
+  scores.forEach((s,t)=>s.score=_toPrecision3(scoreXer(_arr.chunk2(t))/mana_cap*['w','l','d'].reduce((sc,k)=>sc+s[k]*verdictToScore[k],0)));
+  Object.entries(cardscores).forEach(([c,cs])=>{
+    Object.values(cs.p).forEach(s=>s.score=_toPrecision3(_rarityScore(c,myCards[c])*['w','l','d'].reduce((sc,k)=>sc+s[k]*verdictToScore[k],0)));
+    cs.score=Object.values(cs.p).reduce((tt,s)=>tt+s.w,0)
+    cs.pos = Object.entries(cs.p).reduce((p,[i,s])=>cs[p]?.w>s.w?p:i,'-1')
+  })
   return scores
 }
 //var cardscores={};teamScores(require('./data/battle_data.json').Standard[13],{cardscores,mana_cap:13,myCards:Object.fromEntries(_card.basic.map(c=>[c,1]))});log(cardscores)//Example
@@ -95,8 +100,8 @@ const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
           _card.type(c) === 'Monster' &&
             team.every(uc=>c[0]!=uc[0])&&team.length<7);
           if(card){
-            team.push(card);
-            log({'adding card':_card.name(card),'Team of Rank':idx})
+            log({'adding card':_card.name(card),'at pos':card[2],'Team of Rank':idx})
+            team.splice(/*card[2]??*/-1,0,card);
             fillTeamGap(team);
           }
       }
@@ -146,7 +151,7 @@ const betterCards =(myCards,rule)=> Object.fromEntries(
       ['Gold',color]:'RedWhiteBlueBlackGreenGold')+
       (rule.includes('Taking Sides')?'':'Gray')
     const statCmp=oc=>
-      !allStats.every(t=>_card[t](c)+''==_card[t](oc)+'')
+      allStats.some(t=>_card[t](c)+''!=_card[t](oc)+'')
         &&upStats.every(t=>_card[t](c)<=_card[t](oc))
         && downStats.every(t=>_card[t](c)>=_card[t](oc))
         && (rule.includes('Back to Basics')||
@@ -161,7 +166,7 @@ const betterCards =(myCards,rule)=> Object.fromEntries(
 )
 const sortMyCards=cardscores=>{
   return (...c)=>{
-    const [as,bs] = c.map(x=>cardscores[x[0]].score);
+    const [as,bs] = c.map(x=>cardscores[x[0]]?.score);
     return bs-as
   }
 }
@@ -194,7 +199,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
           t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
           s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
           && filterTeamByRules(_arr.chunk2(t),card_r)
-        ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
+        ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/9)
         .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
       )})
     // for research
@@ -211,10 +216,10 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
   if(quest)priorByQuest(filteredTeams,quest);
   //writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
   const mycards = Object.entries(myCards).filter(c=>c[0]!='gold'&&cardPassRules(card_r)(c))
-    .map(c=>[Number(c[0]),c[1]]).sort(sortMyCards(cardscores))
-  mycards.sort((a,b)=>_card.mana(b)-_card.mana(a))
+    .map(c=>[Number(c[0]),c[1],cardscores[c[0]]?.pos])//,Math.min(...Object.entries(cardscores[c[0]]).map(x=>[x[0],x[1].score]))
+    .sort(sortMyCards(cardscores))
   return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,mana_cap));
 }
 
 module.exports = {teamScores,playableTeams};
-//log(playableTeams(require('./data/battle_data.json'),'azarmadr3',{ mana_cap: 15, ruleset: 'Even Stevens', inactive: 'Green,White,Black,Gold', quest: null, opponent_player: 'q9bla' }).map(({team})=>team.map(c=>_card.name(c))))
+//log(playableTeams(require('./data/battle_data.json'),{ mana_cap: 14, ruleset: 'Stampede', inactive: 'White,Gold', quest: { type: 'splinter', color: 'Green', value: 'Earth' }, opponent_player: 'doihai943' }).map(a=>{return{c:a.count,s:a.score}})/*.map(({team})=>team.map(c=>_card.name(c)))*/)

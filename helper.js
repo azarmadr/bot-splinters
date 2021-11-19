@@ -133,7 +133,10 @@ _func.retryFor=async(n,to,continueAfterAllRetries=0,func)=>{
   }catch(e){
     log({'nth retry':n})
     await sleep(to);
-    if(!--n)if(continueAfterAllRetries)return; else throw e;
+    if(!--n){
+      if(continueAfterAllRetries)return
+      else throw e;
+    }
     _func.retryFor(n,to,continueAfterAllRetries,func);
   }
 }
