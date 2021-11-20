@@ -30,7 +30,6 @@ async function checkForUpdate() {
       }
     })
 }
-
 async function checkForMissingConfigs() {
   await ['ACCOUNT','UPDATE_BATTLE_DATA','PASSWORD','PAUSE_BEFORE_SUBMIT','QUEST_PRIORITY','HEADLESS','KEEP_BROWSER_OPEN','CLAIM_REWARDS','ERC_THRESHOLD']
     .reduce((memo,e)=>memo.then(async()=>{
@@ -40,7 +39,6 @@ async function checkForMissingConfigs() {
       }else if(!e.includes('PASSWORD')) log(`${e}:`,process.env[e]);
     }),Promise.resolve())
 }
-
 async function getBattles(player=process.env.ACCOUNT) {
   if(process.env.UPDATE_BATTLE_DATA)
     return battles.fromUser(player)
@@ -51,7 +49,6 @@ async function getBattles(player=process.env.ACCOUNT) {
     return bl;
   }
 }
-
 async function createBrowser(headless) {
   const browser = await puppeteer.launch({
     headless,
@@ -66,7 +63,6 @@ async function createBrowser(headless) {
   await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
   return browser;
 }
-
 async function startBotPlayMatch(page, myCards,user) {
   log({account:process.env.ACCOUNT,'deck size':Object.keys(myCards).length})
 
@@ -90,9 +86,9 @@ async function startBotPlayMatch(page, myCards,user) {
   await _func.retryFor(3,3000,!__continue,()=>
     page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1000}).then(btn=>btn.click()))
   if (_card.color(Summoner) === 'Gold') {
-    log('Dragon play TEAMCOLOR', _team.splinterToPlay(Monsters,inactive))
+    log('Dragon play TEAMCOLOR', _team.splinter(teamsToPlay[0],inactive))
     await _func.retryFor(3,3000,!__continue,()=>
-      page.waitForXPath(`//div[@data-original-title="${_team.splinterToPlay(Monsters,inactive)}"]`,{timeout:10000}).then(btn=>btn.click()))
+      page.waitForXPath(`//div[@data-original-title="${_team.splinter(teamsToPlay[0],inactive)}"]`,{timeout:10000}).then(btn=>btn.click()))
   }
   //await page.waitForTimeout(5000);
   for(const [mon] of Monsters.values()){
@@ -120,7 +116,6 @@ async function startBotPlayMatch(page, myCards,user) {
   await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>log('btnSkip visible')).catch(()=>log('btnSkip not visible'));
   await page.$eval('#btnSkip', elem => elem.click()).then(()=>log('btnSkip clicked')).catch(()=>log('btnSkip not visible')); //skip rumble
 }
-
 const preMatch=({Player,settings})=>{
   const _return = {};
   const ercThreshold = process.env.ERC_THRESHOLD;
@@ -187,7 +182,7 @@ const preMatch=({Player,settings})=>{
         if(user.claimSeasonReward)                         await page.evaluate(()=>claim());
         if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
       }
-      user.isRanked = user.erc>process.env.ERC_THRESHOLD
+      user.isRanked = user.rating<400||user.erc>process.env.ERC_THRESHOLD
       log('getting user cards collection from splinterlands API...')
       const myCards = await SM.cards()
         .then(cards => cards.map(c=>
@@ -215,7 +210,7 @@ const preMatch=({Player,settings})=>{
     log('--------------------------End of Battle--------------------------------');
     if(!process.env.KEEP_BROWSER_OPEN)browser.close();
     await sleep(sleepingTime);
-    if(++_count>27)
-      _count=1&&battles.fromUserList(users.map(u=>u.account),process.env.UPDATE_BATTLE_DATA?'':'-new')
+    if(_count++>27*Math.random())
+      battles.fromUserList(users.map(u=>u.account),process.env.UPDATE_BATTLE_DATA?'':'-new')&&(_count=0);
   }
 })()

@@ -65,7 +65,7 @@ const teamScores = (battles,{cardscores={},myCards,verdictToScore={w:1,l:-1,d:-0
     [k.slice(0,idx),k.slice(idx+1)].forEach((t,i)=>{
       if(!t.every((c,i)=>i%2?c in myCards:1))return;
       const cardScrs  = [scores.has(t)?scores.get(t):{w:0,l:0,d:0,count:0},
-        ..._arr.chunk2(t).map(([c],x,{length})=>(cardscores[c]??={p:{}}).p[x>length/2?x-length:x]??={w:0,l:0,d:0,count:0})]
+        ..._arr.chunk2(t.slice(2)).map(([c],x,{length})=>(cardscores[c]??={p:{}}).p[x<length/2?x:x-length]??={w:0,l:0,d:0,count:0})]
       if(result=='d'){cardScrs.forEach(cs=>cs.d++)}else{cardScrs.forEach(cs=>cs[['l','w'][i]]++)}
       cardScrs.forEach(cs=>cs.count++)
       scores.set(t,cardScrs[0]);
@@ -81,7 +81,7 @@ const teamScores = (battles,{cardscores={},myCards,verdictToScore={w:1,l:-1,d:-0
 }
 //var cardscores={};teamScores(require('./data/battle_data.json').Standard[13],{cardscores,mana_cap:13,myCards:Object.fromEntries(_card.basic.map(c=>[c,1]))});log(cardscores)//Example
 
-const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
+const teamWithBetterCards=(betterCards,mycards,{mana_cap})=>{
   return (team,idx)=>{
     if(idx<3){
       const co = 'Gray'
@@ -93,15 +93,16 @@ const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
         if(bc)log({'Better Cards: Replaced':_card.name(i),'with ':_card.name(bc.id),'for team Rank':idx});
         return bc?[bc.id,bc.level]:[i,l]
       })
-      const fillTeamGap=(team)=>{
+      const fillTeamGap=team=>{
         const gap = mana_cap-_team.mana(team);
         const card = mycards.find(c=>
           co.includes(_card.color(c))&&_card.mana(c)<=gap&&
           _card.type(c) === 'Monster' &&
             team.every(uc=>c[0]!=uc[0])&&team.length<7);
           if(card){
-            log({'adding card':_card.name(card),'at pos':card[2],'Team of Rank':idx})
-            team.splice(/*card[2]??*/-1,0,card);
+            const pos = card[2]<0?Math.max(-Math.floor((team.length-1)/2),card[2]):1+Math.min(Math.floor((team.length-1)/2),card[2])
+            log({'+card':_card.name(card),'@':pos,'#Team':idx})
+            team.splice(/*pos??*/-1,0,card);
             fillTeamGap(team);
           }
       }
@@ -199,7 +200,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
           t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
           s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
           && filterTeamByRules(_arr.chunk2(t),card_r)
-        ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/9)
+        ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
         .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
       )})
     // for research
@@ -215,11 +216,10 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
   log('trimming', {filteredTeams_length},'to',filteredTeams.length)
   if(quest)priorByQuest(filteredTeams,quest);
   //writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
-  const mycards = Object.entries(myCards).filter(c=>c[0]!='gold'&&cardPassRules(card_r)(c))
-    .map(c=>[Number(c[0]),c[1],cardscores[c[0]]?.pos])//,Math.min(...Object.entries(cardscores[c[0]]).map(x=>[x[0],x[1].score]))
+  const mycards = Object.entries(myCards).filter(c=>!inactive.includes(_card.color(c))&&cardPassRules(card_r)(c))
+    .map(c=>[Number(c[0]),c[1],Number(cardscores[c[0]]?.pos)])
     .sort(sortMyCards(cardscores))
-  return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,mana_cap));
+  return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap}));
 }
 
 module.exports = {teamScores,playableTeams};
-//log(playableTeams(require('./data/battle_data.json'),{ mana_cap: 14, ruleset: 'Stampede', inactive: 'White,Gold', quest: { type: 'splinter', color: 'Green', value: 'Earth' }, opponent_player: 'doihai943' }).map(a=>{return{c:a.count,s:a.score}})/*.map(({team})=>team.map(c=>_card.name(c)))*/)
