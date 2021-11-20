@@ -56,8 +56,9 @@ const _rarityScore=(id,level)=>(level==1&&_card.basic.includes(id))?1:(8**_card.
 const scoreXer=team=>
   _team.adpt(team).reduce((s,[id,level])=>_rarityScore(id,level)*(_card.mana(id)||1)+s,0)
 
-const _toPrecision3=x=>Number(x.toFixed(3));
-const teamScores = (battles,{cardscores={},myCards,verdictToScore={w:1,l:-1,d:-0.5},mana_cap}={}) => {
+const _toPrcsn3=x=>Number(x.toFixed(3));
+const dotP=(x,y)=>['w','l','d'].reduce((sc,k)=>sc+x[k]*y[k],0)
+const teamScores = (battles,{cardscores={},myCards,res2Score={w:1,l:-1,d:-0.5},mana_cap}={}) => {
   const scores = new AKMap();
   battles.forEach(k=>{
     const result = k.find(a=>a=='d'||a=='w');
@@ -71,9 +72,11 @@ const teamScores = (battles,{cardscores={},myCards,verdictToScore={w:1,l:-1,d:-0
       scores.set(t,cardScrs[0]);
     })
   })
-  scores.forEach((s,t)=>s.score=_toPrecision3(scoreXer(_arr.chunk2(t))/mana_cap*['w','l','d'].reduce((sc,k)=>sc+s[k]*verdictToScore[k],0)));
+  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t))*dotP(s,res2Score)/mana_cap**3));
   Object.entries(cardscores).forEach(([c,cs])=>{
-    Object.values(cs.p).forEach(s=>s.score=_toPrecision3(_rarityScore(c,myCards[c])*['w','l','d'].reduce((sc,k)=>sc+s[k]*verdictToScore[k],0)));
+    Object.values(cs.p).forEach(s=>
+      s.score=_toPrcsn3(_rarityScore(c,myCards[c])*dotP(s,res2Score))
+    );
     cs.score=Object.values(cs.p).reduce((tt,s)=>tt+s.w,0)
     cs.pos = Object.entries(cs.p).reduce((p,[i,s])=>cs[p]?.w>s.w?p:i,'-1')
   })
@@ -181,7 +184,7 @@ const sortMyCards=cardscores=>{
  * @returns {Array} array of playable teams
  */
 const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.fromEntries(_card.basic.map(c=>[c,1])),{sortByWinRate}={}/*,fn='lastMatch'*/) => {
-  //const score = verdictToScore[v]*(_card.basic.includes(c[0])?1:_card.rarity(c))/4;
+  //const score = res2Score[v]*(_card.basic.includes(c[0])?1:_card.rarity(c))/4;
   //ruleset matching could be improved
   /** Get better cards from myCards*/
   let {attr_r, card_r} = ruleset.split('|').reduce((rules,cr)=>{
@@ -222,4 +225,3 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
 }
 
 module.exports = {teamScores,playableTeams};
-//log(playableTeams(require('./data/battle_data.json'),{ mana_cap: 14, ruleset: 'Stampede', inactive: 'White,Gold', quest: { type: 'splinter', color: 'Green', value: 'Earth' }, opponent_player: 'doihai943' }).map(a=>{return{c:a.count,s:a.score}})/*.map(({team})=>team.map(c=>_card.name(c)))*/)
