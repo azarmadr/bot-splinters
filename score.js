@@ -215,7 +215,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
   log('trimming', {filteredTeams_length},'to',filteredTeams.length)
   if(quest)priorByQuest(filteredTeams,quest);
   //writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
-  const mycards = Object.entries(myCards).filter(c=>c[0]!='gold'&&cardPassRules(card_r)(c))
+  const mycards = Object.entries(myCards).filter(c=>!inactive.includes(_card.color(c))&&cardPassRules(card_r)(c))
     .map(c=>[Number(c[0]),c[1],cardscores[c[0]]?.pos])//,Math.min(...Object.entries(cardscores[c[0]]).map(x=>[x[0],x[1].score]))
     .sort(sortMyCards(cardscores))
   return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,mana_cap));
