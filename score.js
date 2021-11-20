@@ -81,7 +81,7 @@ const teamScores = (battles,{cardscores={},myCards,verdictToScore={w:1,l:-1,d:-0
 }
 //var cardscores={};teamScores(require('./data/battle_data.json').Standard[13],{cardscores,mana_cap:13,myCards:Object.fromEntries(_card.basic.map(c=>[c,1]))});log(cardscores)//Example
 
-const teamWithBetterCards=(betterCards,mycards,{mana_cap})=>{
+const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
   return (team,idx)=>{
     if(idx<3){
       const co = 'Gray'
@@ -219,7 +219,8 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
   const mycards = Object.entries(myCards).filter(c=>!inactive.includes(_card.color(c))&&cardPassRules(card_r)(c))
     .map(c=>[Number(c[0]),c[1],Number(cardscores[c[0]]?.pos)])
     .sort(sortMyCards(cardscores))
-  return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap}));
+  return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,mana_cap));
 }
 
 module.exports = {teamScores,playableTeams};
+//log(playableTeams(require('./data/battle_data.json'),{ mana_cap: 14, ruleset: 'Stampede', inactive: 'White,Gold', quest: { type: 'splinter', color: 'Green', value: 'Earth' }, opponent_player: 'doihai943' }).map(a=>{return{c:a.count,s:a.score}})/*.map(({team})=>team.map(c=>_card.name(c)))*/)
