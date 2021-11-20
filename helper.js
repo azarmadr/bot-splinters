@@ -91,13 +91,14 @@ _akmap.fromPlainObject = obj => {
   }
 }
 
-function sleep(ms) {
+function sleep(ms,msg='') {
   process.stdout.write("\x1B[?25l");
   [...Array(27).keys()].forEach(()=>process.stdout.write("\u2591"))
   require("readline").cursorTo(process.stdout, 0);
   return [...Array(27).keys()].reduce((memo,e)=>memo.then(async()=>{
     process.stdout.write("\u2588");
-    if(e==26)console.log();
+    if(e==26)msg?console.log(msg):
+      (require('readline').clearLine(process.stdout,0)&&require('readline').cursorTo(process.stdout,0));
     return new Promise((resolve) => setTimeout(resolve, ms/27));
   }),Promise.resolve())
 }
