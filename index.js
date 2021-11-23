@@ -83,22 +83,22 @@ async function startBotPlayMatch(page, myCards,user) {
   }
   log({team:[...teamsToPlay[0].team.map(([Id,Lvl])=>{return{[_card.type(Id)]:_card.name(Id),Id,Lvl}})],Stats})
 
-  await _func.retryFor(3,3000,!__continue,()=>
+  await _func.retryFor(3,3000,!__continue,async()=>
     page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1000}).then(btn=>btn.click()))
   if (_card.color(Summoner) === 'Gold') {
     log('Dragon play TEAMCOLOR', _team.splinter(teamsToPlay[0],inactive))
-    await _func.retryFor(3,3000,!__continue,()=>
+    await _func.retryFor(3,3000,!__continue,async()=>
       page.waitForXPath(`//div[@data-original-title="${_team.splinter(teamsToPlay[0],inactive)}"]`,{timeout:10000}).then(btn=>btn.click()))
   }
   //await page.waitForTimeout(5000);
   for(const [mon] of Monsters.values()){
     log({[`Playing ${_card.name(mon)}`]:mon})
-    await _func.retryFor(3,3000,__continue,()=>
+    await _func.retryFor(3,3000,__continue,async()=>
       page.waitForXPath(`//div[@card_detail_id="${mon}"]`,{timeout:10000}).then(btn=>btn.click()))
   }
   if(!process.env.HEADLESS&&user.isRanked)
     await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
-  await _func.retryFor(3,300,__continue,()=>page.click('.btn-green')[0]);
+  await _func.retryFor(3,300,__continue,async()=>page.click('.btn-green')[0]);
   log('Team submitted, Waiting for opponent');
   await page.waitForSelector('#btnRumble', { timeout: 160000 }).then(() => log('btnRumble visible')).catch(() => log('btnRumble not visible'));
   await page.waitForTimeout(5000);

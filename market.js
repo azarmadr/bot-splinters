@@ -38,9 +38,9 @@ const headless=0;
         (!o.delegated_to || o.delegated_to === user.account)
       ).length
       const card_ids = await SM.cards().then(c=>c.filter(cb).map(c=>c.id))
-      log({'card ids':card_ids.length})
-      const _ctn = await page.evaluate(`SM.Player.collection_power>=5000`);
-      if(_ctn){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
+      const _ctn = await page.evaluate(`SM.Player.collection_power`);
+      log({'Collection Power':_ctn,'card ids':card_ids.length})
+      if(_ctn>=5000){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
 
       await page.evaluate(`SM.ShowMarket('rentals')`)
       await page.waitForSelector('.loading',{hidden:true})

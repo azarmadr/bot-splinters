@@ -47,15 +47,13 @@ const _card = {
 /** Team helper functions in _team object */
 const color2Deck={'Red':'Fire','Blue':'Water','White':'Life','Black':'Death','Green':'Earth'}
 const _team = {
-  adpt:  t=>Array.isArray(t[0])?t:_arr.chunk2(t),
+  adpt: t=>Array.isArray(t[0])?t:_arr.chunk2(t),
   mana: t=>_team.adpt(t).reduce((a,c)=>_card.mana(c)+a,0),
-  color: t=>_team.adpt(t).reduce((color,c,idx)=>{
-    if(idx && Object.keys(color2Deck).includes(_card.color(c)))
-      color[1] = _card.color(c);
-    else color.unshift(_card.color(c));
-    return color
-  },['Gray']),
-  splinter: (team,inactive)=>color2Deck[_team.color(team)[1]]??color2Deck[Object.keys(color2Deck).find(c=>inactive.indexOf(c)<0)],
+  colorPri: t=>_card.color(_team.adpt(t)[0]),
+  colorSec: t=>_team.adpt(t).slice(1).reduce((color,c)=>
+    _card.color(c)in color2Deck?_card.color(c):color,'Gray'),
+  splinter: (team,inactive)=>color2Deck[_team.colorSec(team)]??
+    Object.entries(color2Deck).find(c=>!inactive.includes(c[0]))[1],
   rules : {
     primary:"Back to BasicsSilenced SummonersAim TrueSuper SneakWeak MagicUnprotectedTarget PracticeFog of WarArmored UpEqual OpportunityMelee Mayhem",
     any:"Healed OutEarthquakeReverse SpeedClose RangeHeavy HittersEqualizerNoxious FumesStampedeExplosive WeaponryHoly ProtectionSpreading Fury",
@@ -137,22 +135,20 @@ _dbug.in1 = m=>{
   process.stdout.write(`tt: ${m}`);
 }
 
-_func.retryFor=async(n,to,continueAfterAllRetries=0,func)=>{
-  try{
-    return await func()
-  }catch(e){
-    log({'nth retry':n})
-    await sleep(to);
-    if(!--n){
-      if(continueAfterAllRetries)return;
-      else throw e;
-    }
-    _func.retryFor(n,to,continueAfterAllRetries,func);
+_func.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
+  if(!--n){
+    log({'Failed after multiple retries':''});
+    if(continueAfterAllRetries)return Promise.resolve(err);
+    else return Promise.reject(err);
   }
+  return func().catch(async err=>{
+    log({'nth retry':n})
+    await sleep(to).then(()=>
+      _func.retryFor(n,to,continueAfterAllRetries,func,err))
+  })
 }
 
 module.exports = {
   _card,     _team, _elem, _akmap, _dbug,  sleep,  log,
   _arr, cards,_func,
 };
-//**/log(_func.retryFor(3,33,0,()=>{throw new Error(3)}))///(async()=>_func.retryFor(3,33,()=>{throw new Error(3)}))()

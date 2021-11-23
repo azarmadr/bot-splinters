@@ -122,7 +122,7 @@ const cardPassRules=rule=>{
     case 'Lost Magic':          return c=>_card.magic(c)  ==0
     case 'Keep Your Distance':  return c=>_card.attack(c) ==0
     case 'Up Close & Personal': return c=>_card.attack(c) >0
-    case 'Little League':       return c=>_card.mana(c)   <4
+    case 'Little League':       return c=>_card.mana(c)   <5
     case 'Lost Legendaries':    return c=>_card.rarity(c) <4
     case 'Rise of the Commons': return c=>_card.rarity(c) <3
     case 'Taking Sides':        return c=>_card.color(c)  !='Gray'
@@ -212,7 +212,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
     try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
     xer[mana]=xerDist;writeFileSync('./data/xer.json',xer);
     // for research
-    if(filteredTeams.length>243)break;
+    if(filteredTeams.length>27)break;
   }
   var filteredTeams_length = filteredTeams.length;
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams.length/27)
