@@ -61,7 +61,6 @@ const _team = {
   }
 };
 
-
 _akmap.toPlainObject = akmap => {
   const out = {}
   for (const [path, value] of akmap.entries()) {

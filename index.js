@@ -86,9 +86,10 @@ async function startBotPlayMatch(page, myCards,user) {
   await _func.retryFor(3,3000,!__continue,async()=>
     page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1000}).then(btn=>btn.click()))
   if (_card.color(Summoner) === 'Gold') {
-    log('Dragon play TEAMCOLOR', _team.splinter(teamsToPlay[0],inactive))
+    const Gold_plays_SPLINTER = _team.splinter(teamsToPlay[0].team,inactive);
+    log({Gold_plays_SPLINTER});
     await _func.retryFor(3,3000,!__continue,async()=>
-      page.waitForXPath(`//div[@data-original-title="${_team.splinter(teamsToPlay[0],inactive)}"]`,{timeout:10000}).then(btn=>btn.click()))
+      page.waitForXPath(`//div[@data-original-title="${Gold_plays_SPLINTER}"]`,{timeout:10000}).then(btn=>btn.click()))
   }
   //await page.waitForTimeout(5000);
   for(const [mon] of Monsters.values()){
