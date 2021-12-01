@@ -32,11 +32,11 @@ const priorByQuest=(teams,{type,value,color})=>{
 /** Sorts by score or win rate
  * @param {Boolean} byWinRate if yes, then sorts by win rate, else by score
  */
-function sortByProperty(byWinRate){
+function sortByProperty(sortByWinRate){
   return (...e)=>{
     const [a,b] = e.map(x=>Array.isArray(x)?x[1]:x);
-    const _byCount = b.w*a.count-a.w*b.count;
-    if(!byWinRate||!_byCount)return b.score-a.score;
+    const _byCount = (b._w*a.count-a._w*b.count) || (b._w - a._w);
+    if(!sortByWinRate||!_byCount)return b.score-a.score;
     return _byCount;
   }
 }
@@ -52,41 +52,53 @@ function filterOutByMana(byMana=99){
   }
 }
 
-const _rarityScore=(id,level)=>(level==1&&_card.basic.includes(id))?1:(8**_card.rarity(id)*level)
-const scoreXer=team=>
-  _team.adpt(team).reduce((s,[id,level])=>_rarityScore(id,level)*(_card.mana(id)||1)+s,0)
+const _rarityScore=(id,level,x=6)=>(level==1&&_card.basic.includes(id))?1:(x**_card.rarity(id)*level)
+const scoreXer=(team,x=6)=>
+  _team.adpt(team).reduce((s,[id,level])=>_rarityScore(id,level,x)*(_card.mana(id)||1)+s,0)
 
 const _toPrcsn3=x=>Number(x.toFixed(3));
-const dotP=(x,y)=>['w','l','d'].reduce((sc,k)=>sc+x[k]*y[k],0)
-const teamScores = (battles,{cardscores={},myCards,res2Score={w:1,l:-1,d:-0.5},mana_cap}={}) => {
+const dotP=(x,y)=>Object.keys(x).reduce((sc,k)=>sc+x[k]*y[k],0)
+const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1,d:-0.5},mana_cap,inactive,_scoreAll}={}) => {
   const scores = new AKMap();
   battles.forEach(k=>{
     const result = k.find(a=>a=='d'||a=='w');
     const idx = k.indexOf(result);
-    [k.slice(0,idx),k.slice(idx+1)].forEach((t,i)=>{
-      if(!t.every((c,i)=>i%2?c in myCards:1))return;
-      const cardScrs  = [scores.has(t)?scores.get(t):{w:0,l:0,d:0,count:0},
-        ..._arr.chunk2(t.slice(2)).map(([c],x,{length})=>(cardscores[c]??={p:{}}).p[x<length/2?x:x-length]??={w:0,l:0,d:0,count:0})]
-      if(result=='d'){cardScrs.forEach(cs=>cs.d++)}else{cardScrs.forEach(cs=>cs[['l','w'][i]]++)}
+    const teams = [k.slice(0,idx),k.slice(idx+1)];
+    if(teams.every(t=>!_team.isActive(t,inactive)))return;
+    /*const incVal =i=>i?
+      1/(1+10**((scoreXer(k.slice(idx+1),2)-scoreXer(k.slice(0,idx),2))/247)):
+      1/(1+10**((scoreXer(k.slice(0,idx),2)-scoreXer(k.slice(idx+1),2))/247));*/
+    //log({0:incVal(0),1:incVal(1)});
+    const incVal = _team.mana(teams[0])*(k.slice(0,idx).some((c,x)=>x%2?0:c in oppCards)?scoreXer(k.slice(0,idx),2)/mana_cap:1)/
+      (_team.isActive(teams[0],inactive)?1:3)/mana_cap
+    //const incVal = scoreXer(k.slice(0,idx),1.2)/scoreXer(k.slice(idx+1),1.2);
+    teams.forEach((t,i)=>{
+      if(!_scoreAll&&!t.every((c,x)=>x%2?1:c in myCards))return;
+      const cardScrs  = [scores.has(t)?scores.get(t):{w:0,_w:0,l:0,_l:0,d:0,count:0},
+        ..._arr.chunk2(t.slice(2)).map(([c],x,{length})=>(cardscores[c]??={p:{}}).p[x<length/2?x:x-length]??={w:0,l:0,d:0,_w:0,count:0})]
+      cardScrs.forEach(cs=>{
+        if(result=='d'){cs.d++}
+        else{cs[i?'_w':'l']++;if(i)cs.w+=incVal;}
+        //else{cs[i?'_w':'_l']++;cs[i?'w':'l']+=incVal(i)}
+      });
       cardScrs.forEach(cs=>cs.count++)
       scores.set(t,cardScrs[0]);
     })
   })
-  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t))*dotP(s,res2Score)/mana_cap**3));
+  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),7)*dotP(res2Score,s)/mana_cap**3));
   Object.entries(cardscores).forEach(([c,cs])=>{
     Object.values(cs.p).forEach(s=>
-      s.score=_toPrcsn3(_rarityScore(c,myCards[c])*dotP(s,res2Score))
+      s.score=_toPrcsn3(_rarityScore(c,myCards[c])*dotP(res2Score,s))
     );
     cs.score=Object.values(cs.p).reduce((tt,s)=>tt+s.w,0)
     cs.pos = Object.entries(cs.p).reduce((p,[i,s])=>cs[p]?.w>s.w?p:i,'-1')
   })
   return scores
 }
-//var cardscores={};teamScores(require('./data/battle_data.json').Standard[13],{cardscores,mana_cap:13,myCards:Object.fromEntries(_card.basic.map(c=>[c,1]))});log(cardscores)//Example
 
-const teamWithBetterCards=(betterCards,mycards,mana_cap)=>{
+const teamWithBetterCards=(betterCards,mycards,{mana_cap,sortByWinRate})=>{
   return (team,idx)=>{
-    if(idx<3){
+    if(!sortByWinRate&&idx<3){
       const co = 'Gray'
         +(_card.color(team.team[0])=='Gold'?'Gold':'')
         +team.team.reduce(
@@ -184,10 +196,12 @@ const sortMyCards=cardscores=>{
  * @param {String} fn file name to store the array of playable teams
  * @returns {Array} array of playable teams
  */
-const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.fromEntries(_card.basic.map(c=>[c,1])),{sortByWinRate}={}/*,fn='lastMatch'*/) => {
+const basicCards=Object.fromEntries(_card.basic.map(c=>[c,1]));
+const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCards=basicCards,sortByWinRate}/*,fn='lastMatch'*/) => {
   //const score = res2Score[v]*(_card.basic.includes(c[0])?1:_card.rarity(c))/4;
   //ruleset matching could be improved
-  /** Get better cards from myCards*/
+  //Object.assign(oppCards,basicCards);
+  const res2Score = {w:1,d:-0.5,l:-1};
   let {attr_r, card_r} = ruleset.split('|').reduce((rules,cr)=>{
     _team.rules.secondary.includes(cr)?(rules.card_r=cr):rules.attr_r.push(cr);
     return rules},{attr_r:[]})
@@ -196,12 +210,14 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
   var filteredTeams=[],cardscores={},battlesList = battles;
   for(let path of attr_r)battlesList=battlesList[path];//This assumes object exists
   for(let mana of Object.keys(battlesList).filter(x=>x<=mana_cap&&Number(x)).sort((a,b)=>b-a)){
-    const scores = teamScores(battlesList[mana].filter(filterOutByMana(mana)),{mana_cap,cardscores,myCards});
-    log({[`battles length for ${mana}`]:battlesList[mana].length,'Scores Size':scores.size,
-      'Adding teams':filteredTeams.push(
+    res2Score.l = -mana_cap/mana;
+    const scores = teamScores(battlesList[mana]//.filter(filterOutByMana(mana))//donno if it is doing expected
+      ,{res2Score,mana_cap,inactive,cardscores,myCards,oppCards});
+    log({[`#battles - ${mana}`]:battlesList[mana].length,'#Scores':scores.size,
+      '#teams':filteredTeams.push(
         ...[...scores.entries()].filter(([t,s])=>
-          t.length>2    && _arr.chunk2(t).every(c=>!inactive.includes(_card.color(c))) &&
-          s.count<2*s.w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
+          t.length>2    && _team.isActive(t,inactive) &&
+          s.count<2*s._w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
           && filterTeamByRules(_arr.chunk2(t),card_r)
         ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
         .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
@@ -222,7 +238,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest},myCards=Object.
   const mycards = Object.entries(myCards).filter(c=>!inactive.includes(_card.color(c))&&cardPassRules(card_r)(c))
     .map(c=>[Number(c[0]),c[1],Number(cardscores[c[0]]?.pos)])
     .sort(sortMyCards(cardscores))
-  return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,mana_cap));
+  return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap,sortByWinRate}));
 }
 
-module.exports = {teamScores,playableTeams};
+module.exports = {teamScores,playableTeams,scoreXer};

@@ -1,6 +1,15 @@
 const AKM  = require('array-keyed-map');
 const cards = require("./data/cards.json");
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const rl = require("readline");
+rl.emitKeypressEvents(process.stdin);
+var _wake;
+const rlInterface=rl.createInterface({input:process.stdin,output:process.stdout});
+rlInterface.pause();
+process.stdin.on('keypress',(_,k)=>{
+  _wake=1; rlInterface.pause();
+  rl.moveCursor(process.stdout,0,(k&&k.name=='return')?-1:0);
+});
 
 const _elem = {}, _akmap = {}, _dbug = {},_func={};
 
@@ -39,7 +48,7 @@ const {ranged,magic,attack,speed,armor,health} = ['ranged','magic','attack','spe
 )
 const _card = {
   mana:      c=>       [cards[cardToIdx(c)-1].stats.mana].flat()[0],
-  abilities: ([i,l])=> cards[i-1].stats?.abilities?.slice(0,l)?.flat(),
+  abilities: ([i,l])=> cards[i-1].stats?.abilities?.slice(0,l)?.flat()||[],
   basic:     cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id),
   ranged,magic,attack,speed,armor,health,color,name,rarity,type,
 }
@@ -58,7 +67,8 @@ const _team = {
     primary:"Back to BasicsSilenced SummonersAim TrueSuper SneakWeak MagicUnprotectedTarget PracticeFog of WarArmored UpEqual OpportunityMelee Mayhem",
     any:"Healed OutEarthquakeReverse SpeedClose RangeHeavy HittersEqualizerNoxious FumesStampedeExplosive WeaponryHoly ProtectionSpreading Fury",
     secondary:"Keep Your DistanceLost LegendariesTaking SidesRise of the CommonsUp Close & PersonalBroken ArrowsLittle LeagueLost MagicEven StevensOdd Ones Out"
-  }
+  },
+  isActive: (t,inactive)=> _team.adpt(t).every(c=>!inactive.includes(_card.color(c))),
 };
 
 _akmap.toPlainObject = akmap => {
@@ -89,13 +99,18 @@ _akmap.fromPlainObject = obj => {
 }
 
 function sleep(ms,msg='') {
+  rlInterface.resume();
   process.stdout.write("\x1B[?25l");
   [...Array(27).keys()].forEach(()=>process.stdout.write("\u2591"))
-  require("readline").cursorTo(process.stdout, 0);
+  rl.cursorTo(process.stdout, 0);
   return [...Array(27).keys()].reduce((memo,e)=>memo.then(async()=>{
     process.stdout.write("\u2588");
-    if(e==26)msg?console.log(msg):
-      (require('readline').clearLine(process.stdout,0)&&require('readline').cursorTo(process.stdout,0));
+    if(e==26){
+      rl.clearLine(process.stdout,0)&&rl.cursorTo(process.stdout,0);
+      if(msg)console.log(msg);
+      _wake=0;
+    }
+    if(_wake&&e<27)return;
     return new Promise((resolve) => setTimeout(resolve, ms/27));
   }),Promise.resolve())
 }
@@ -129,8 +144,8 @@ _elem.getTextByXpath = async function(page, selector, timeout=20000) {
 /** debug helpers
  */
 _dbug.in1 = m=>{
-  require('readline').clearLine(process.stdout,0)
-  require('readline').cursorTo(process.stdout,0);
+  rl.clearLine(process.stdout,0)
+  rl.cursorTo(process.stdout,0);
   process.stdout.write(`tt: ${m}`);
 }
 

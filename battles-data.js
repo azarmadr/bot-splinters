@@ -20,21 +20,15 @@ async function getBattleHistory(player = '') {
   return battleHistory;
 }
 
-const __medusa=(m)=>(m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
-const xtractTeam=(t)=>[...[t.summoner,...t.monsters].map(m=>[__medusa(m),m.level])]
+const __medusa=m=>(m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
 const genBattleList=(battles,battle_obj)=>battles.reduce(
   (battle_obj,{ruleset,mana_cap,details})=>{
     const {winner,team1,team2} = JSON.parse(details);
-    //if (Date.parse(created_date)>1631856895886) {
-    const teams = [team1,team2].map(xtractTeam);
+    const teams = [team1,team2].map(t=>
+      [winner=='DRAW'?'d':winner==t.player?'w':'l',...[t.summoner,...t.monsters].map(m=>[__medusa(m),m.level])]);
     if(!_arr.eq(...teams)){
-      const won = new Proxy({winner},{get: (t,p)=>{//target,prop,reciever
-        if(t.winner=='DRAW'){return 'd'}
-        return t.winner==p?'w':'l';
-      }});
-      [team1,team2].forEach(({player},i)=>teams[i].unshift(won[player]));
-      let obj = battle_obj;
       const [_,...rem] = teams.sort().flat(2);
+      let obj = battle_obj;
       for(let path of (ruleset.split('|').reduce((rules,cr)=>
         _team.rules.secondary.includes(cr)?rules:rules.concat(cr)
         ,[]).sort().join()||'Standard').split(','))obj=obj[path]??={};
@@ -53,7 +47,7 @@ _battles.merge=(obj,obj2merge)=>{
       obj[key]= [...new Map([...obj[key],...value].map(i=>[i+'',i])).values()]
       if(value.length!=obj[key].length)
         _dbug.in1(JSON.stringify({
-          '#':_bc.count++,'original array':_bc['original battles'],'by#':_bc['battles this session']+=value.length,'new uniqBattles':_bc['uniq Battles']+=obj[key].length
+          '#':_bc.count++,'original array':_bc['original battles'],'by#':_bc['battles this session']+=value.length,'+uniqBattles':_bc['uniq Battles']+=obj[key].length
         }))
     }
     else _battles.merge(obj[key]??={},value);
@@ -105,4 +99,3 @@ _battles.fromUserList = (players,fn,cl=27) =>Promise.resolve(
   .then(bl=>_battles.save(bl,fn))
 
 module.exports = _battles;
-//Promise.resolve(_battles.fromUserList('azarmadr3,azarmadr,enochroot','')).then(b=>log('a'))

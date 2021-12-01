@@ -39,23 +39,33 @@ const headless=0;
       ).length
       const card_ids = await SM.cards().then(c=>c.filter(cb).map(c=>c.id))
       const _ctn = await page.evaluate(`SM.Player.collection_power`);
-      log({'Collection Power':_ctn,'card ids':card_ids.length})
-      if(_ctn>=5000){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
+      const isStarter = await page.evaluate(`SM.Player.starter_pack_purchase`);
+      log({'Collection Power':_ctn,'card ids':card_ids.length,isStarter})
+      if(!isStarter||_ctn>=5000){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
 
       await page.evaluate(`SM.ShowMarket('rentals')`)
       await page.waitForSelector('.loading',{hidden:true})
       await page.select('#filter-sort','price')
-      for (var [i,max_price] of [[3,0.5],[2,0.19],[1,0.1]]){
-        await _elem.click(page,`.filter-section-rarities .filter-option-button:nth-child(${i}) > label`);
+      for (var [i,max_price,gold] of [/*[3,2,1],[2,1,1],[1,0.3,1],*/[3,0.5],[2,0.19],[1,0.1]]){
+        if(i!=1)await _elem.click(page,`.filter-section-rarities .filter-option-button:nth-child(${i}) > label`);
+        if(gold){
+          await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(2) > label`);
+          await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(1) > label`);
+        }
         await sleep(333);
         await page.waitForSelector('.market-price')
         const card = await page.$$eval('.card.card_market',
-          (cards,[uoc,mp])=>cards.find(a=>(parseFloat(a.innerText.match(/\d+.\d+/))
-            <SM.settings.dec_price*mp)&&uoc.includes(parseInt(a.id.match(/\d+/))))?.id,[card_ids,max_price]);
+          (cards,[uoc,mp,i])=>cards.find(a=>(parseFloat(a.innerText.match(/\d+.\d+/))
+            <SM.settings.dec_price*mp)&&(!i||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,gold]);
         if(card){
           log(card);
           await _elem.click(page,`#${card}`);
           break;
+        }
+        if(i!=1)await _elem.click(page,`.filter-section-rarities .filter-option-button:nth-child(${i}) > label`);
+        if(gold){
+          await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(1) > label`);
+          await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(2) > label`);
         }
       }
       await page.waitForSelector('tbody > tr:nth-child(1) > .price')
@@ -70,6 +80,8 @@ const headless=0;
         await _elem.click(page,`tr:nth-child(${id+1}) .card-checkbox`)
         await _elem.click(page,'#btn_buy')
         await sleep(333);
+        await page.waitForSelector('#txt_rent_days');
+        await sleep(33);
         await page.type('#txt_rent_days','2');
         await _elem.click(page,'#btn_rent_popup_rent')
         if(user.account!='azarmadr3'){
@@ -83,8 +95,8 @@ const headless=0;
         }
         await sleep(333);
         await page.waitForSelector('.loading',{hidden:true})
+        await sleep(1232);
       }
-      //await sleep(12312);
       await page.evaluate('SM.Logout()');
       //await sleep(123123);
     }}
