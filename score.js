@@ -55,36 +55,38 @@ function filterOutByMana(byMana=99){
 const _rarityScore=(id,level,x=6)=>(level==1&&_card.basic.includes(id))?1:(x**_card.rarity(id)*level)
 const scoreXer=(team,x=6)=>
   _team.adpt(team).reduce((s,[id,level])=>_rarityScore(id,level,x)*(_card.mana(id)||1)+s,0)
-
 const _toPrcsn3=x=>Number(x.toFixed(3));
 const dotP=(x,y)=>Object.keys(x).reduce((sc,k)=>sc+x[k]*y[k],0)
+
 const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1,d:-0.5},mana_cap,inactive,_scoreAll}={}) => {
   const scores = new AKMap();
   battles.forEach(k=>{
-    const result = k.find(a=>a=='d'||a=='w');
-    const idx = k.indexOf(result);
-    const teams = [k.slice(0,idx),k.slice(idx+1)];
+    const {result,teams} = k.reduce((a,c)=>{
+      if(c=='d'||c=='w')a.result=c;else a.teams[a.result?1:0].push(c);return a
+    },{teams:[[],[]]});
     if(teams.every(t=>!_team.isActive(t,inactive)))return;
-    /*const incVal =i=>i?
-      1/(1+10**((scoreXer(k.slice(idx+1),2)-scoreXer(k.slice(0,idx),2))/247)):
-      1/(1+10**((scoreXer(k.slice(0,idx),2)-scoreXer(k.slice(idx+1),2))/247));*/
-    //log({0:incVal(0),1:incVal(1)});
-    const incVal = _team.mana(teams[0])*(k.slice(0,idx).some((c,x)=>x%2?0:c in oppCards)?scoreXer(k.slice(0,idx),2)/mana_cap:1)/
-      (_team.isActive(teams[0],inactive)?1:3)/mana_cap
-    //const incVal = scoreXer(k.slice(0,idx),1.2)/scoreXer(k.slice(idx+1),1.2);
-    teams.forEach((t,i)=>{
-      if(!_scoreAll&&!t.every((c,x)=>x%2?1:c in myCards))return;
-      const cardScrs  = [scores.has(t)?scores.get(t):{w:0,_w:0,l:0,_l:0,d:0,count:0},
-        ..._arr.chunk2(t.slice(2)).map(([c],x,{length})=>(cardscores[c]??={p:{}}).p[x<length/2?x:x-length]??={w:0,l:0,d:0,_w:0,count:0})]
-      cardScrs.forEach(cs=>{
-        if(result=='d'){cs.d++}
-        else{cs[i?'_w':'l']++;if(i)cs.w+=incVal;}
-        //else{cs[i?'_w':'_l']++;cs[i?'w':'l']+=incVal(i)}
+    const [w,l] = teams.map(t=>
+      (t.some((c,x)=>x%2?0:(c in oppCards))?scoreXer(t,1.3)/mana_cap:1)*_team.mana(t)/mana_cap/
+      (_team.isActive(t,inactive)?1:3)
+    )
+    let defaultScores = {w:0,_w:0,l:0,_l:0,d:0,_d:0,count:0};
+    teams.forEach((t,i)=>{if(_scoreAll||t.every((c,x)=>x%2?1:c in myCards)){
+      const cardScrs  = [scores.has(t)?scores.get(t):{...defaultScores},
+        ..._arr.chunk2(t.slice(2)).map(([c],x,{length})=>
+          (cardscores[c]??={p:{}}).p[x<length/2?x:x-length]??={...defaultScores})]
+      cardScrs.forEach(cs=>{cs.count++;
+        if(result=='d'){cs._d++;cs.d+=i?w:l}
+        else{cs[i?'_w':'_l']++;cs[i?'w':'l']+=i?w:l;}
       });
-      cardScrs.forEach(cs=>cs.count++)
       scores.set(t,cardScrs[0]);
-    })
+    }})
   })
+  // for research
+  const xerDist = {};
+  scores.forEach((s,t)=>xerDist[scoreXer(t)]=Math.max(xerDist[scoreXer(t)]||0,s.count))
+  try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
+  xer[mana_cap]=xerDist;writeFileSync('./data/xer.json',xer);
+  // for research
   scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),7)*dotP(res2Score,s)/mana_cap**3));
   Object.entries(cardscores).forEach(([c,cs])=>{
     Object.values(cs.p).forEach(s=>
@@ -222,12 +224,6 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
         ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
         .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
       )})
-    // for research
-    const xerDist = {};
-    filteredTeams.forEach(t=>xerDist[scoreXer(t.team)]=Math.max(xerDist[scoreXer(t.team)]||0,t.count))
-    try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
-    xer[mana]=xerDist;writeFileSync('./data/xer.json',xer);
-    // for research
     if(filteredTeams.length>27)break;
   }
   var filteredTeams_length = filteredTeams.length;
