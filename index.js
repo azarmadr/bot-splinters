@@ -166,19 +166,19 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
 ).flat())
 ;(async () => {
   await checkForMissingConfigs();
-  for(let env of ['WATCH_MATCH','HEADLESS','KEEP_BROWSER_OPEN','SKIP_PRACTICE','SKIP_USERS','QUEST_PRIORITY','CLAIM_SEASON_REWARD','CLAIM_REWARDS','UPDATE_BATTLE_DATA'])
+  for(let env of ['WATCH_MATCH','HEADLESS','KEEP_BROWSER_OPEN','SKIP_PRACTICE','QUEST_PRIORITY','CLAIM_SEASON_REWARD','CLAIM_REWARDS','UPDATE_BATTLE_DATA'])
     process.env[env]=JSON.parse(process.env[env]?.toLowerCase()||false)||'';
-  let users = process.env.ACCOUNT.split(',').map((account,i)=>{if(!process.env.SKIP_USERS.split(',').includes(account))return {
-    account,
-    password:process.env.PASSWORD.split(',')[i],
-    login:process.env?.EMAIL?.split(',')[i],
-    w:0,l:0,d:0,w_p:0,l_p:0,d_p:0,won:0,decWon:0,netWon:0,
-  }}).filter(x=>x);
+  let users = process.env.ACCOUNT.split(',').map((account,i)=>{
+    if(!process.env.SKIP_USERS.split(',').includes(account))return{
+      account,
+      password:process.env.PASSWORD.split(',')[i],
+      login:process.env?.EMAIL?.split(',')[i],
+      w:0,l:0,d:0,w_p:0,l_p:0,d_p:0,won:0,decWon:0,netWon:0,
+    }}).filter(x=>x);
   log('Opening a browser');
   let browser = await createBrowser(process.env.HEADLESS);
   let page = (await browser.pages())[1];
 
-  log({users});return
   while (true) {
     await checkForUpdate();
     for (const user of users) {
