@@ -34,8 +34,8 @@ const priorByQuest=(teams,{type,value,color})=>{
  */
 function sortByProperty(sortByWinRate){
   return (...e)=>{
-    const [a,b] = e.map(x=>Array.isArray(x)?x[1]:x);
-    const _byCount = (b._w*a.count-a._w*b.count) || (b._w - a._w);
+    const[a,b]    =e.map(x=>Array.isArray(x)?x[1]:x);
+    const _byCount=(b._w*a.count-a._w*b.count)||(b._w-a._w)||(b.w-a.w);
     if(!sortByWinRate||!_byCount)return b.score-a.score;
     return _byCount;
   }
