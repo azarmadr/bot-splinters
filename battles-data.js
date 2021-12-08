@@ -3,7 +3,7 @@ const {_arr,_team,_dbug} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
 const _battles = {};
-var _bc={count:0,pc:0,'original battles':0,'battles this session':0,'uniq Battles':0};
+var _bc={count:0,pc:0,'|Battles':0,'+Battles':0};
 async function getBattleHistory(player = '') {
   const battleHistory = await require('async-get-json')(`https://api2.splinterlands.com/battle/history?player=${player}`)
     .catch(() => async function getBattleHistory(player = '') {
@@ -20,12 +20,12 @@ async function getBattleHistory(player = '') {
   return battleHistory;
 }
 
-const __medusa=m=>(m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
+const __medusa=(m,t)=>(_team.colorSec(t)=='Blue'&&m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
 const genBattleList=(battles,battle_obj)=>battles.reduce(
   (battle_obj,{ruleset,mana_cap,details})=>{
     const {winner,team1,team2} = JSON.parse(details);
     const teams = [team1,team2].map(t=>
-      [winner=='DRAW'?'d':winner==t.player?'w':'l',...[t.summoner,...t.monsters].map(m=>[__medusa(m),m.level])]);
+      [winner=='DRAW'?'d':winner==t.player?'w':'l',...[t.summoner,...t.monsters].map(m=>[__medusa(m,t),m.level])]);
     if(!_arr.eq(...teams)){
       const [_,...rem] = teams.sort().flat(2);
       let obj = battle_obj;
@@ -43,11 +43,11 @@ _battles.merge=(obj,obj2merge)=>{
   for(let[key,value] of Object.entries(obj2merge)){
     if(Array.isArray(value)){
       obj[key]??=[];
-      _bc['original battles']+=obj[key].length;
+      const _ob=obj[key].length;
       obj[key]= [...new Map([...obj[key],...value].map(i=>[i+'',i])).values()]
       if(value.length!=obj[key].length)
         _dbug.in1(JSON.stringify({
-          '#':_bc.count++,'original array':_bc['original battles'],'by#':_bc['battles this session']+=value.length,'+uniqBattles':_bc['uniq Battles']+=obj[key].length
+          '#':_bc.count++,'original len':_ob,'by#':_bc['|Battles']+=value.length,'+uniqBattles':_bc['+Battles']+=(obj[key].length-_ob)
         }))
     }
     else _battles.merge(obj[key]??={},value);
@@ -60,7 +60,7 @@ _battles.save=(bl,fn='')=>{
       console.log()
       if(e){log('Error reading file: ',e)}
       _battles.merge(battlesList,bl)
-      console.log();log({..._bc,'uniq battles added':_bc['uniq Battles']-_bc['original battles']});Object.keys(_bc).forEach(k=>_bc[k]=0)
+      console.log();log(_bc);Object.keys(_bc).forEach(k=>_bc[k]=0)
       writeFile(`data/battle_data${fn}.json`, battlesList).catch(e=>log(e))
       res(battlesList);
     })

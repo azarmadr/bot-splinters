@@ -37,10 +37,10 @@ SM.battle = async function(type='Ranked'){
   await page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)');
   return cb;
 }
-SM.cards = async function(player){
+SM.cards = async function(player){player=player?`'${player}'`:'SM.Player.name';
   log ({'Obtaining Cards':player});
   return await page.evaluate(`new Promise((res,rej)=>
-    SM.LoadCollection('${player}', 1, col=>res(col))
+    SM.LoadCollection(${player}, 1, col=>res(col))
   )`)
 }
 SM._=h=>page=h;

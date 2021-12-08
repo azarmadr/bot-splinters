@@ -32,21 +32,21 @@ const headless=0;
       process.env.ACTIVE_KEY = user.active_key
       process.env.ACCOUNT    = user.account
       await SM.login(process.env.LOGIN,process.env.PASSWORD)
+      const _ctn = await page.evaluate(`SM.Player.collection_power`);
+      const isStarter = await page.evaluate(`SM.Player.starter_pack_purchase`);
+      if(!isStarter||_ctn>=5000){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
       const cb=c=>!c.owned.filter(o=>
         !o.uid.includes('starter')&&
         !(o.market_id && o.market_listing_status === 0)&&
         (!o.delegated_to || o.delegated_to === user.account)
       ).length
-      const card_ids = await SM.cards().then(c=>c.filter(cb).map(c=>c.id))
-      const _ctn = await page.evaluate(`SM.Player.collection_power`);
-      const isStarter = await page.evaluate(`SM.Player.starter_pack_purchase`);
+      const card_ids = await SM.cards(user.account).then(c=>c.filter(cb).map(c=>c.id));
       log({'Collection Power':_ctn,'card ids':card_ids.length,isStarter})
-      if(!isStarter||_ctn>=5000){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
 
       await page.evaluate(`SM.ShowMarket('rentals')`)
       await page.waitForSelector('.loading',{hidden:true})
       await page.select('#filter-sort','price')
-      for (var [i,max_price,gold] of [/*[3,2,1],[2,1,1],[1,0.3,1],*/[3,0.5],[2,0.19],[1,0.1]]){
+      for (var [i,max_price,gold] of [/*[3,2,1],[2,1,1],*/[1,0.3,1],[3,0.5],[2,0.19],[1,0.1]]){
         if(i!=1)await _elem.click(page,`.filter-section-rarities .filter-option-button:nth-child(${i}) > label`);
         if(gold){
           await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(2) > label`);
@@ -55,8 +55,8 @@ const headless=0;
         await sleep(333);
         await page.waitForSelector('.market-price')
         const card = await page.$$eval('.card.card_market',
-          (cards,[uoc,mp,i])=>cards.find(a=>(parseFloat(a.innerText.match(/\d+.\d+/))
-            <SM.settings.dec_price*mp)&&(!i||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,gold]);
+          (cards,[uoc,mp,gold])=>cards.find(a=>(parseFloat(a.innerText.match(/\d+.\d+/))
+            <SM.settings.dec_price*mp)&&(gold||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,gold]);
         if(card){
           log(card);
           await _elem.click(page,`#${card}`);

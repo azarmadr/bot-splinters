@@ -49,7 +49,7 @@ const {ranged,magic,attack,speed,armor,health} = ['ranged','magic','attack','spe
 const _card = {
   mana:      c=>       [cards[cardToIdx(c)-1].stats.mana].flat()[0],
   abilities: ([i,l])=> cards[i-1].stats?.abilities?.slice(0,l)?.flat()||[],
-  basic:     cards.filter(c=>c.editions.match(/1|4/)&&c.rarity<3).map(c=>c.id),
+  basic:     cards.filter(c=>c.editions.match(/7|4/)&&c.rarity<3).map(c=>c.id),
   ranged,magic,attack,speed,armor,health,color,name,rarity,type,
 }
 

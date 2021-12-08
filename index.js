@@ -67,7 +67,7 @@ const postBattle=user=>battle=>{
   user.won = battle.winner==user.account?1:battle.winner=='DRAW'?0:-1;
   if(user.won>0){
     log({Result:'Won!!!'});
-    user.decWon += Number(battle.reward_dec);
+    user.decWon += Number(Number.parseFloat(battle.reward_dec).toFixed(3));
     user.isRanked?user.w++:user.w_p++;
   }else user.won<0?user.isRanked?user.l++:user.l_p++:user.isRanked?user.d++:user.d_p++;
   user.netWon+=user.won;
@@ -81,7 +81,7 @@ async function startBotPlayMatch(page,user) {
     .then(c=>Object.fromEntries(Object.entries(c).filter(i=>!inactive.includes(_card.color(i)))))
     .catch(e=>log(e,'Opp Cards Failed')??{})
   log({mana_cap, ruleset, inactive,quest:user.quest,[`${process.env.ACCOUNT} Deck`]:Object.keys(myCards).length,[`${opponent_player} Deck`]:Object.keys(oppCards).length})
-  if(Object.keys(oppCards).length)log({'Opp Cards':Object.entries(oppCards).map(([i,l])=>{
+  if(Object.keys(oppCards).length)log(__oppDeck={'Opp Cards':Object.entries(oppCards).map(([i,l])=>{
     return{[_card.type(i).slice(0,3)]:_card.name(i),[i]:l,[_card.color(i).slice(0,2)]:_card.abilities([i,l]).join()}})
     .sort((a,b)=>('Mon'in a)-('Mon'in b))})
   var battlesList = await getBattles(opponent_player)
@@ -98,9 +98,11 @@ async function startBotPlayMatch(page,user) {
   }
   log({team:[...teamsToPlay[0].team.map(([Id,Lvl])=>{return{[_card.type(Id)]:_card.name(Id),[Id]:Lvl}})],Stats})
 
-  if(!process.env.HEADLESS&&user.isRanked&&!user.isStarter)
+  if(!process.env.HEADLESS&&user.isRanked&&!user.isStarter)//,{body:'${JSON.stringify(__oppDeck??0,null,1)}'}
     await page.evaluate(`var n=new Notification('Battle Ready');
       n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
+  await page.waitForSelector('[card_type]',{timeout:1000}).catch(()=>page.reload()
+    .then(()=>page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)')))
   await _func.retryFor(3,3000,!__continue,async()=>
     page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1000}).then(btn=>btn.click()))
   if (_card.color(Summoner) === 'Gold') {
@@ -200,7 +202,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
       }
       user.isRanked = user.rating<400||user.erc>process.env.ERC_THRESHOLD
       if(process.env.SKIP_PRACTICE&&!user.isRanked)continue;
-      await startBotPlayMatch(page,user).then(()=>log('Closing battle')).catch(async e=>{
+      await startBotPlayMatch(page,user).then(()=>log([...Array(9).keys()].fill('-|_').join())).catch(async e=>{
         log(e,'failed to submit team, so waiting for user to input manually and close the session')
         await sleep(163456);
         throw e;//can we continue here without throwing error
