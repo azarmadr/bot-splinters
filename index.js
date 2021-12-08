@@ -169,7 +169,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
   for(let env of ['WATCH_MATCH','HEADLESS','KEEP_BROWSER_OPEN','SKIP_PRACTICE','QUEST_PRIORITY','CLAIM_SEASON_REWARD','CLAIM_REWARDS','UPDATE_BATTLE_DATA'])
     process.env[env]=JSON.parse(process.env[env]?.toLowerCase()||false)||'';
   let users = process.env.ACCOUNT.split(',').map((account,i)=>{
-    if(!process.env.SKIP_USERS.split(',').includes(account))return{
+    if(!process.env.SKIP_USERS?.split(',')?.includes(account))return{
       account,
       password:process.env.PASSWORD.split(',')[i],
       login:process.env?.EMAIL?.split(',')[i],

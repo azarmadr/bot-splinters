@@ -16,12 +16,14 @@ const headless=0;
   page.on('dialog', async dialog => { await dialog.accept(); });
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
   await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
-  let users = process.env.ACCOUNT.split(',').map((account,i)=>{return {
-    account,
-    password:   process.env.PASSWORD.split(',')[i],
-    active_key: process.env.ACTIVE_KEY.split(',')[i],
-    login:      process.env?.EMAIL?.split(',')[i],
-  }})
+  let users = process.env.ACCOUNT.split(',').map((account,i)=>{
+    if(!process.env.SKIP_USERS?.split(',')?.includes(account)){return {
+      account,
+      password:   process.env.PASSWORD.split(',')[i],
+      active_key: process.env.ACTIVE_KEY.split(',')[i],
+      login:      process.env?.EMAIL?.split(',')[i],
+    }}
+  }).filter(x=>x);
   SM._(page);
   while(users.length){
     log('users:',users.length);
@@ -46,7 +48,7 @@ const headless=0;
       await page.evaluate(`SM.ShowMarket('rentals')`)
       await page.waitForSelector('.loading',{hidden:true})
       await page.select('#filter-sort','price')
-      for (var [i,max_price,gold] of [/*[3,2,1],[2,1,1],*/[1,0.3,1],[3,0.5],[2,0.19],[1,0.1]]){
+      for (var [i,max_price,gold] of [/*[3,2,1],[2,1,1],[1,0.3,1],*/[3,0.5],[2,0.19],[1,0.1]]){
         if(i!=1)await _elem.click(page,`.filter-section-rarities .filter-option-button:nth-child(${i}) > label`);
         if(gold){
           await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(2) > label`);
@@ -56,7 +58,7 @@ const headless=0;
         await page.waitForSelector('.market-price')
         const card = await page.$$eval('.card.card_market',
           (cards,[uoc,mp,gold])=>cards.find(a=>(parseFloat(a.innerText.match(/\d+.\d+/))
-            <SM.settings.dec_price*mp)&&(gold||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,gold]);
+            <SM.settings.dec_price*mp)&&(!gold||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,gold]);
         if(card){
           log(card);
           await _elem.click(page,`#${card}`);
@@ -70,7 +72,7 @@ const headless=0;
       }
       await page.waitForSelector('tbody > tr:nth-child(1) > .price')
       const _credits = await page.evaluate(
-        `SM.Player.balances.find(a=>a.token==='CREDITS').balance>333*${max_price}`)
+        `SM.Player.balances.find(a=>a.token==='CREDITS')?.balance>333*${max_price}`)
       await page.select('#payment_currency',_credits?'CREDITS':'DEC')
       const id = await page.$$eval('tbody > tr > .price',
         (tb,max_price)=>
