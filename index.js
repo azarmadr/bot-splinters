@@ -203,7 +203,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
       }
       user.isRanked = user.rating<400||user.erc>process.env.ERC_THRESHOLD
       if(process.env.SKIP_PRACTICE&&!user.isRanked)continue;
-      await startBotPlayMatch(page,user).then(()=>log([...Array(9).keys()].fill('-|_').join())).catch(async e=>{
+      await startBotPlayMatch(page,user).then(()=>console.log({'----':[...Array(9).keys()].fill('-|_').join()})).catch(async e=>{
         log(e,'failed to submit team, so waiting for user to input manually and close the session')
         await sleep(163456);
         throw e;//can we continue here without throwing error

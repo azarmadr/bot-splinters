@@ -105,11 +105,6 @@ const teamWithBetterCards=(betterCards,mycards,{mana_cap,sortByWinRate})=>{
         +(_card.color(team.team[0])=='Gold'?'Gold':'')
         +team.team.reduce(
           (acc,[i])=>'RedWhiteBlueBlackGreen'.includes(_card.color(i))?_card.color(i):acc,'Red')
-      team.team = team.team.map(([i,l])=>{
-        const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!team.team.flat().includes(c.id));
-        if(bc)log({'Better Cards: Replaced':_card.name(i),'with ':_card.name(bc.id),'for team Rank':idx});
-        return bc?[bc.id,bc.level]:[i,l]
-      })
       const fillTeamGap=team=>{
         const gap = mana_cap-_team.mana(team);
         const card = mycards.find(c=>
@@ -123,8 +118,12 @@ const teamWithBetterCards=(betterCards,mycards,{mana_cap,sortByWinRate})=>{
             fillTeamGap(team);
           }
       }
-      //log({'Mana Cap':mana_cap,'Team Current Mana':_team.mana(team.team), 'DIFFERENCE':mana_cap-_team.mana(team.team),'for Team of Rank':idx});
       fillTeamGap(team.team);
+      team.team = team.team.map(([i,l])=>{
+        const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!team.team.flat().includes(c.id));
+        if(bc)log({'Better Cards: Replaced':_card.name(i),'with ':_card.name(bc.id),'for team Rank':idx});
+        return bc?[bc.id,bc.level]:[i,l]
+      })
     }
     return team
   }
@@ -179,7 +178,7 @@ const betterCards =(myCards,rule)=> Object.fromEntries(
     const better = mycards.filter(oc=>
       c[0]!=oc.id&&allowedColors.includes(_card.color(oc))&&statCmp(oc)
     ).map(c=>{return{color:_card.color(c),id:c[0],level:c[1],name:_card.name(c)}})
-    if(better.length)return[_card.name(c),better]
+    if(better.length)return[c[0],better]
   }).filter(x=>x)
 )
 const sortMyCards=cardscores=>{
@@ -224,7 +223,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
         ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
         .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
       )})
-    if(filteredTeams.length>27)break;
+    if(sortByWinRate||(filteredTeams.length>27))break;
   }
   var filteredTeams_length = filteredTeams.length;
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams.length/27)
@@ -234,7 +233,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
   const mycards = Object.entries(myCards).filter(c=>!inactive.includes(_card.color(c))&&cardPassRules(card_r)(c))
     .map(c=>[Number(c[0]),c[1],Number(cardscores[c[0]]?.pos)])
     .sort(sortMyCards(cardscores))
+  //writeFileSync('./data/bc.json',Object.fromEntries(Object.entries(betterCards(mycards,ruleset)).map(([k,v])=>[_card.name(k),v])))
   return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap,sortByWinRate}));
 }
-
 module.exports = {teamScores,playableTeams,scoreXer};
