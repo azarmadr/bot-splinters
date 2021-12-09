@@ -2,9 +2,10 @@ var page;
 const {sleep} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
-const SM = {};
-SM.__ = async function(p=page){return p.evaluate(()=>SM);}
-SM.login = async function(acc,pwd){
+const sm = {};
+sm._  =h=>page=h;
+sm.__ = async function(p=page){return p.evaluate('SM');}
+sm.login = async function(acc,pwd){
   log({Logging:acc})
   if(acc.indexOf('@')>0)
     await page.evaluate(`new Promise((res,rej)=>
@@ -19,13 +20,13 @@ SM.login = async function(acc,pwd){
   await sleep(1729);
   await page.evaluate('SM.HideDialog()')
 }
-SM.questClaim = async function (q,_q){
+sm.questClaim = async function (q,_q){
   log({'Claiming quest box':q.name});
   await page.evaluate(([q,_q])=>{
     try{QuestClaimReward(q,_q)}catch(e){console.log(e,'failed to claim quest');SM.HideLoading()};
   },[q,_q]);
 }
-SM.battle = async function(type='Ranked'){
+sm.battle = async function(type='Ranked'){
   log(`Finding ${type} match`);
   await page.evaluate(`{SM.ShowBattleHistory(); SM.FindMatch('${type}');}`)
   const cb = await page.evaluate(`new Promise(async(res,rej)=>{
@@ -37,11 +38,10 @@ SM.battle = async function(type='Ranked'){
   await page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)');
   return cb;
 }
-SM.cards = async function(player){player=player?`'${player}'`:'SM.Player.name';
+sm.cards = async function(player){player=player?`'${player}'`:'SM.Player.name';
   log ({'Obtaining Cards':player});
   return await page.evaluate(`new Promise((res,rej)=>
     SM.LoadCollection(${player}, 1, col=>res(col))
   )`)
 }
-SM._=h=>page=h;
-module.exports = {SM};
+module.exports = sm;

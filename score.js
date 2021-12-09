@@ -87,7 +87,7 @@ const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1,
   try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
   xer[mana_cap]=xerDist;writeFileSync('./data/xer.json',xer);
   // for research
-  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),7)*dotP(res2Score,s)/mana_cap**3));
+  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),5)*dotP(res2Score,s)/mana_cap**3));
   Object.entries(cardscores).forEach(([c,cs])=>{
     Object.values(cs.p).forEach(s=>
       s.score=_toPrcsn3(_rarityScore(c,myCards[c])*dotP(res2Score,s))
@@ -114,7 +114,7 @@ const teamWithBetterCards=(betterCards,mycards,{mana_cap,sortByWinRate})=>{
           if(card){
             const pos = card[2]<0?Math.max(-Math.floor((team.length-1)/2),card[2]):1+Math.min(Math.floor((team.length-1)/2),card[2])
             log({'+card':_card.name(card),'@':pos,'#Team':idx})
-            team.splice(/*pos??*/-1,0,card);
+            team.splice(/*pos??*/team.length,0,card);
             fillTeamGap(team);
           }
       }

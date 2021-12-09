@@ -3,11 +3,12 @@ require('dotenv').config()
 const puppeteer = require('puppeteer');
 const {table} = require('table');
 
-const {SM} = require('./splinterApi');
+const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
 const battles = require('./battles-data');
 const {_card, _team, _arr,_func, sleep,} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const args = require('minimist')(process.argv.slice(2));
 
 let __continue=1;
 const sleepingTime = 60000 * (process.env.MINUTES_BATTLES_INTERVAL || 30);
@@ -66,14 +67,41 @@ async function createBrowser(headless) {
 const postBattle=user=>battle=>{
   user.won = battle.winner==user.account?1:battle.winner=='DRAW'?0:-1;
   if(user.won>0){
-    log({Result:'Won!!!'});
+    log({Result:'Won!!!'+Array(battle.current_streak).fill('_.~"(')});
     user.decWon += Number(Number.parseFloat(battle.reward_dec).toFixed(3));
     user.isRanked?user.w++:user.w_p++;
   }else user.won<0?user.isRanked?user.l++:user.l_p++:user.isRanked?user.d++:user.d_p++;
   user.netWon+=user.won;
 }
+async function teamSelection(teamToPlay,{page,inactive,ruleset,notifyUser}){
+  const {team:[Summoner,...Monsters],...Stats} = teamToPlay;
+  if(!ruleset.includes('Taking Sides')){
+    const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
+  }
+  log({team:[...teamToPlay.team.map(([Id,Lvl])=>{return{[_card.type(Id)]:_card.name(Id),[Id]:Lvl}})],Stats})
+  if(notifyUser)await page.evaluate(`var n=new Notification('Battle Ready');
+      n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
+  await page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1001}).catch(()=>page.reload()
+    .then(()=>sleep(5000)).then(()=>page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)')))
+  await _func.retryFor(3,3000,!__continue,async()=>
+    page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1000}).then(btn=>btn.click()))
+  if (_card.color(Summoner) === 'Gold') {
+    const goldPlaySplinter = _team.splinter(teamToPlay.team,inactive);
+    log({goldPlaySplinter});
+    await _func.retryFor(3,3000,!__continue,async()=>page.waitForXPath(
+      `//div[@data-original-title="${goldPlaySplinter}"]`,{timeout:10000}).then(btn=>btn.click()))
+  }
+  for(const[mon]of Monsters){
+    log({[`Playing ${_card.name(mon)}`]:mon})
+    await _func.retryFor(3,3000,__continue,async()=>
+      page.waitForXPath(`//div[@card_detail_id="${mon}"]`,{timeout:10000}).then(btn=>btn.click()))
+  }
+  if(notifyUser)await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
+  await _func.retryFor(3,300,__continue,async()=>page.click('.btn-green')).catch(log);
+  log('Team submitted, Waiting for opponent');
+}
 async function startBotPlayMatch(page,user) {
-  const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle((user.isStarter||user.isRanked)?'Ranked':'Practice')
+  const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle(user.isRanked?'Ranked':'Practice')
   const myCards = await SM.cards(process.env.ACCOUNT).then(cards2Obj(process.env.ACCOUNT))
     .then(c=>Object.fromEntries(Object.entries(c).filter(i=>!inactive.includes(_card.color(i)))))
     .catch(e => log(e,'cards collection api didnt respond. Did you use username? avoid email!')??{});
@@ -84,48 +112,18 @@ async function startBotPlayMatch(page,user) {
   if(Object.keys(oppCards).length)log(__oppDeck={'Opp Cards':Object.entries(oppCards).map(([i,l])=>{
     return{[_card.type(i).slice(0,3)]:_card.name(i),[i]:l,[_card.color(i).slice(0,2)]:_card.abilities([i,l]).join()}})
     .sort((a,b)=>('Mon'in a)-('Mon'in b))})
-  var battlesList = await getBattles(opponent_player)
-    .catch(e=>{log(e);return require('./data/battle_data.json')});
+  var battlesList =await getBattles(opponent_player).catch(e=>{log(e);return require('./data/battle_data.json')});
   const teamsToPlay = playableTeams(battlesList,
-    {mana_cap,ruleset,inactive,oppCards,quest:user.quest,myCards,sortByWinRate:user.isStarter||!user.isRanked});
-
-  //TEAM SELECTION
-  //Can do further analysin on teamsToPlay
-  log('teamsToPlay.length',teamsToPlay.length);
-  const {team:[Summoner,...Monsters],...Stats} = teamsToPlay[0];
-  if(!ruleset.includes('Taking Sides')){
-    const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
-  }
-  log({team:[...teamsToPlay[0].team.map(([Id,Lvl])=>{return{[_card.type(Id)]:_card.name(Id),[Id]:Lvl}})],Stats})
-
-  if(!process.env.HEADLESS&&user.isRanked&&!user.isStarter)//,{body:'${JSON.stringify(__oppDeck??0,null,1)}'}
-    await page.evaluate(`var n=new Notification('Battle Ready');
-      n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
-  await page.waitForSelector('[card_type]',{timeout:1000}).catch(()=>page.reload()
-    .then(()=>page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)')))
-  await _func.retryFor(3,3000,!__continue,async()=>
-    page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1000}).then(btn=>btn.click()))
-  if (_card.color(Summoner) === 'Gold') {
-    const Gold_plays_SPLINTER = _team.splinter(teamsToPlay[0].team,inactive);
-    log({Gold_plays_SPLINTER});
-    await _func.retryFor(3,3000,!__continue,async()=>
-      page.waitForXPath(`//div[@data-original-title="${Gold_plays_SPLINTER}"]`,{timeout:10000}).then(btn=>btn.click()))
-  }
-  //await page.waitForTimeout(5000);
-  for(const [mon] of Monsters.values()){
-    log({[`Playing ${_card.name(mon)}`]:mon})
-    await _func.retryFor(3,3000,__continue,async()=>
-      page.waitForXPath(`//div[@card_detail_id="${mon}"]`,{timeout:10000}).then(btn=>btn.click()))
-  }
-  if(!process.env.HEADLESS&&user.isRanked&&!user.isStarter)
-    await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
-  await _func.retryFor(3,300,__continue,async()=>page.click('.btn-green')).catch(log);
-  log('Team submitted, Waiting for opponent');
-  await page.waitForSelector('#btnRumble', { timeout: 160000 })
+    {mana_cap,ruleset,inactive,quest:user.quest,oppCards,myCards,sortByWinRate:user.isStarter||!user.isRanked});
+  await Promise.any([
+    teamSelection(teamsToPlay[0],{page,ruleset,inactive,notifyUser:!process.env.HEADLESS&&user.isRanked&&!user.isStarter})
+    .then(()=>page.waitForSelector('#btnRumble', { timeout: 160000 }))
     .then(()=>page.evaluate(`startFightLoop();localStorage.setItem('sl:battle_speed', 6)`))
-    .then(()=>page.evaluate('SM.CurrentView.data').then(postBattle(user)))
-    .then(async()=>{if(process.env.WATCH_MATCH)await sleep(999*mana_cap)})
-    .catch(() => log('btnRumble not visible'));
+    .then(()=>process.env.SKIP_REPLAY||
+      page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(1999*mana_cap)})),
+    page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(60000*5)}),
+  ]).then(()=>page.evaluate('SM.CurrentView.data').then(postBattle(user)))
+    .catch(() => log('Wrapping up Battle'));
 }
 const preMatch=({Player,settings})=>{
   const _return = {};
@@ -166,15 +164,18 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
 ).flat())
 ;(async () => {
   await checkForMissingConfigs();
-  for(let env of ['WATCH_MATCH','HEADLESS','KEEP_BROWSER_OPEN','SKIP_PRACTICE','QUEST_PRIORITY','CLAIM_SEASON_REWARD','CLAIM_REWARDS','UPDATE_BATTLE_DATA'])
-    process.env[env]=JSON.parse(process.env[env]?.toLowerCase()||false)||'';
+  for(let [env,arg] of [['SKIP_REPLAY','sr'],['HEADLESS','h'],['KEEP_BROWSER_OPEN'],['SKIP_PRACTICE','sp'],['QUEST_PRIORITY'],['CLAIM_SEASON_REWARD'],['CLAIM_REWARDS'],['UPDATE_BATTLE_DATA','ubd']])
+    process.env[env]=args[arg]||JSON.parse(process.env[env]?.toLowerCase()||false)||'';
   let users = process.env.ACCOUNT.split(',').map((account,i)=>{
-    if(!process.env.SKIP_USERS?.split(',')?.includes(account))return{
-      account,
-      password:process.env.PASSWORD.split(',')[i],
-      login:process.env?.EMAIL?.split(',')[i],
-      w:0,l:0,d:0,w_p:0,l_p:0,d_p:0,won:0,decWon:0,netWon:0,
-    }}).filter(x=>x);
+    if(!(process.env.SKIP_USERS||''+(require('minimist')(process.argv.slice(2))?.su||''))
+      .split(',').includes(account))return{
+        account,
+        password:process.env.PASSWORD.split(',')[i],
+        login:process.env?.EMAIL?.split(',')[i],
+        w:0,l:0,d:0,w_p:0,l_p:0,d_p:0,won:0,decWon:0,netWon:0,
+        erc:100,rating:0,isStarter:0,isRanked:0,claimQuestReward:[],claimSeasonReward:0,
+      }
+  }).filter(x=>x);
   log('Opening a browser');
   let browser = await createBrowser(process.env.HEADLESS);
   let page = (await browser.pages())[1];
@@ -201,9 +202,10 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
         if(user.claimSeasonReward)                         await page.evaluate('claim()');
         if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
       }
-      user.isRanked = user.rating<400||user.erc>process.env.ERC_THRESHOLD
+      user.isRanked = user.isStarter || user.rating<400||user.erc>process.env.ERC_THRESHOLD
       if(process.env.SKIP_PRACTICE&&!user.isRanked)continue;
-      await startBotPlayMatch(page,user).then(()=>console.log({'----':[...Array(9).keys()].fill('-|_').join()})).catch(async e=>{
+      await startBotPlayMatch(page,user).then(()=>console.log({
+        '[]++++':'['+Array(9).fill(';;;').join('')+'>','<========':'|(xxxxx)'})).catch(async e=>{
         log(e,'failed to submit team, so waiting for user to input manually and close the session')
         await sleep(163456);
         throw e;//can we continue here without throwing error
