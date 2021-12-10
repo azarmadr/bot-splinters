@@ -143,7 +143,7 @@ _elem.getTextByXpath = async function(page, selector, timeout=20000) {
 
 /** debug helpers
  */
-_dbug.in1 = m=>{
+_dbug.in1 =(...m)=>{
   rl.clearLine(process.stdout,0)
   rl.cursorTo(process.stdout,0);
   process.stdout.write(`tt: ${m}`);

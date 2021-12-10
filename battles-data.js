@@ -15,9 +15,7 @@ async function getBattles(player = '',bd,minRank=0) {
           return {battles:[]};
         })
     ).then(b=>b.battles.filter(b=>minRank<Math.max(b.player_1_rating_final,b.player_2_rating_final)&&!b.details.includes('"type":"Surrender"')))
-  require('readline').clearLine(process.stdout,0)
-  require('readline').cursorTo(process.stdout,0);
-  process.stdout.write(`battle-data: ${_bc.pc+++' '+player}`);
+  _dbug.in1(_bc.pc++,player);
   return battleHistory.reduce(
     ({battle_obj,nuSet},{ruleset,mana_cap,details})=>{
       const {winner,team1,team2} = JSON.parse(details);
@@ -46,7 +44,7 @@ _battles.merge=(obj,obj2merge)=>{
       obj[key]= [...new Map([...obj[key],...value].map(i=>[i+'',i])).values()]
       if(value.length!=obj[key].length)
         _dbug.in1(JSON.stringify({
-          '#':_bc.count++,'original len':_ob,'by#':_bc['|Battles']+=value.length,'+uniqBattles':_bc['+Battles']+=(obj[key].length-_ob)
+          '#':_bc.count++,'orig len':_ob,'by#':_bc['|Battles']+=value.length,'+uniq':_bc['+Battles']+=(obj[key].length-_ob)
         }))
     }
     else _battles.merge(obj[key]??={},value);
@@ -55,10 +53,11 @@ _battles.merge=(obj,obj2merge)=>{
 _battles.save=(bl,fn='')=>{return new Promise(res =>
   readFile(`./data/battle_data${fn}.json`,(e,d)=>{
     let battlesList = d||{};
-    console.log()
+    require('readline').cursorTo(process.stdout,0);
     if(e){log('Error reading file: ',e)}
-    _battles.merge(battlesList,bl)
-    console.log();log(_bc);Object.keys(_bc).forEach(k=>_bc[k]=0)
+    _battles.merge(battlesList,bl);
+    require('readline').cursorTo(process.stdout,0);
+    log(_bc);Object.keys(_bc).forEach(k=>_bc[k]=0)
     writeFile(`data/battle_data${fn}.json`, battlesList).catch(e=>log(e))
     res(battlesList);
   })
@@ -74,7 +73,7 @@ _battles.fromUsers = (players,{depth=2,minRank,blackSet=new Set(),fn='',cl=27}={
     const _b = _battles.save(battle_obj,fn);
     for(p of nuSet)if(blackSet.has(p))nuSet.delete(p);
     if(--depth&&depth>0&&nuSet.size)
-      return res(_battles.fromUsers([...nuSet],{depth,blackSet,fn,cl}))
+      return res(_battles.fromUsers([...nuSet].filter((_,i)=>i<243),{depth,blackSet,fn,cl}))
     else return res(_b)
   })
 });
