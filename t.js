@@ -10,7 +10,7 @@ const oldBattles                 = require('./data/battle_data.json');
 const player  = args.name         ||process.env.ACCOUNT;
 const fn      = args.fn           ||'';
 const battles = require('./battles-data');
-const b       = (args.freshBattles||args.fb) ?battles.fromUser(player,fn):oldBattles;
+const b       = (args.freshBattles||args.fb) ?battles.fromUsers(player,{fn}):oldBattles;
 
 const score_opt = {};
 Promise.resolve(b).then(x=>{

@@ -41,9 +41,9 @@ async function checkForMissingConfigs() {
 }
 async function getBattles(player=process.env.ACCOUNT) {
   if(process.env.UPDATE_BATTLE_DATA)
-    return battles.fromUser(player)
+    return battles.fromUsers(player)
   else {
-    const blNew = battles.fromUser(player,'-new');
+    const blNew = battles.fromUsers(player,{fn:'-new'});
     const bl = require('./data/battle_data.json');
     battles.merge(bl,blNew);
     return bl;
@@ -167,7 +167,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
   for(let [env,arg] of [['SKIP_REPLAY','sr'],['HEADLESS','h'],['KEEP_BROWSER_OPEN'],['SKIP_PRACTICE','sp'],['QUEST_PRIORITY'],['CLAIM_SEASON_REWARD'],['CLAIM_REWARDS'],['UPDATE_BATTLE_DATA','ubd']])
     process.env[env]=args[arg]||JSON.parse(process.env[env]?.toLowerCase()||false)||'';
   let users = process.env.ACCOUNT.split(',').map((account,i)=>{
-    if(!(process.env.SKIP_USERS||''+(require('minimist')(process.argv.slice(2))?.su||''))
+    if(!(args.su||process.env.SKIP_USERS||'')
       .split(',').includes(account))return{
         account,
         password:process.env.PASSWORD.split(',')[i],
@@ -202,10 +202,10 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
         if(user.claimSeasonReward)                         await page.evaluate('claim()');
         if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
       }
-      user.isRanked = user.isStarter || user.rating<400||user.erc>process.env.ERC_THRESHOLD
+      user.isRanked = user.isStarter || user.rating<400||user.erc>(args.e||process.env.ERC_THRESHOLD)
       if(process.env.SKIP_PRACTICE&&!user.isRanked)continue;
       await startBotPlayMatch(page,user).then(()=>console.log({
-        '[]++++':'['+Array(9).fill(';;;').join('')+'>','<========':'|(xxxxx)'})).catch(async e=>{
+        '[]++++':'['+Array(9).fill(';;;;').join('')+'>','<========':'|(xxxxx)'})).catch(async e=>{
         log(e,'failed to submit team, so waiting for user to input manually and close the session')
         await sleep(163456);
         throw e;//can we continue here without throwing error
@@ -216,8 +216,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
     const table_list = ['account','dec','erc','cp','rating','won','netWon','decWon','w','l','d','w_p','l_p','d_p'];
     console.log(table([table_list, ...users.map(u=>table_list.map(t=>u[t]))]));
     if(!process.env.KEEP_BROWSER_OPEN)browser.close();
-    await battles.userList2Battles(users.map(user=>user.account)).then(battlesList=>
-      battles.save(battlesList,process.env.UPDATE_BATTLE_DATA?'':'-new'))
+    await battles.fromUsers(users.map(user=>user.account),{depth:1});
     log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
     await sleep(sleepingTime);
     log('--------------------------End of Battle--------------------------------');

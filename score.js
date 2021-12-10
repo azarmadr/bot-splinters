@@ -87,7 +87,7 @@ const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1,
   try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
   xer[mana_cap]=xerDist;writeFileSync('./data/xer.json',xer);
   // for research
-  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),5)*dotP(res2Score,s)/mana_cap**3));
+  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),3)*dotP(res2Score,s)/mana_cap**3));
   Object.entries(cardscores).forEach(([c,cs])=>{
     Object.values(cs.p).forEach(s=>
       s.score=_toPrcsn3(_rarityScore(c,myCards[c])*dotP(res2Score,s))
