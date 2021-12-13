@@ -11,7 +11,7 @@ const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 const args = require('minimist')(process.argv.slice(2));
 
 let __continue=1;
-const sleepingTime = 60000 * (process.env.MINUTES_BATTLES_INTERVAL || 30);
+const sleepingTime = 60000 * (args.bi ?? process.env.MINUTES_BATTLES_INTERVAL ?? 27);
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
@@ -31,8 +31,9 @@ async function checkForUpdate() {
     })
 }
 async function checkForMissingConfigs() {
-  await ['ACCOUNT','PASSWORD','PAUSE_BEFORE_SUBMIT','ERC_THRESHOLD']
-    .reduce((memo,e)=>memo.then(async()=>{
+  await [['ACCOUNT'],['PASSWORD'],['PAUSE_BEFORE_SUBMIT','p'],['ERC_THRESHOLD','e']]
+    .reduce((memo,[e,a])=>memo.then(async()=>{
+      process.env[e]=args[a]??process.env[e];
       if (!process.env[e]) {
         log(`Missing ${e} parameter in .env - see updated .env-example!`);
         await sleep(60000);
@@ -165,9 +166,9 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
 ;(async () => {
   await checkForMissingConfigs();
   for(let [env,arg] of [['SKIP_REPLAY','sr'],['HEADLESS','h'],['KEEP_BROWSER_OPEN'],['SKIP_PRACTICE','sp'],['QUEST_PRIORITY'],['CLAIM_SEASON_REWARD'],['CLAIM_REWARDS'],['UPDATE_BATTLE_DATA','ubd']])
-    process.env[env]=args[arg]||JSON.parse(process.env[env]?.toLowerCase()||false)||'';
+    process.env[env]=(args[arg]??JSON.parse(process.env[env]?.toLowerCase()??false))||'';
   let users = process.env.ACCOUNT.split(',').map((account,i)=>{
-    if(!(args.su||process.env.SKIP_USERS||'')
+    if(!(args.su??process.env.SKIP_USERS??'')
       .split(',').includes(account))return{
         account,
         password:process.env.PASSWORD.split(',')[i],
@@ -202,7 +203,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
         if(user.claimSeasonReward)                         await page.evaluate('claim()');
         if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
       }
-      user.isRanked = user.isStarter || user.rating<400||user.erc>(args.e||process.env.ERC_THRESHOLD)
+      user.isRanked = user.isStarter || user.rating<400||user.erc>(args.e??process.env.ERC_THRESHOLD)
       if(process.env.SKIP_PRACTICE&&!user.isRanked)continue;
       await startBotPlayMatch(page,user).then(()=>console.log({
         '[]++++':'['+Array(9).fill(';;;;').join('')+'>','<========':'|(xxxxx)'})).catch(async e=>{

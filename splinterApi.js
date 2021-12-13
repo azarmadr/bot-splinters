@@ -17,7 +17,7 @@ sm.login = async function(acc,pwd){
     )`).catch(log);
     await page.evaluate('SM.OnLogin(0)')
   }
-  await sleep(1729);
+  await sleep(729);
   await page.evaluate('SM.HideDialog()')
 }
 sm.questClaim = async function (q,_q){
@@ -34,7 +34,7 @@ sm.battle = async function(type='Ranked'){
     if(SM.in_battle)res(SM._currentBattle);
     else rej(null);
   })`)
-  await sleep(1729);
+  await sleep(729);
   await page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)');
   return cb;
 }

@@ -1,5 +1,5 @@
 const AKMap = require('array-keyed-map');
-const {readFileSync,writeFileSync} = require('jsonfile');
+//const {readFileSync,writeFileSync} = require('jsonfile');
 const {_team,_card,_arr} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 
@@ -40,9 +40,8 @@ function sortByProperty(sortByWinRate){
     return _byCount;
   }
 }
-/** Filter battles with losing team less than 90% of the mana_cap. Winning against such team is not difficult
+/* Filter battles with losing team less than 90% of the mana_cap. Winning against such team is not difficult
  * @param {Boolean} byMana if yes, filter out by mana, else keep them
- */
 function filterOutByMana(byMana=99){
   return battle => {
     if(byMana == 99) return true;
@@ -51,6 +50,7 @@ function filterOutByMana(byMana=99){
     else return true
   }
 }
+ */
 
 const _rarityScore=(id,level,x=6)=>(level==1&&_card.basic.includes(id))?1:(x**_card.rarity(id)*level)
 const scoreXer=(team,x=6)=>
@@ -81,13 +81,13 @@ const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1,
       scores.set(t,cardScrs[0]);
     }})
   })
-  // for research
+  /* for research
   const xerDist = {};
   scores.forEach((s,t)=>xerDist[scoreXer(t)]=Math.max(xerDist[scoreXer(t)]||0,s.count))
   try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
   xer[mana_cap]=xerDist;writeFileSync('./data/xer.json',xer);
-  // for research
-  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),3)*dotP(res2Score,s)/mana_cap**3));
+  // for research*/
+  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),4)*dotP(res2Score,s)/mana_cap**3));
   Object.entries(cardscores).forEach(([c,cs])=>{
     Object.values(cs.p).forEach(s=>
       s.score=_toPrcsn3(_rarityScore(c,myCards[c])*dotP(res2Score,s))
@@ -98,50 +98,50 @@ const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1,
   return scores
 }
 
-const teamWithBetterCards=(betterCards,mycards,{mana_cap,sortByWinRate})=>{
-  return (team,idx)=>{
-    if(!sortByWinRate&&idx<3){
-      const co = 'Gray'
-        +(_card.color(team.team[0])=='Gold'?'Gold':'')
-        +team.team.reduce(
-          (acc,[i])=>'RedWhiteBlueBlackGreen'.includes(_card.color(i))?_card.color(i):acc,'Red')
-      const fillTeamGap=team=>{
-        const gap = mana_cap-_team.mana(team);
-        const card = mycards.find(c=>
-          co.includes(_card.color(c))&&_card.mana(c)<=gap&&
-          _card.type(c) === 'Monster' &&
-            team.every(uc=>c[0]!=uc[0])&&team.length<7);
-          if(card){
-            const pos = card[2]<0?Math.max(-Math.floor((team.length-1)/2),card[2]):1+Math.min(Math.floor((team.length-1)/2),card[2])
-            log({'+card':_card.name(card),'@':pos,'#Team':idx})
-            team.splice(/*pos??*/team.length,0,card);
-            fillTeamGap(team);
-          }
-      }
-      fillTeamGap(team.team);
-      team.team = team.team.map(([i,l])=>{
-        const bc = betterCards[i]?.find(c=>co.includes(c.color)&&!team.team.flat().includes(c.id));
-        if(bc)log({'Better Cards: Replaced':_card.name(i),'with ':_card.name(bc.id),'for team Rank':idx});
-        return bc?[bc.id,bc.level]:[i,l]
-      })
+const co=t=>'Gray'+_team.color(t).replace(/dGray/,'dRedWhiteBlueBlackGreen')
+const teamWithBetterCards=(betterCards,mycards,{mana_cap,ruleset,sortByWinRate})=>({team,...stats},idx)=>{
+  if(!sortByWinRate&&idx<3){
+    const bc=c=>{
+      const  bc = betterCards[c[0]]?.find(x=>co(team).includes(x.color)&&!team.every(cc=>cc[0]!=x.id));
+      return bc?(log({[`-${_card.name(i)}`]:'+'+_card.name(bc.id),'@Team':idx})??[bc.id,bc.level]):c
     }
-    return team
+    const fillTeamGap=t=>{
+      const gap = mana_cap-_team.mana(t);
+      var card = mycards.find(c=>
+        co(t).includes(_card.color(c))&&_card.mana(c)<=gap&&
+        _card.type(c) === 'Monster' &&
+        t.every(uc=>c[0]!=uc[0])&&t.length<7);
+      if(card){
+        card = bc(card);
+        const pos = card[2]<0?Math.max(-Math.floor((t.length-1)/2),card[2]):1+Math.min(Math.floor((t.length-1)/2),card[2])
+        log({'+card':_card.name(card),'@':pos,'#Team':idx})
+        t.splice(/*pos??*/t.length,0,card);
+        fillTeamGap(t);
+      }
+    }
+    if(ruleset.includes('Silenced Summoners')){
+      const smnrClrs = _card.color(team[0]);//+(team.slice(1).some(c=>_card.color(c)=='Gold')||_team.colorSec(team)).replace(/Gray/,'RedWhiteBlueBlackGreen');
+      const bs=mycards.filter(c=>_card.type(c)=='Summoner'&&smnrClrs.includes(_card.color(c)))
+        .reduce((r,c)=>_card.mana(team[0])>_card.mana(c)?c:r,team[0])
+      if(!_arr.eq(bs,team[0])){
+        log(bs,team[0],(!_arr.eq(bs,team[0])))
+        log({[`-${_card.name(team[0])}`]:'+'+_card.name(bs),'Smnr@Team':idx});
+        team[0]=bs;
+      }
+    }
+    for(x in team) team[x]=bc(team[x]);
+    fillTeamGap(team);
   }
+  return {team,...stats}
 }
-
-const cardPassRules=rule=>{
+const cardPassRules=rule=>c=>{
   switch(rule){
-    case 'Broken Arrows':       return c=>_card.ranged(c) ==0
-    case 'Lost Magic':          return c=>_card.magic(c)  ==0
-    case 'Keep Your Distance':  return c=>_card.attack(c) ==0
-    case 'Up Close & Personal': return c=>_card.attack(c) >0
-    case 'Little League':       return c=>_card.mana(c)   <5
-    case 'Lost Legendaries':    return c=>_card.rarity(c) <4
-    case 'Rise of the Commons': return c=>_card.rarity(c) <3
-    case 'Taking Sides':        return c=>_card.color(c)  !='Gray'
-    case 'Even Stevens':        return c=>_card.mana(c)%2==0
-    case 'Odd Ones Out':        return c=>_card.mana(c)   %2
-    default:                    return ()=>true;
+    case'Lost Magic':return    _card.magic(c)==0;case'Up Close&Personal':return     _card.attack(c)>0
+    case'Broken Arrows':return _card.ranged(c)==0;case'Keep Your Distance':return   _card.attack(c)==0
+    case'Little League':return _card.mana(c)<5;case'Rise of the Commons':return     _card.rarity(c)<3
+    case'Even Stevens':return  _card.mana(c)%2==0;case'Odd Ones Out':return         _card.mana(c)%2
+    case'Taking Sides':return  _card.color(c)!='Gray';case'Lost Legendaries':return _card.rarity(c)<4
+    default:return true;
   }
 }
 const filterTeamByRules=(team,rule)=>{
@@ -153,12 +153,23 @@ const filterTeamByRules=(team,rule)=>{
     return team.slice(1).every(cardPassRules(rule));
   else return true
 }
-/**
- * @example log(betterCards(require('./data/azarmadr3_cards.json'),'Standard'))
- */
+const filterAbilities=(ruleset,c)=>ablt=>{for(rule of ruleset.split(','))switch(rule){
+  case'Super Sneak':return!(_card.attack(c)&&ablt.match(/Sneak|Opportunity|Reach/))
+  case'Back to Basics':return false
+  case'Fog of War':return!ablt.match(       /Sneak|Snipe/)
+  case'Equal Opportunity':return!ablt.match(/Snipe|Sneak|Opportunity|Reach/)//Should i add Sneak and Snipe too?
+  case'Target Practice':return!ablt.match(  /Snipe/)
+  case'Melee Mayhem':return!ablt.match(     /Reach/)
+  case'Aim True':return!ablt.match(         /Flying|Dodge/)
+  case'Unprotected':return!ablt.match(      /Protect|Repair|Rust|Shatter|Void Armor|Piercing/)
+  case'Healed Out':return!ablt.match(       /Triage|Affliction|Heal/)
+  case'Heavy Hitters':return!ablt.match(    /Knock Out/)
+  case'Equalizer':return!ablt.match(        /Strengthen|Weaken/)
+  case'Holy Protection':return!ablt.match(  /Divine Shield/)
+  case'Spreading Fury':return!ablt.match(   /Enrage/)
+}return true}
 const betterCards =(myCards,rule)=> Object.fromEntries(
-  myCards.filter(c=>_card.type(c)=='Monster')
-  .map((c,_,mycards)=>{
+  myCards.filter(c=>_card.type(c)=='Monster').map((c,_,mycards)=>{
     const color = _card.color(c);
     const allStats = ['abilities','mana','speed','ranged','magic','attack','armor','health'].filter(s=>
       !(rule.includes('Unprotected')&&s=='armor')&&!(rule.includes('Equalizer')&&s=='health'))
@@ -169,15 +180,12 @@ const betterCards =(myCards,rule)=> Object.fromEntries(
       (rule.includes('Taking Sides')?'':'Gray')
     const statCmp=oc=>
       allStats.some(t=>_card[t](c)+''!=_card[t](oc)+'')
-        &&upStats.every(t=>_card[t](c)<=_card[t](oc))
+        && upStats  .every(t=>_card[t](c)<=_card[t](oc))
         && downStats.every(t=>_card[t](c)>=_card[t](oc))
-        && (rule.includes('Back to Basics')||
-          (_card.abilities(c).length<1||
-            _card.abilities(c).filter(a=>!(rule.includes('Fog of War')&&a.match(/Sneak|Snipe/)))+''
-            ==_card.abilities(oc).filter(a=>!(rule.includes('Fog of War')&&a.match(/Sneak|Snipe/)))+''));
+        && _arr.eqSet([c,oc].map(x=>_card.abilities(x).filter(filterAbilities(rule,x))));
     const better = mycards.filter(oc=>
       c[0]!=oc.id&&allowedColors.includes(_card.color(oc))&&statCmp(oc)
-    ).map(c=>{return{color:_card.color(c),id:c[0],level:c[1],name:_card.name(c)}})
+    ).map(oc=>{return{color:_card.color(oc),id:oc[0],level:oc[1],name:_card.name(oc)}})
     if(better.length)return[c[0],better]
   }).filter(x=>x)
 )
@@ -234,6 +242,6 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
     .map(c=>[Number(c[0]),c[1],Number(cardscores[c[0]]?.pos)])
     .sort(sortMyCards(cardscores))
   //writeFileSync('./data/bc.json',Object.fromEntries(Object.entries(betterCards(mycards,ruleset)).map(([k,v])=>[_card.name(k),v])))
-  return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap,sortByWinRate}));
+  return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap,sortByWinRate,ruleset}));
 }
 module.exports = {teamScores,playableTeams,scoreXer};
