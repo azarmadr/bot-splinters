@@ -103,7 +103,7 @@ const teamWithBetterCards=(betterCards,mycards,{mana_cap,ruleset,sortByWinRate})
   if(!sortByWinRate&&idx<3){
     const bc=c=>{
       const  bc = betterCards[c[0]]?.find(x=>co(team).includes(x.color)&&!team.every(cc=>cc[0]!=x.id));
-      return bc?(log({[`-${_card.name(i)}`]:'+'+_card.name(bc.id),'@Team':idx})??[bc.id,bc.level]):c
+      return bc?(log({[`-${_card.name(c)}`]:'+'+_card.name(bc.id),'@Team':idx})??[bc.id,bc.level]):c
     }
     const fillTeamGap=t=>{
       const gap = mana_cap-_team.mana(t);
@@ -182,7 +182,7 @@ const betterCards =(myCards,rule)=> Object.fromEntries(
       allStats.some(t=>_card[t](c)+''!=_card[t](oc)+'')
         && upStats  .every(t=>_card[t](c)<=_card[t](oc))
         && downStats.every(t=>_card[t](c)>=_card[t](oc))
-        && _arr.eqSet([c,oc].map(x=>_card.abilities(x).filter(filterAbilities(rule,x))));
+        && _arr.eqSet(...[c,oc].map(x=>_card.abilities(x).filter(filterAbilities(rule,x))));
     const better = mycards.filter(oc=>
       c[0]!=oc.id&&allowedColors.includes(_card.color(oc))&&statCmp(oc)
     ).map(oc=>{return{color:_card.color(oc),id:oc[0],level:oc[1],name:_card.name(oc)}})
@@ -241,7 +241,6 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
   const mycards = Object.entries(myCards).filter(c=>!inactive.includes(_card.color(c))&&cardPassRules(card_r)(c))
     .map(c=>[Number(c[0]),c[1],Number(cardscores[c[0]]?.pos)])
     .sort(sortMyCards(cardscores))
-  //writeFileSync('./data/bc.json',Object.fromEntries(Object.entries(betterCards(mycards,ruleset)).map(([k,v])=>[_card.name(k),v])))
   return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap,sortByWinRate,ruleset}));
 }
-module.exports = {teamScores,playableTeams,scoreXer};
+module.exports = {teamScores,playableTeams,scoreXer,betterCards};
