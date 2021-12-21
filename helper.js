@@ -13,12 +13,11 @@ process.stdin.on('keypress',(_,k)=>{
 
 const _elem = {}, _akmap = {}, _dbug = {},_func={};
 
-
 // general helper functions
 const _arr = {
   eq:(a,b)=>a.length===b.length&&a.every((v,i)=>Array.isArray(v)?_arr.eq(v,b[i]):v===b[i])
   ,eqSet:(a,b)=>{
-    var aSet = new Set(a),bSet = new Set(b);
+    var [aSet,bSet] = [a,b].map(x=>new Set(x.map(JSON.stringify))); // To allow compare array of obj
     return aSet.size===bSet.size&&Array.from(aSet).every(e=>bSet.has(e));
   }
   ,cmp : (a,b)=> // return a>b
@@ -65,7 +64,7 @@ const _team = {
   colorPri: t=>_card.color(_team.adpt(t)[0]),
   colorSec: t=>_team.adpt(t).slice(1).reduce((color,c)=>
     _card.color(c)in color2Deck?_card.color(c):color,'Gray'),
-  color: t=>[...new Set(_team.colorPri(t),_team.colorSec(t))].join(),
+  color: t=>[...new Set([_team.colorPri(t),_team.colorSec(t)])].join(),
   splinter: (team,inactive)=>color2Deck[_team.colorSec(team)]??
     Object.entries(color2Deck).find(c=>!inactive.includes(c[0]))[1],
   rules : {

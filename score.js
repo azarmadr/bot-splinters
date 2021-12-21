@@ -58,15 +58,16 @@ const scoreXer=(team,x=6)=>
 const _toPrcsn3=x=>Number(x.toFixed(3));
 const dotP=(x,y)=>Object.keys(x).reduce((sc,k)=>sc+x[k]*y[k],0)
 
-const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1,d:-0.5},mana_cap,inactive,_scoreAll}={}) => {
+const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1.1,d:-0.5},xer={r:1.2,s:6},mana_cap,inactive,_scoreAll}={}) => {
   const scores = new AKMap();
+  log({xer,res2Score,});
   battles.forEach(k=>{
     const {result,teams} = k.reduce((a,c)=>{
       if(c=='d'||c=='w')a.result=c;else a.teams[a.result?1:0].push(c);return a
     },{teams:[[],[]]});
     if(teams.every(t=>!_team.isActive(t,inactive)))return;
     const [w,l] = teams.map(t=>
-      (t.some((c,x)=>x%2?0:(c in oppCards))?scoreXer(t,1.3)/mana_cap:1)*_team.mana(t)/mana_cap/
+      (t.some((c,x)=>x%2?0:(c in oppCards))?scoreXer(t,xer.r)/mana_cap:1)*_team.mana(t)/mana_cap/
       (_team.isActive(t,inactive)?1:3)
     )
     let defaultScores = {w:0,_w:0,l:0,_l:0,d:0,_d:0,count:0};
@@ -87,7 +88,7 @@ const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1,
   try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
   xer[mana_cap]=xerDist;writeFileSync('./data/xer.json',xer);
   // for research*/
-  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),4)*dotP(res2Score,s)/mana_cap**3));
+  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),xer.s)*dotP(res2Score,s)/mana_cap**3));
   Object.entries(cardscores).forEach(([c,cs])=>{
     Object.values(cs.p).forEach(s=>
       s.score=_toPrcsn3(_rarityScore(c,myCards[c])*dotP(res2Score,s))
@@ -207,10 +208,9 @@ const sortMyCards=cardscores=>{
  */
 const basicCards=Object.fromEntries(_card.basic.map(c=>[c,1]));
 const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCards=basicCards,sortByWinRate}/*,fn='lastMatch'*/) => {
-  //const score = res2Score[v]*(_card.basic.includes(c[0])?1:_card.rarity(c))/4;
   //ruleset matching could be improved
   //Object.assign(oppCards,basicCards);
-  const res2Score = {w:1,d:-0.5,l:-1};
+  const res2Score = {w:1,d:-0.5,l:-1.27},xer = {r:1.3,s:6};
   let {attr_r, card_r} = ruleset.split('|').reduce((rules,cr)=>{
     _team.rules.secondary.includes(cr)?(rules.card_r=cr):rules.attr_r.push(cr);
     return rules},{attr_r:[]})
@@ -219,9 +219,9 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
   var filteredTeams=[],cardscores={},battlesList = battles;
   for(let path of attr_r)battlesList=battlesList[path];//This assumes object exists
   for(let mana of Object.keys(battlesList).filter(x=>x<=mana_cap&&Number(x)).sort((a,b)=>b-a)){
-    res2Score.l = -mana_cap/mana;
+    res2Score.l*=mana_cap/mana;res2Score.w*=mana/mana_cap;xer.r*=mana/mana_cap;xer.s*=mana/mana_cap;
     const scores = teamScores(battlesList[mana]//.filter(filterOutByMana(mana))//donno if it is doing expected
-      ,{res2Score,mana_cap,inactive,cardscores,myCards,oppCards});
+      ,{res2Score,xer,mana_cap,inactive,cardscores,myCards,oppCards});
     log({[`#battles - ${mana}`]:battlesList[mana].length,'#Scores':scores.size,
       '#teams':filteredTeams.push(
         ...[...scores.entries()].filter(([t,s])=>
@@ -243,4 +243,4 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
     .sort(sortMyCards(cardscores))
   return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap,sortByWinRate,ruleset}));
 }
-module.exports = {teamScores,playableTeams,scoreXer,betterCards};
+module.exports = {teamWithBetterCards,teamScores,playableTeams,scoreXer,betterCards};

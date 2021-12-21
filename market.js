@@ -1,8 +1,9 @@
 const {_card, _team, _elem, sleep,} = require('./helper');
-const {SM} = require('./splinterApi');
+const SM = require('./splinterApi');
 require('dotenv').config()
 const puppeteer = require('puppeteer');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const args = require('minimist')(process.argv.slice(2));
 const headless=0;
 ;(async()=>{
   const browser = await puppeteer.launch({
@@ -17,7 +18,7 @@ const headless=0;
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
   await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
   let users = process.env.ACCOUNT.split(',').map((account,i)=>{
-    if(!process.env.SKIP_USERS?.split(',')?.includes(account)){return {
+    if(!(args.su??process.env.SKIP_USERS??'').split(',')?.includes(account)){return{
       account,
       password:   process.env.PASSWORD.split(',')[i],
       active_key: process.env.ACTIVE_KEY.split(',')[i],
@@ -27,7 +28,7 @@ const headless=0;
   SM._(page);
   while(users.length){
     log('users:',users.length);
-    for (const [idx,user] of users.entries()) {
+    for(const[idx,user]of users.entries()){
       await page.goto('https://splinterlands.com/');
       process.env.LOGIN      = user.login || user.account
       process.env.PASSWORD   = user.password
@@ -36,7 +37,7 @@ const headless=0;
       await SM.login(process.env.LOGIN,process.env.PASSWORD)
       const _ctn = await page.evaluate(`SM.Player.collection_power`);
       const isStarter = await page.evaluate(`SM.Player.starter_pack_purchase`);
-      if(!isStarter||_ctn>=5000){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
+      if(!isStarter||_ctn>=args.c){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
       const cb=c=>!c.owned.filter(o=>
         !o.uid.includes('starter')&&
         !(o.market_id && o.market_listing_status === 0)&&
@@ -56,9 +57,9 @@ const headless=0;
         }
         await sleep(333);
         await page.waitForSelector('.market-price')
-        const card = await page.$$eval('.card.card_market',
+        const card = await page.$$eval('.card.card_market:not(.hidden)',
           (cards,[uoc,mp,gold])=>cards.find(a=>(parseFloat(a.innerText.match(/\d+.\d+/))
-            <SM.settings.dec_price*mp)&&(!gold||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,gold]);
+            <SM.settings.dec_price*mp)&&(gold||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,args.g||gold]);
         if(card){
           log(card);
           await _elem.click(page,`#${card}`);
