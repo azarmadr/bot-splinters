@@ -73,7 +73,7 @@ const headless=0;
       }
       await page.waitForSelector('tbody > tr:nth-child(1) > .price')
       const _credits = await page.evaluate(
-        `SM.Player.balances.find(a=>a.token==='CREDITS')?.balance>333*${max_price}`)
+        `SM.Player.balances.find(a=>a.token==='CREDITS')?.balance>7*10*${max_price}`)
       await page.select('#payment_currency',_credits?'CREDITS':'DEC')
       const id = await page.$$eval('tbody > tr > .price',
         (tb,max_price)=>
@@ -85,7 +85,7 @@ const headless=0;
         await sleep(333);
         await page.waitForSelector('#txt_rent_days');
         await sleep(33);
-        await page.type('#txt_rent_days','2');
+        //await page.type('#txt_rent_days','2');
         await _elem.click(page,'#btn_rent_popup_rent')
         if(user.account!='azarmadr3'){
           try{

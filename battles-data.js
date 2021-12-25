@@ -10,10 +10,10 @@ const __medusa=(m,t)=>(_team.colorSec(t)=='Blue'&&m.card_detail_id==194&&m.level
 async function getBattles(player = '',bd,minRank=0,drs='') {
   const battleHistory = await getJson(`https://api2.splinterlands.com/battle/history?player=${player}`)
     .catch(() =>getJson(`https://game-api.splinterlands.com/battle/history?player=${player}`)
-        .catch((error) => {
-          log('There has been a problem with your fetch operation:', error);
-          return {battles:[]};
-        })
+      .catch((error) => {
+        log('There has been a problem with your fetch operation:', error);
+        return {battles:[]};
+      })
     ).then(b=>b.battles.filter(b=>minRank<Math.max(b.player_1_rating_final,b.player_2_rating_final)&&!b.details.includes('"type":"Surrender"')))
   _dbug.in1(_bc.pc++,player);
   return battleHistory.reduce(
@@ -64,7 +64,7 @@ _battles.save=(bl,fn='')=>{return new Promise(res =>
     res(battlesList);
   })
 )}
-_battles.fromUsers = (players,{depth=2,minRank,drs,blackSet=new Set(),fn='',cl=27}={})=>new Promise(res=>{
+_battles.fromUsers=(players,{depth=2,minRank,drs,blackSet=new Set(),fn='',cl=27}={})=>new Promise(res=>{
   const ul = [...new Set(Array.isArray(players)?players:players.split(','))];
   blackSet=new Set([...ul,...blackSet]);
   Promise.resolve(_arr.chunk(ul,cl).reduce(
@@ -74,8 +74,8 @@ _battles.fromUsers = (players,{depth=2,minRank,drs,blackSet=new Set(),fn='',cl=2
   )).then(({battle_obj,nuSet})=>{
     const _b = _battles.save(battle_obj,fn);
     for(p of nuSet)if(blackSet.has(p))nuSet.delete(p);
-    if(--depth&&depth>0&&nuSet.size)
-      return res(_battles.fromUsers([...nuSet].filter((_,i)=>i<243),{drs,depth,blackSet,fn,cl}))
+    if(--depth>0&&nuSet.size)
+      return res(_battles.fromUsers([...nuSet].filter((_,i)=>i<243),{drs,depth,minRank,blackSet,fn,cl}))
     else return res(_b)
   })
 });

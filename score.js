@@ -66,8 +66,8 @@ const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1.
       if(c=='d'||c=='w')a.result=c;else a.teams[a.result?1:0].push(c);return a
     },{teams:[[],[]]});
     if(teams.every(t=>!_team.isActive(t,inactive)))return;
-    const [w,l] = teams.map(t=>
-      (t.some((c,x)=>x%2?0:(c in oppCards))?scoreXer(t,xer.r)/mana_cap:1)*_team.mana(t)/mana_cap/
+    const [w,l] = teams.map((t,_x)=>
+      (t.some((c,x)=>x%2?0:(c in oppCards))?scoreXer(t,xer.r)/mana_cap:1)*(_team.mana(t)/mana_cap)**(_x?-1:1)/
       (_team.isActive(t,inactive)?1:3)
     )
     let defaultScores = {w:0,_w:0,l:0,_l:0,d:0,_d:0,count:0};
@@ -137,7 +137,7 @@ const teamWithBetterCards=(betterCards,mycards,{mana_cap,ruleset,sortByWinRate})
 }
 const cardPassRules=rule=>c=>{
   switch(rule){
-    case'Lost Magic':return    _card.magic(c)==0;case'Up Close&Personal':return     _card.attack(c)>0
+    case'Lost Magic':return    _card.magic(c)==0;case'Up Close & Personal':return   _card.attack(c)>0
     case'Broken Arrows':return _card.ranged(c)==0;case'Keep Your Distance':return   _card.attack(c)==0
     case'Little League':return _card.mana(c)<5;case'Rise of the Commons':return     _card.rarity(c)<3
     case'Even Stevens':return  _card.mana(c)%2==0;case'Odd Ones Out':return         _card.mana(c)%2
@@ -226,7 +226,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
       '#teams':filteredTeams.push(
         ...[...scores.entries()].filter(([t,s])=>
           t.length>2    && _team.isActive(t,inactive) &&
-          s.count<2*s._w && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
+          (s.count<2*s._w || s.count<2*s.w) && _arr.chunk2(t).every(c=>myCards[c[0]]>=c[1])
           && filterTeamByRules(_arr.chunk2(t),card_r)
         ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
         .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
@@ -243,4 +243,4 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
     .sort(sortMyCards(cardscores))
   return filteredTeams.map(teamWithBetterCards(betterCards(mycards,ruleset),mycards,{mana_cap,sortByWinRate,ruleset}));
 }
-module.exports = {teamWithBetterCards,teamScores,playableTeams,scoreXer,betterCards};
+module.exports = {teamWithBetterCards,teamScores,filterTeamByRules,playableTeams,scoreXer,betterCards};

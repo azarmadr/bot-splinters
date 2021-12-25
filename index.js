@@ -148,7 +148,7 @@ const preMatch=({Player,settings})=>{
     const quest = settings.quests.find(q=>q.name==name)
     if(completed_items<total_items){
       log({'Quest details':{completed_items,total_items}});
-      if(3*Math.random()<1&&process.env.QUEST_PRIORITY)
+      if(2*Math.random()<1&&process.env.QUEST_PRIORITY)
         _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
     }
     if(completed_items>=total_items){
