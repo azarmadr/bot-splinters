@@ -1,7 +1,9 @@
 const {readFile,writeFile} = require('jsonfile');
 const {_arr,_team,_dbug} = require('./helper');
 const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
-const getJson = require('async-get-json');
+const getJson=url=>Promise.race([
+  require('async-get-json')(url),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),17290))
+]);
 
 const _battles = {},_dbugBattles=[];
 var _bc={count:0,pc:0,'|Battles':0,'+Battles':0};

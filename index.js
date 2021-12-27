@@ -1,7 +1,6 @@
 //'use strict';
 require('dotenv').config()
 const puppeteer = require('puppeteer');
-const {table} = require('table');
 
 const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
@@ -85,25 +84,26 @@ async function startBotPlayMatch(page,user) {
     .then(c=>Object.fromEntries(Object.entries(c).filter(i=>!inactive.includes(_card.color(i)))))
     .catch(e=>log(e,'Opp Cards Failed')??{})
   log({mana_cap, ruleset, inactive,quest:user.quest,[`${process.env.ACCOUNT} Deck`]:Object.keys(myCards).length,[`${opponent_player} Deck`]:Object.keys(oppCards).length})
-  if(Object.keys(oppCards).length)log(__oppDeck={'Opp Cards':Object.entries(oppCards).map(([i,l])=>{
-    return{[_card.type(i).slice(0,3)]:_card.name(i),[i]:l,[_card.color(i).slice(0,2)]:_card.abilities([i,l]).join()}})
-    .sort((a,b)=>('Mon'in a)-('Mon'in b))})
+  if(Object.keys(oppCards).length)console.table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{
+    return{[_card.type(Id).slice(0,3)]:_card.name(Id),Id,Lvl,[_card.color(Id).slice(0,2)]:_card.abilities([Id,Lvl]).join()}})
+    .sort((a,b)=>('Mon'in a)-('Mon'in b)))
   var battlesList =await getBattles(opponent_player).catch(e=>{log(e);return require('./data/battle_data.json')});
-  const teamsToPlay = playableTeams(battlesList,
-    {mana_cap,ruleset,inactive,quest:user.quest,oppCards,myCards,sortByWinRate:user.isStarter||!user.isRanked});
-  // team Selection await teamSelection(teamsToPlay[0],{page,ruleset,inactive,notifyUser:!process.env.HEADLESS&&user.isRanked&&!user.isStarter});
-  const teamToPlay = teamsToPlay[0],notifyUser=!process.env.HEADLESS&&user.isRanked&&!user.isStarter;
+  const teamToPlay = playableTeams(battlesList,
+    {mana_cap,ruleset,inactive,quest:user.quest,oppCards,myCards,sortByWinRate:user.isStarter||!user.isRanked})[0];
+  // team Selection await teamSelection(teamToPlay,{page,ruleset,inactive,notifyUser:!process.env.HEADLESS&&user.isRanked&&!user.isStarter});
+  const notifyUser=!process.env.HEADLESS&&user.isRanked&&!user.isStarter;
   const {team:[Summoner,...Monsters],...Stats} = teamToPlay;
   if(!ruleset.includes('Taking Sides')){
     const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
   }
-  log({team:[...teamToPlay.team.map(([Id,Lvl])=>{return{[_card.type(Id)]:_card.name(Id),[Id]:Lvl}})],Stats})
+  console.table([...teamToPlay.team.map(([Id,Lvl])=>{return{[_card.type(Id)]:_card.name(Id),Id,Lvl}})]);
+  console.table({Stats});
   if(notifyUser)await page.evaluate(`var n=new Notification('Battle Ready');
       n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
   await page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1001}).catch(()=>page.reload()
     .then(()=>sleep(5000)).then(()=>page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)')))
   await _func.retryFor(3,3000,!__continue,async()=>
-    page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:1000}).then(btn=>btn.click()))
+    page.waitForXPath(`//div[@card_detail_id="${Summoner[0]}"]`,{timeout:10000}).then(btn=>btn.click()))
   if (_card.color(Summoner) === 'Gold') {
     const goldPlaySplinter = _team.splinter(teamToPlay.team,inactive);
     log({goldPlaySplinter});
@@ -128,27 +128,32 @@ async function startBotPlayMatch(page,user) {
   ]).then(()=>page.evaluate('SM.CurrentView.data').then(postBattle(user)))
     .catch(() => log('Wrapping up Battle'));
 }
+const calculateECR=({capture_rate, last_reward_time},{dec})=>
+  Math.min(10000,(parseInt(capture_rate) || 10000) + (Date.now() - new Date(last_reward_time)) / 3000 * dec.ecr_regen_rate)/100;
 const preMatch=({Player,settings})=>{
   const _return = {};
-  _return.dec = Player.balances.find(t=>t.token=='DEC')?.balance
-  const erc = Math.floor(Math.min((isNaN(parseInt(Player.capture_rate)) ? 1e4 : Player.capture_rate) + (Date.now() - new Date(Player.last_reward_time)) / 3e3 * settings.dec.ecr_regen_rate, 1e4)/100)
-  log({'Current Rating':Player.rating,'Current ECRate':erc});//erc>ercThreshold?chalk.green(erc + "%"):chalk.red(erc + "%")));
+  _return.dec = Player.balances.find(x=>x.token=='DEC')?.balance
+  const erc = calculateECR(Player,settings);
+  console.table({_:{'Current Rating':Player.rating,'Current ECRate':erc}});
   _return.erc = erc;
   _return.rating = Player.rating;
+  _return.isStarter = !Player.starter_pack_purchase;
   _return.cp = Player.collection_power;
   _return.claimSeasonReward =
     process.env.CLAIM_SEASON_REWARD && Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
+  _return.isRanked = _return.isStarter||erc>75&&_return.rating<400||
+    args.t<Date.now()+(100-erc)*3000/settings.dec.ecr_regen_rate||erc>(args.e??process.env.ERC_THRESHOLD)
+  log({t:args.t,et:Date.now()+(100-erc)*3e5/settings.dec.ecr_regen_rate,settings:settings.dec.ecr_regen_rate})
 
   //if quest done claim reward
   _return.claimQuestReward = [];
   _return.quest = 0;
-  _return.isStarter = !Player.starter_pack_purchase;
   if (Player.quest&&!Player.quest.claim_trx_id){
     const {name,completed_items,total_items}=Player.quest;
     const quest = settings.quests.find(q=>q.name==name)
     if(completed_items<total_items){
       log({'Quest details':{completed_items,total_items}});
-      if(2*Math.random()<1&&process.env.QUEST_PRIORITY)
+      if((Number(args.q)||3)*Math.random()<1&&process.env.QUEST_PRIORITY)
         _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
     }
     if(completed_items>=total_items){
@@ -178,6 +183,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
         erc:100,rating:0,isStarter:0,isRanked:1,claimQuestReward:[],claimSeasonReward:0,
       }
   }).filter(x=>x);
+  if('t'in args)args.t = args.t*60*60000+Date.now();
   log('Opening a browser');
   let browser = await createBrowser(process.env.HEADLESS);
   let page = (await browser.pages())[1];
@@ -203,7 +209,6 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
         if(user.claimSeasonReward)                         await page.evaluate('claim()');
         if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
       }
-      user.isRanked = user.isStarter||user.erc>75&&user.rating<400||user.erc>(args.e??process.env.ERC_THRESHOLD)
       if(!process.env.SKIP_PRACTICE||user.isRanked)await startBotPlayMatch(page,user).then(()=>console.log({
         '[]++++':'['+Array(9).fill(';;;;').join('')+'>','<~~~~~~~~':'|(xxxxx)'})).catch(async e=>{
         log(e,'failed to submit team, so waiting for user to input manually and close the session')
@@ -212,8 +217,8 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
       })
       await page.evaluate('SM.Logout()');
     }
-    const table_list = ['account','dec','erc','cp','rating','won','netWon','decWon','w','l','d','w_p','l_p','d_p'];
-    console.log(table([table_list, ...users.map(u=>table_list.map(t=>u[t]))]));
+    const tableList =['account','dec','erc','cp','rating','won','netWon','decWon','w','l','d','w_p','l_p','d_p'];
+    console.table(users.map(u=>Object.fromEntries(tableList.map(x=>[x,u[x]]))));
     if(!process.env.KEEP_BROWSER_OPEN)browser.close();
     await battles.fromUsers(users.map(user=>user.account),{depth:1});
     log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());

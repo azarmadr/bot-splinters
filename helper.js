@@ -20,8 +20,8 @@ const _arr = {
     var [aSet,bSet] = [a,b].map(x=>new Set(x.map(JSON.stringify))); // To allow compare array of obj
     return aSet.size===bSet.size&&Array.from(aSet).every(e=>bSet.has(e));
   }
-  ,cmp : (a,b)=> // return a>b
-    a.length === b.length ?  a.reduce((r,v,i)=>r+(Array.isArray(v)?_arr.cmp(v,b[i]):v-b[i]),0):a.length-b.length
+  ,cmp: (a,b)=> // return a>b
+    a.length === b.length?a.reduce((r,v,i)=>r||(Array.isArray(v)?_arr.cmp(v,b[i]):v-b[i]),0):a.length-b.length
   ,checkVer:(a,b)=>{
     for(const i of Array(Math.min(a.length,b.length)).keys()){
       if(Number(a[i])>Number(b[i]))return true;

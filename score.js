@@ -103,7 +103,7 @@ const co=t=>'Gray'+_team.color(t).replace(/dGray/,'dRedWhiteBlueBlackGreen')
 const teamWithBetterCards=(betterCards,mycards,{mana_cap,ruleset,sortByWinRate})=>({team,...stats},idx)=>{
   if(!sortByWinRate&&idx<3){
     const bc=c=>{
-      const  bc = betterCards[c[0]]?.find(x=>co(team).includes(x.color)&&!team.every(cc=>cc[0]!=x.id));
+      const  bc = betterCards[c[0]]?.find(x=>co(team).includes(x.color)&&!team.some(y=>y[0]==x.id));
       return bc?(log({[`-${_card.name(c)}`]:'+'+_card.name(bc.id),'@Team':idx})??[bc.id,bc.level]):c
     }
     const fillTeamGap=t=>{
@@ -220,7 +220,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
   for(let path of attr_r)battlesList=battlesList[path];//This assumes object exists
   for(let mana of Object.keys(battlesList).filter(x=>x<=mana_cap&&Number(x)).sort((a,b)=>b-a)){
     res2Score.l*=mana_cap/mana;res2Score.w*=mana/mana_cap;xer.r*=mana/mana_cap;xer.s*=mana/mana_cap;
-    const scores = teamScores(battlesList[mana]//.filter(filterOutByMana(mana))//donno if it is doing expected
+    const scores = teamScores(battlesList[mana]
       ,{res2Score,xer,mana_cap,inactive,cardscores,myCards,oppCards});
     log({[`#battles - ${mana}`]:battlesList[mana].length,'#Scores':scores.size,
       '#teams':filteredTeams.push(
