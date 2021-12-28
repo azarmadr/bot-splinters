@@ -55,7 +55,6 @@ function filterOutByMana(byMana=99){
 const _rarityScore=(id,level,x=6)=>(level==1&&_card.basic.includes(id))?1:(x**_card.rarity(id)*level)
 const scoreXer=(team,x=6)=>
   _team.adpt(team).reduce((s,[id,level])=>_rarityScore(id,level,x)*(_card.mana(id)||1)+s,0)
-const _toPrcsn3=x=>Number(x.toFixed(3));
 const dotP=(x,y)=>Object.keys(x).reduce((sc,k)=>sc+x[k]*y[k],0)
 
 const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1.1,d:-0.5},xer={r:1.2,s:6},mana_cap,inactive,_scoreAll}={}) => {
@@ -88,11 +87,9 @@ const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1.
   try{var xer = readFileSync('./data/xer.json')}catch{xer={}}
   xer[mana_cap]=xerDist;writeFileSync('./data/xer.json',xer);
   // for research*/
-  scores.forEach((s,t)=>s.score=_toPrcsn3(scoreXer(_arr.chunk2(t),xer.s)*dotP(res2Score,s)/mana_cap**3));
+  scores.forEach((s,t)=>s.score=scoreXer(_arr.chunk2(t),xer.s)*dotP(res2Score,s)/mana_cap**3);
   Object.entries(cardscores).forEach(([c,cs])=>{
-    Object.values(cs.p).forEach(s=>
-      s.score=_toPrcsn3(_rarityScore(c,myCards[c])*dotP(res2Score,s))
-    );
+    Object.values(cs.p).forEach(s=>s.score=_rarityScore(c,myCards[c])*dotP(res2Score,s));
     cs.score=Object.values(cs.p).reduce((tt,s)=>tt+s.w,0)
     cs.pos = Object.entries(cs.p).reduce((p,[i,s])=>cs[p]?.w>s.w?p:i,'-1')
   })

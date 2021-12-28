@@ -112,7 +112,7 @@ function sleep(ms,msg='') {
     if(e==26){
       rl.clearLine(process.stdout,0)&&rl.cursorTo(process.stdout,0);
       if(msg)console.log(msg);
-      _wake=0;
+      _wake=0; rlInterface.pause();
     }
     if(_wake&&e<27)return;
     return new Promise((resolve) => setTimeout(resolve, ms/27));
@@ -151,6 +151,13 @@ _dbug.in1 =(...m)=>{
   rl.clearLine(process.stdout,0)
   rl.cursorTo(process.stdout,0);
   process.stdout.write(`tt: ${m}`);
+}
+
+_dbug.table = m => {
+  const toFixed = o => {
+    for(k in o)isNaN(o[k])?typeof(o[k])=='object'&&toFixed(o[k]):o[k]=Number(Number(o[k]).toFixed(3));
+  };toFixed(m);
+  console.table(m);
 }
 
 _func.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
