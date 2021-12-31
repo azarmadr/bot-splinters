@@ -1,6 +1,8 @@
 const AKM  = require('array-keyed-map');
 const cards = require("./data/cards.json");
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+
+const log=(...m)=>console.log((new Error()).stack.split("\n").find((c,i)=>
+  !c.includes('_dbug')&&i==2||!c.includes('tt')&&i==3||i==4).match(/[^:\\/]+:\d+/)?.[0],...m);
 const rl = require("readline");
 rl.emitKeypressEvents(process.stdin);
 var _wake;
@@ -43,7 +45,7 @@ const _arr = {
  * @param (Any) c if array of [id,level], or id
  * @returns id of the card */
 const cardToIdx=c=>Array.isArray(c)?c[0]:c;
-const {color,name,rarity,type} = ['color','name','rarity','type'].reduce(
+const {color,name,rarity,type,editions} = ['color','name','rarity','type','editions'].reduce(
   (obj,attribute)=>(obj[attribute]=c=>cards[cardToIdx(c)-1][attribute])&&obj,{}
 )
 const {ranged,magic,attack,speed,armor,health} = ['ranged','magic','attack','speed','armor','health'].reduce(
@@ -53,7 +55,7 @@ const _card = {
   mana:      c=>       [cards[cardToIdx(c)-1].stats.mana].flat()[0],
   abilities: ([i,l])=> cards[i-1].stats?.abilities?.slice(0,l)?.flat()||[],
   basic:     cards.filter(c=>c.editions.match(/7|4/)&&c.rarity<3).map(c=>c.id),
-  ranged,magic,attack,speed,armor,health,color,name,rarity,type,
+  ranged,magic,attack,speed,armor,health,color,name,rarity,type,editions,
 }
 
 /** Team helper functions in _team object */
@@ -118,29 +120,25 @@ function sleep(ms,msg='') {
     return new Promise((resolve) => setTimeout(resolve, ms/27));
   }),Promise.resolve())
 }
-
 _elem.click = async function(page, selector, timeout = 20000, delayBeforeClicking = 0) {
   try {
     const elem = await page.waitForSelector(selector, { timeout });
     if (elem) {
       await sleep(delayBeforeClicking);
-      log('Clicking element ' + selector);
       await elem.click();
-      return true;
+      return selector;
     }
   } catch (e) {/*log(e)*/}
   log('Error: Could not find element ' + selector);
   return false;
 }
-
 _elem.getText = async function(page, selector, timeout=20000) {
-  const element = await page.waitForSelector(selector,  { timeout: timeout });
+  const element = await page.waitForSelector(selector,  { timeout });
   const text = await element.evaluate(el => el.textContent);
   return text;
 }
-
 _elem.getTextByXpath = async function(page, selector, timeout=20000) {
-  const element = await page.waitForXPath(selector,  { timeout: timeout });
+  const element = await page.waitForXPath(selector,  { timeout });
   const text = await element.evaluate(el => el.textContent);
   return text;
 }
@@ -152,13 +150,16 @@ _dbug.in1 =(...m)=>{
   rl.cursorTo(process.stdout,0);
   process.stdout.write(`tt: ${m}`);
 }
-
 _dbug.table = m => {
   const toFixed = o => {
     for(k in o)isNaN(o[k])?typeof(o[k])=='object'&&toFixed(o[k]):o[k]=Number(Number(o[k]).toFixed(3));
-  };toFixed(m);
-  console.table(m);
+  }
+  toFixed(m);console.table(m);rl.moveCursor(process.stdout,0,-1);log();
 }
+_dbug.tt=function(...m){this.l=m};
+_dbug.tt.prototype={set e(x){this.l.push(x)},get done(){
+  _dbug.table(this.l)
+}}
 
 _func.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
   if(!--n){

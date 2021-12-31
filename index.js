@@ -5,12 +5,21 @@ const puppeteer = require('puppeteer');
 const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
 const battles = require('./battles-data');
-const {_card, _team, _arr,_func, sleep,_dbug} = require('./helper');
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const {_card, log, _team, _arr,_func:{retryFor}, sleep,_dbug:{table,tt}} = require('./helper');
 const args = require('minimist')(process.argv.slice(2));
 
+// Logging function with save to a file
+var _file='log.txt';
+const util = require('util');
+const logFile = require('fs').createWriteStream(_file,{flags:'w'});
+const formatEd =(...x)=> util.formatWithOptions({colors:true},...x)
+console.log = function () {
+  process.stdout.write(formatEd.apply(null, arguments) + '\n');
+  logFile.write(util.format.apply(null,arguments).replace(/\033\[[0-9;]*m/g,"") + '\n');
+}
+
 let __goOn=1;
-const sleepingTime = 60000 * (args.bi ?? process.env.MINUTES_BATTLES_INTERVAL ?? 27);
+const sleepingTime = 6e4 * (args.i ?? process.env.MINUTES_BATTLES_INTERVAL ?? 27);
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
@@ -19,7 +28,7 @@ async function checkForUpdate() {
       const version = require('./package.json').version.replace(/(\.0+)+$/,'').split('.');
       if(_arr.checkVer(gitVersion,version)){
         const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
-        const question = require('util').promisify(rl.question).bind(rl);
+        const question = util.promisify(rl.question).bind(rl);
         log(gitVersion.join('.'),version.join('.'))
         let answer = await question("Newer version exists!!!\nDo you want to continue? (y/N)")
         log({'Note!!':require('./package.json').description})
@@ -39,7 +48,7 @@ async function checkForMissingConfigs() {
       }else if(!e.includes('PASSWORD')) log(`${e}:`,process.env[e]);
     }),Promise.resolve())
 }
-async function getBattles(player=process.env.ACCOUNT) {
+async function getBattles(player) {
   const cl = 55;
   if(process.env.UPDATE_BATTLE_DATA)
     return battles.fromUsers(player,{cl})
@@ -77,14 +86,14 @@ const postBattle=user=>battle=>{
 //async function teamSelection(teamToPlay,{page,inactive,ruleset,notifyUser}){ }
 async function startBotPlayMatch(page,user) {
   const {mana_cap, ruleset, inactive, opponent_player,} = await SM.battle(user.isRanked?'Ranked':'Practice')
-  const myCards = await SM.cards(process.env.ACCOUNT).then(cards2Obj(process.env.ACCOUNT))
-    .then(c=>Object.fromEntries(Object.entries(c).filter(i=>!inactive.includes(_card.color(i)))))
+  const myCards = await SM.cards(user.account).then(cards2Obj(user.account))
+    .then(c=>Object.fromEntries(Object.entries(c).filter(x=>!inactive.includes(_card.color(x)))))
     .catch(e => log(e,'cards collection api didnt respond. Did you use username? avoid email!')??{});
   const oppCards = await SM.cards(opponent_player).then(cards2Obj(opponent_player))
-    .then(c=>Object.fromEntries(Object.entries(c).filter(i=>!inactive.includes(_card.color(i)))))
+    .then(c=>Object.fromEntries(Object.entries(c).filter(x=>!inactive.includes(_card.color(x)))))
     .catch(e=>log(e,'Opp Cards Failed')??{})
-  log({mana_cap, ruleset, inactive,quest:user.quest,[`${process.env.ACCOUNT} Deck`]:Object.keys(myCards).length,[`${opponent_player} Deck`]:Object.keys(oppCards).length})
-  if(Object.keys(oppCards).length)_dbug.table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{
+  table([{mana_cap, ruleset, inactive,quest:user.quest,[`${user.account} Deck`]:Object.keys(myCards).length,[`${opponent_player} Deck`]:Object.keys(oppCards).length}])
+  if(Object.keys(oppCards).length)table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{
     return{[_card.type(Id).slice(0,3)]:_card.name(Id),Id,Lvl,[_card.color(Id).slice(0,2)]:_card.abilities([Id,Lvl]).join()}})
     .sort((a,b)=>('Mon'in a)-('Mon'in b)))
   var battlesList =await getBattles(opponent_player).catch(e=>{log(e);return require('./data/battle_data.json')});
@@ -96,32 +105,33 @@ async function startBotPlayMatch(page,user) {
   if(!ruleset.includes('Taking Sides')){
     const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
   }
-  _dbug.table([...teamToPlay.team.map(([Id,Lvl])=>{return{[_card.type(Id)]:_card.name(Id),Id,Lvl}})]);
-  _dbug.table({Stats});
+  table([...teamToPlay.team.map(([Id,Lvl])=>{return{[_card.type(Id)]:_card.name(Id),Id,Lvl}})]);
+  table({Stats});
   if(notifyUser)await page.evaluate(`var n=new Notification('Battle Ready');
       n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
   await page.waitForSelector(`[card_detail_id="${Summoner[0]}"] `,{timeout:1001}).catch(()=>page.reload()
     .then(()=>sleep(5000)).then(()=>page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)')))
-  await _func.retryFor(3,3000,!__goOn,async()=>page.click(`[card_detail_id="${Summoner[0]}"] img`))
+  await retryFor(3,3000,!__goOn,async()=>page.click(`[card_detail_id="${Summoner[0]}"] img`).then(()=>
+    page.waitForSelector('.item--summoner.item--selected',{timeout:1e3})
+  ))
   if (_card.color(Summoner) === 'Gold') {
-    const splinter = _team.splinter(teamToPlay.team,inactive);
-    log({splinter});
-    await _func.retryFor(3,3000,!__goOn,async()=>page.click(`[data-original-title="${splinter}"] label`))
+    const splinter = _team.splinter(teamToPlay.team,inactive); log({splinter});
+    await retryFor(3,3000,!__goOn,async()=>page.click(`[data-original-title="${splinter}"] label`))
   }
   for(const[mon]of Monsters){
-    log({[`Playing ${_card.name(mon)}`]:mon})
-    await _func.retryFor(3,3000,__goOn,async()=>page.click(`[card_detail_id="${mon}"] img`))
+    //log({[`Playing ${_card.name(mon)}`]:mon})
+    await retryFor(3,3000,__goOn,async()=>page.click(`[card_detail_id="${mon}"] img`))
   }
   if(notifyUser)await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
-  await _func.retryFor(3,300,__goOn,async()=>page.click('.btn-green')).catch(log);
+  await retryFor(3,300,__goOn,async()=>page.click('.btn-green')).catch(log);
   log('Team submitted, Waiting for opponent');
   // Eof TeamSelection
   await Promise.any([
-    page.waitForSelector('#btnRumble', { timeout: 160000 })
+    page.waitForSelector('#btnRumble', { timeout: 16e4 })
     .then(()=>page.evaluate(`startFightLoop();localStorage.setItem('sl:battle_speed', 6)`))
     .then(()=>process.env.SKIP_REPLAY||
-      page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(1999*mana_cap)})),
-    page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(60000*5)}),
+      page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(2e3*mana_cap)})),
+    page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(3e5)}),
   ]).then(()=>page.evaluate('SM.CurrentView.data').then(postBattle(user)))
     .catch(() => log('Wrapping up Battle'));
 }
@@ -138,17 +148,15 @@ const preMatch=({Player,settings})=>{
   _return.claimSeasonReward =
     process.env.CLAIM_SEASON_REWARD && Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
   _return.isRanked = _return.isStarter||erc>75&&_return.rating<400||erc>(args.e??process.env.ERC_THRESHOLD)||
-    args.t-Date.now()>(100-erc)*3e5/settings.dec.ecr_regen_rate
-  _dbug.table({_:{'Current Rating':Player.rating,'Current ECRate':erc,t:(args.t-Date.now())/36e5,et:(100-erc)/12/settings.dec.ecr_regen_rate}});
+    args.t-Date.now()>(99.81-erc)*3e5/settings.dec.ecr_regen_rate
 
   //if quest done claim reward
   _return.claimQuestReward = [];
   _return.quest = 0;
   if (Player.quest&&!Player.quest.claim_trx_id){
-    const {name,completed_items,total_items}=Player.quest;
-    const quest = settings.quests.find(q=>q.name==name)
+    var {name,completed_items,total_items}=Player.quest;
+    const quest = settings.quests.find(x=>x.name==name)
     if(completed_items<total_items){
-      log({'Quest details':{completed_items,total_items}});
       if((Number(args.q)||3)*Math.random()<1&&process.env.QUEST_PRIORITY)
         _return.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
     }
@@ -157,6 +165,7 @@ const preMatch=({Player,settings})=>{
       _return.quest = 0;
     }
   }
+  table([{Rating:Player.rating,ECRate:erc,t:(args.t-Date.now())/36e5,et:(100-erc)/12/settings.dec.ecr_regen_rate,...(completed_items&&{Quest:name,completed_items,total_items})}]);
   return _return;
 }
 const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
@@ -170,11 +179,11 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
   await checkForMissingConfigs();
   for(let [env,arg] of [['CLOSE_AFTER_ERC','c'],['SKIP_REPLAY','sr'],['HEADLESS','h'],['KEEP_BROWSER_OPEN'],['SKIP_PRACTICE','sp'],['QUEST_PRIORITY'],['CLAIM_SEASON_REWARD'],['CLAIM_REWARDS'],['UPDATE_BATTLE_DATA','ubd']])
     process.env[env]=(args[arg]??JSON.parse(process.env[env]?.toLowerCase()??false))||'';
-  let users = process.env.ACCOUNT.split(',').map((account,i)=>{
+  let users = process.env.ACCOUNT.split(',').map((account,x)=>{
     if(!(args.su??process.env.SKIP_USERS??'').split(',').includes(account))return{
         account,
-        password:process.env.PASSWORD.split(',')[i],
-        login:process.env?.EMAIL?.split(',')[i],
+        password:process.env.PASSWORD.split(',')[x],
+        login:process.env?.EMAIL?.split(',')[x],
         w:0,l:0,d:0,w_p:0,l_p:0,d_p:0,won:0,decWon:0,netWon:0,
         erc:100,rating:0,isStarter:0,isRanked:1,claimQuestReward:[],claimSeasonReward:0,
       }
@@ -187,17 +196,13 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
   while (true) {
     await checkForUpdate();
     for (const user of users.filter(u=>!process.env.SKIP_PRACTICE||u.isRanked)) {
-      process.env.LOGIN = user.login || user.account
-      process.env.PASSWORD = user.password
-      process.env.ACCOUNT = user.account
-
-      if((browser.process().killed)){
+      if(browser.process().killed){
         browser = await createBrowser(process.env.HEADLESS);
         page = (await browser.pages())[1];
       }
       await page.goto('https://splinterlands.com/');
       SM._(page);
-      await SM.login(process.env.LOGIN,process.env.PASSWORD)
+      await SM.login(user.login || user.account,user.password)
       await page.evaluate('SM.ShowBattleHistory()'); await sleep(1729);
       await page.evaluate('Object.assign({},{Player:SM.Player,settings:SM.settings})')
         .then(preMatch).then(r=>Object.keys(r).forEach(k=>user[k]=r[k]))
@@ -214,7 +219,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
       await page.evaluate('SM.Logout()');
     }
     const tableList =['account','dec','erc','cp','rating','won','netWon','decWon','w','l','d','w_p','l_p','d_p'];
-    _dbug.table(users.map(u=>Object.fromEntries(tableList.map(x=>[x,u[x]]))));
+    table(users.map(u=>Object.fromEntries(tableList.map(x=>[x,u[x]]))));
     if(!process.env.KEEP_BROWSER_OPEN)browser.close();
     await battles.fromUsers(users.map(user=>user.account),{depth:1});
     log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());

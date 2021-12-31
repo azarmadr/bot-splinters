@@ -1,6 +1,5 @@
 var page;
-const {sleep} = require('./helper');
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const {log,sleep} = require('./helper');
 
 const sm = {};
 sm._  =h=>page=h;

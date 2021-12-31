@@ -1,7 +1,6 @@
 const AKMap = require('array-keyed-map');
 //const {readFileSync,writeFileSync} = require('jsonfile');
-const {_team,_card,_arr} = require('./helper');
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
+const {log,_team,_card,_arr,_dbug} = require('./helper');
 
 /** Finds team satisfying quest rules, and places it at head of the teams array
  * @param {Array team} teams Better to have high scoring teams
@@ -59,16 +58,14 @@ const dotP=(x,y)=>Object.keys(x).reduce((sc,k)=>sc+x[k]*y[k],0)
 
 const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1.1,d:-0.5},xer={r:1.2,s:6},mana_cap,inactive,_scoreAll}={}) => {
   const scores = new AKMap();
-  log({xer,res2Score,});
-  battles.forEach(k=>{
-    const {result,teams} = k.reduce((a,c)=>{
-      if(c=='d'||c=='w')a.result=c;else a.teams[a.result?1:0].push(c);return a
-    },{teams:[[],[]]});
-    if(teams.every(t=>!_team.isActive(t,inactive)))return;
-    const [w,l] = teams.map((t,_x)=>
+  for(let t1 in battles)for(let t2 in battles[t1]){
+    let result = battles[t1][t2],teams = [t1,t2].map(x=>x.split(','));
+    if(teams.every(t=>!_team.isActive(t,inactive)))continue;
+    if(result=='l')[result,teams]=['w',teams.reverse()];
+    let [w,l] = teams.map((t,_x)=>
       (t.some((c,x)=>x%2?0:(c in oppCards))?scoreXer(t,xer.r)/mana_cap:1)*(_team.mana(t)/mana_cap)**(_x?-1:1)/
       (_team.isActive(t,inactive)?1:3)
-    )
+    );
     let defaultScores = {w:0,_w:0,l:0,_l:0,d:0,_d:0,count:0};
     teams.forEach((t,i)=>{if(_scoreAll||t.every((c,x)=>x%2?1:c in myCards)){
       const cardScrs  = [scores.has(t)?scores.get(t):{...defaultScores},
@@ -80,7 +77,7 @@ const teamScores = (battles,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1.
       });
       scores.set(t,cardScrs[0]);
     }})
-  })
+  }
   /* for research
   const xerDist = {};
   scores.forEach((s,t)=>xerDist[scoreXer(t)]=Math.max(xerDist[scoreXer(t)]||0,s.count))
@@ -212,14 +209,15 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
     _team.rules.secondary.includes(cr)?(rules.card_r=cr):rules.attr_r.push(cr);
     return rules},{attr_r:[]})
   attr_r[0]??='Standard'
-  log('Filtering Teams for',{ruleset,card_r,attr_r})
+  _dbug.table({RuleSet:{ruleset,card_r,attr_r}})
   var filteredTeams=[],cardscores={},battlesList = battles;
   for(let path of attr_r)battlesList=battlesList[path];//This assumes object exists
+  const table = new _dbug.tt();
   for(let mana of Object.keys(battlesList).filter(x=>x<=mana_cap&&Number(x)).sort((a,b)=>b-a)){
     res2Score.l*=mana_cap/mana;res2Score.w*=mana/mana_cap;xer.r*=mana/mana_cap;xer.s*=mana/mana_cap;
     const scores = teamScores(battlesList[mana]
       ,{res2Score,xer,mana_cap,inactive,cardscores,myCards,oppCards});
-    log({[`#battles - ${mana}`]:battlesList[mana].length,'#Scores':scores.size,
+    table.e = {/*[`#battles - ${mana}`]:battlesList[mana].length,*/'#Scores':scores.size,
       '#teams':filteredTeams.push(
         ...[...scores.entries()].filter(([t,s])=>
           t.length>2    && _team.isActive(t,inactive) &&
@@ -227,9 +225,9 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
           && filterTeamByRules(_arr.chunk2(t),card_r)
         ).sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
         .map(([t,s])=>{return {team:_arr.chunk2(t),...s}})
-      )})
+      ),...res2Score,...xer}
     if(sortByWinRate||(filteredTeams.length>27))break;
-  }
+  }table.done;
   var filteredTeams_length = filteredTeams.length;
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams.length/27)
   log('trimming', {filteredTeams_length},'to',filteredTeams.length)

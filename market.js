@@ -1,10 +1,10 @@
-const {_card, _team, _elem, sleep,} = require('./helper');
-const SM = require('./splinterApi');
 require('dotenv').config()
+const {log,_card,_dbug, _team, _elem, sleep,} = require('./helper');
+const SM = require('./splinterApi');
 const puppeteer = require('puppeteer');
-const log=(...m)=>console.log(__filename.split(/[\\/]/).pop(),...m);
 const args = require('minimist')(process.argv.slice(2));
 const headless=0;
+
 ;(async()=>{
   const browser = await puppeteer.launch({
     headless,
@@ -27,24 +27,21 @@ const headless=0;
   }).filter(x=>x);
   SM._(page);
   while(users.length){
-    log('users:',users.length);
-    for(const[idx,user]of users.entries()){
+    log({'#users':users.length});
+    const userSummary = new _dbug.tt();
+    for(const[idx,{login,account,password,active_key}]of users.entries()){
       await page.goto('https://splinterlands.com/');
-      process.env.LOGIN      = user.login || user.account
-      process.env.PASSWORD   = user.password
-      process.env.ACTIVE_KEY = user.active_key
-      process.env.ACCOUNT    = user.account
-      await SM.login(process.env.LOGIN,process.env.PASSWORD)
+      await SM.login(login||account,password)
       const _ctn = await page.evaluate(`SM.Player.collection_power`);
       const isStarter = await page.evaluate(`SM.Player.starter_pack_purchase`);
       if(!isStarter||_ctn>=args.c){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
       const cb=c=>!c.owned.filter(o=>
         !o.uid.includes('starter')&&
         !(o.market_id && o.market_listing_status === 0)&&
-        (!o.delegated_to || o.delegated_to === user.account)
+        (!o.delegated_to || o.delegated_to === account)
       ).length
-      const card_ids = await SM.cards(user.account).then(c=>c.filter(cb).map(c=>c.id));
-      log({'Collection Power':_ctn,'card ids':card_ids.length,isStarter})
+      const card_ids = await SM.cards(account).then(c=>c.filter(cb).map(c=>c.id));
+      userSummary.e={account,'Collection Power':_ctn,'card ids':card_ids.length,...(isStarter&&{isStarter})}
 
       await page.evaluate(`SM.ShowMarket('rentals')`)
       await page.waitForSelector('.loading',{hidden:true})
@@ -61,7 +58,6 @@ const headless=0;
           (cards,[uoc,mp,gold])=>cards.find(a=>(parseFloat(a.innerText.match(/\d+.\d+/))
             <SM.settings.dec_price*mp)&&(gold||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,args.g||gold]);
         if(card){
-          log(card);
           await _elem.click(page,`#${card}`);
           break;
         }
@@ -75,10 +71,9 @@ const headless=0;
       const _credits = await page.evaluate(
         `SM.Player.balances.find(a=>a.token==='CREDITS')?.balance>7*10*${max_price}`)
       await page.select('#payment_currency',_credits?'CREDITS':'DEC')
-      const id = await page.$$eval('tbody > tr > .price',
-        (tb,max_price)=>
-        tb.findIndex(n=>parseFloat(n.innerText.replaceAll(',',''))<=max_price),max_price)
-      log(id)
+      const id = await page.$$eval('tbody > tr > .price',(tb,max_price)=>
+        tb.map(n=>parseFloat(n.innerText.replaceAll(',',''))).reduce((idx,i,x,arr)=>
+          arr[idx]===undefined?i<=max_price?x:idx:i<=m&&arr[idx]>=i?x:idx,-1))
       if(id>-1){
         await _elem.click(page,`tr:nth-child(${id+1}) .card-checkbox`)
         await _elem.click(page,'#btn_buy')
@@ -87,21 +82,21 @@ const headless=0;
         await sleep(33);
         //await page.type('#txt_rent_days','2');
         await _elem.click(page,'#btn_rent_popup_rent')
-        if(user.account!='azarmadr3'){
+        if(account!='azarmadr3'){
           try{
             await page.waitForSelector('#active_key',{timeout:10000})
             await sleep(1231);
             await page.focus('#active_key')
-            await page.type('#active_key',process.env.ACTIVE_KEY)
+            await page.type('#active_key',active_key)
             await _elem.click(page,'#approve_tx')
           }catch(e){log(e)}
         }
         await sleep(333);
-        await page.waitForSelector('.loading',{hidden:true})
+        await page.waitForSelector('.loading',{hidden:true,timeout:1e5})
         await sleep(1232);
       }
       await page.evaluate('SM.Logout()');
-      //await sleep(123123);
-    }}
+      await sleep(2.7e4);
+    };userSummary.done;}
     browser.close();
   })()

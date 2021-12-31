@@ -1,5 +1,6 @@
-const log = (...m) => console.log(__filename.split(/[\\/]/).pop(), ...m);
+const {log} = require('./helper');
 const args = require("minimist")(process.argv.slice(2));
+const {readFileSync,writeFileSync} = require('jsonfile');
 
 const { teamScores, playableTeams } = require("./score");
 const oldBattles = require("./data/battle_data.json");
@@ -21,7 +22,7 @@ if ("m" in args) {
   args.m
     .split(",")
     .map((x) => require(`${x}`))
-    .forEach((ob) => log("a") ?? battles.merge(bd, ob));
+    .forEach((ob) => log(typeof ob) ?? battles.merge(bd, ob));
   writeFileSync(`./data/battle_data${fn}.json`, bd);
   log(bd.Standard[12].length);
 }
