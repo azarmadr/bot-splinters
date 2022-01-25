@@ -1,1 +1,0 @@
-{"mappings":"AAAA,IAGA,aAAA,CADA,WAAA,CADA,UAGA,CAEA,KACA,qBACA","sources":["src/styles.css"],"sourcesContent":["#cy {\r\n  width: 90vw;\r\n  height: 70vh;\r\n  display: block;\r\n}\r\n\r\n.off {\r\n  background-color: black;\r\n}\r\n\r\n"],"names":[],"version":3,"file":"index.87d4a093.css.map"}

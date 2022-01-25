@@ -142,13 +142,13 @@
       this[globalName] = mainExports;
     }
   }
-})({"3KXv7":[function(require,module,exports) {
+})({"6IXwR":[function(require,module,exports) {
+"use strict";
 var HMR_HOST = null;
 var HMR_PORT = null;
 var HMR_SECURE = false;
-var HMR_ENV_HASH = "4a236f9275d0a351";
-module.bundle.HMR_BUNDLE_ID = "b5b6c481d56a3cb1";
-"use strict";
+var HMR_ENV_HASH = "d6ea1d42532a7575";
+module.bundle.HMR_BUNDLE_ID = "fe4256060641b553";
 function _toConsumableArray(arr) {
     return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread();
 }
@@ -156,14 +156,14 @@ function _nonIterableSpread() {
     throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
 }
 function _iterableToArray(iter) {
-    if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter)) return Array.from(iter);
+    if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter);
 }
 function _arrayWithoutHoles(arr) {
     if (Array.isArray(arr)) return _arrayLikeToArray(arr);
 }
 function _createForOfIteratorHelper(o, allowArrayLike) {
-    var it;
-    if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) {
+    var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"];
+    if (!it) {
         if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") {
             if (it) o = it;
             var i = 0;
@@ -191,7 +191,7 @@ function _createForOfIteratorHelper(o, allowArrayLike) {
     var normalCompletion = true, didErr = false, err;
     return {
         s: function s() {
-            it = o[Symbol.iterator]();
+            it = it.call(o);
         },
         n: function n() {
             var step = it.next();
@@ -518,7 +518,7 @@ function hmrAcceptRun(bundle, id) {
     acceptedAssets[id] = true;
 }
 
-},{}],"5HwUs":[function(require,module,exports) {
+},{}],"bNKaB":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 //document.getElementById('app').innerText = 'hi';
 //const {log} = require('../helper');
@@ -526,10 +526,10 @@ var _cytoscape = require("cytoscape");
 var _cytoscapeDefault = parcelHelpers.interopDefault(_cytoscape);
 var _eigenRank = require("./eigenRank");
 var _eigenRankDefault = parcelHelpers.interopDefault(_eigenRank);
-var _xCy = function(cy1) {
-    cy1('collection', 'eigenRank', _eigenRankDefault.default);
-};
-_cytoscapeDefault.default.use(_xCy);
+var _eigenRankOrig = require("./eigenRankOrig");
+var _eigenRankOrigDefault = parcelHelpers.interopDefault(_eigenRankOrig);
+_cytoscapeDefault.default.use(_eigenRankDefault.default);
+_cytoscapeDefault.default.use(_eigenRankOrigDefault.default);
 var nextID = 0;
 var relType = 'w';
 var cy = _cytoscapeDefault.default({
@@ -577,47 +577,47 @@ var cy = _cytoscapeDefault.default({
         rows: 1
     },
     ready: function() {
-        let cy2 = this;
-        cy2.elements().unselectify();
-        cy2.selectedNode = null;
-        cy2.on('tap', 'node', function(e) {
+        let cy1 = this;
+        cy1.elements().unselectify();
+        cy1.selectedNode = null;
+        cy1.on('tap', 'node', function(e) {
             var node = e.target;
-            if (cy2.selectedNode !== null && cy2.selectedNode !== node) {
-                cy2.add({
+            if (cy1.selectedNode !== null && cy1.selectedNode !== node) {
+                cy1.add({
                     group: "edges",
                     data: {
                         target: node.id(),
-                        source: cy2.selectedNode.id()
+                        source: cy1.selectedNode.id()
                     }
                 });
-                if (relType == 'w') cy2.add({
+                if (relType == 'w') cy1.add({
                     group: "edges",
                     data: {
                         target: node.id(),
-                        source: cy2.selectedNode.id()
+                        source: cy1.selectedNode.id()
                     }
                 });
-                else cy2.add({
+                else cy1.add({
                     group: "edges",
                     data: {
                         source: node.id(),
-                        target: cy2.selectedNode.id()
+                        target: cy1.selectedNode.id()
                     }
                 });
                 pageRank();
-                cy2.elements().removeClass('faded');
-                cy2.selectedNode = null;
+                cy1.elements().removeClass('faded');
+                cy1.selectedNode = null;
             } else {
-                cy2.elements().addClass('faded');
+                cy1.elements().addClass('faded');
                 node.removeClass('faded');
                 node.select();
-                cy2.selectedNode = node;
+                cy1.selectedNode = node;
             }
         });
-        cy2.on('tap', function(e) {
-            if (e.cyTarget === cy2) {
-                cy2.elements().removeClass('faded');
-                cy2.selectedNode = null;
+        cy1.on('tap', function(e) {
+            if (e.cyTarget === cy1) {
+                cy1.elements().removeClass('faded');
+                cy1.selectedNode = null;
             }
         });
     }
@@ -632,8 +632,8 @@ var e = cy.add([
 ]);
 */ document.querySelector('#result').onclick = ()=>{
     var box = document.getElementById('result');
-    relType = box.checked ? 'w' : 'd';
-    document.querySelector('#result ~ label').innerText = 'Relationships are ' + (box.checked ? 'Wins' : 'Draws');
+    relType = box.checked ? 'd' : 'w';
+    document.querySelector('#result ~ label').innerText = 'Relationships are ' + (box.checked ? 'Draws' : 'Wins');
 };
 document.getElementById('addTeam').onclick = ()=>{
     cy.add({
@@ -655,12 +655,16 @@ function pageRank() {
         'dampingfactor': 0.85
     });
     var er = cy.elements().eigenRank();
+    var or = cy.elements().eigenRankOrig();
     window.pr = cy.elements();
     cy.nodes().forEach((ele)=>{
         ele.style({
-            'content': `Page ${ele.id()}
+            'content': `${ele.data('name')}
 pr: ${Math.round(pr.rank(ele) * 1000) / 1000}
-er: ${Math.round(er.rank(ele) * 1000) / 1000}
+or: ${Math.round(or.rank(ele) * 1000) / 1000}
+
+er: ${Math.round(er.rank(ele).eigenValue * 1000) / 1000}
+ir: ${Math.round(er.rank(ele).initVal * 1000) / 1000}
 `
         });
     });
@@ -678,7 +682,7 @@ function deleteSelected() {
 document.getElementById('runPageRank').onclick = pageRank;
 document.getElementById('delete').onclick = deleteSelected;
 
-},{"cytoscape":"lsTQy","./eigenRank":"lhTv5","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"lsTQy":[function(require,module,exports) {
+},{"cytoscape":"cxe8j","./eigenRank":"amQOS","./eigenRankOrig":"7u7EE","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cxe8j":[function(require,module,exports) {
 /**
  * Copyright (c) 2016-2021, The Cytoscape Consortium.
  *
@@ -25797,7 +25801,7 @@ cytoscape.version = version; // expose public apis (mostly for extensions)
 cytoscape.stylesheet = cytoscape.Stylesheet = Stylesheet;
 module.exports = cytoscape;
 
-},{"lodash.debounce":"dYpAa","heap":"bJI8x"}],"dYpAa":[function(require,module,exports) {
+},{"lodash.debounce":"3JP5n","heap":"j0cbr"}],"3JP5n":[function(require,module,exports) {
 var global = arguments[3];
 /**
  * lodash (Custom Build) <https://lodash.com/>
@@ -26082,10 +26086,10 @@ var global = arguments[3];
 }
 module.exports = debounce;
 
-},{}],"bJI8x":[function(require,module,exports) {
+},{}],"j0cbr":[function(require,module,exports) {
 module.exports = require('./lib/heap');
 
-},{"./lib/heap":"89RSo"}],"89RSo":[function(require,module,exports) {
+},{"./lib/heap":"gZPHW"}],"gZPHW":[function(require,module,exports) {
 // Generated by CoffeeScript 1.8.0
 (function() {
     var Heap1, defaultCmp, floor, heapify, heappop, heappush, heappushpop, heapreplace, insort, min, nlargest, nsmallest, updateItem, _siftdown, _siftup;
@@ -26343,83 +26347,184 @@ module.exports = require('./lib/heap');
     });
 }).call(this);
 
-},{}],"lhTv5":[function(require,module,exports) {
+},{}],"amQOS":[function(require,module,exports) {
 const normalizeMut = (arr)=>{
     var total = 0;
     for(i in arr)total += arr[i];
     for(i in arr)arr[i] = arr[i] / total;
     return arr;
 };
-const log = (...m)=>console.log(...m)
-;
-module.exports = function({ weight =(e)=>1
- , iterations =200 , precision =0.000001  } = {
-}) {
-    let cy = this._private.cy;
-    let { nodes , edges  } = this.byGroup();
-    let numNodes = nodes.length;
-    let numNodesSqd = numNodes * numNodes;
-    // Construct matrix with wins and losses with each row as team and
-    // score 2(if won) or 1 (if drawn) against the column as opponent team
-    // We'll also keep track of the sum of each row
-    let matrix = Array(numNodesSqd).fill(0);
-    let eigenvector = Array(numNodes).fill(0);
-    let danglingLinks = Array(numNodes).fill(0);
-    // Now, process edges
-    for (let edge of edges){
-        let srcId = edge.data('source');
-        let tgtId = edge.data('target');
-        // Don't include loops in the matrix
-        if (srcId === tgtId) continue;
-        let s = nodes.indexOfId(srcId);
-        let t = nodes.indexOfId(tgtId);
-        let w = weight(edge);
-        let n = s * numNodes + t;
-        // Update matrix
-        matrix[n] += w;
-        // Update row sum
-        eigenvector[t] += w;
-    //log({s,t,n})
-    }
-    log({
-        matrix,
-        eigenvector
+module.exports = function(cy1) {
+    cy1('collection', 'eigenRank', function({ weight =()=>1
+     , iterations =200 , precision =0.000001  } = {
+    }) {
+        let cy = this._private.cy;
+        let { nodes , edges  } = this.byGroup();
+        let numNodes = nodes.length;
+        let numNodesSqd = numNodes * numNodes;
+        let _matOrd = (s, t)=>+t + s * numNodes
+        ;
+        // Construct matrix with wins and losses with each row as team and
+        // score 2(if won) or 1 (if drawn) against the column as opponent team
+        // We'll also keep track of the sum of each row
+        let matrix = Array(numNodesSqd).fill(0);
+        let eigenvector = Array(numNodes).fill(0);
+        // Now, process edges
+        for (let edge of edges){
+            let srcId = edge.data('source');
+            let tgtId = edge.data('target');
+            // Don't include loops in the matrix
+            if (srcId === tgtId) continue;
+            let s = nodes.indexOfId(srcId);
+            let t = nodes.indexOfId(tgtId);
+            let w = weight(edge);
+            matrix[_matOrd(s, t)] += w;
+            eigenvector[t] += w;
+        //console.log({s,t,n})
+        }
+        let initVal = normalizeMut(eigenvector.slice(0));
+        // remove dangling links and save them as a tie-breaker
+        let _tail = {
+            l: 0
+        }, danglingLinks = Array(numNodes).fill(0);
+        console.clear();
+        do {
+            _tail.e = 0;
+            let __dbug = [
+                ...eigenvector
+            ];
+            for(let s in __dbug)if (__dbug[s] == 0) {
+                for(let t in eigenvector){
+                    let es = matrix[_matOrd(s, t)];
+                    eigenvector[t] -= es;
+                    danglingLinks[t] += es * ((_tail.l + 1) / (_tail.l + 3) + _tail.l);
+                }
+                delete eigenvector[s];
+                _tail.e++;
+            }
+            console.table({
+                __dbug,
+                eigenvector,
+                danglingLinks,
+                _tail
+            });
+            _tail.l++;
+        }while (_tail.e)
+        danglingLinks.forEach((x, i, a)=>x || delete a[i]
+        );
+        normalizeMut(danglingLinks);
+        //console.log({matrix,eigenvector})
+        // Compute dominant eigenvector using power method
+        normalizeMut(eigenvector);
+        for(let iter = 0; iter < iterations; iter++){
+            let next = Array(numNodes).fill(0);
+            // Multiply matrix with previous result
+            for(let s in eigenvector)for(let t in eigenvector)next[t] += matrix[_matOrd(s, t)] * eigenvector[s];
+            if (next.every((x)=>!x
+            )) break;
+            normalizeMut(next);
+            let diff = 0;
+            // Compute difference (squared module) of both vectors
+            for(let i in eigenvector){
+                let delta = next[i] - eigenvector[i];
+                diff += delta * delta;
+            }
+            if (diff < precision) break;
+            eigenvector = next;
+        }
+        const __dbug = [
+            ...eigenvector
+        ];
+        let evfs = Object.keys(eigenvector).length, dlfs = Object.keys(danglingLinks).length;
+        eigenvector.forEach((x, i, a)=>a[i] = x * evfs
+        );
+        danglingLinks.forEach((x, i, a)=>a[i] = x / dlfs
+        );
+        for(let t1 in danglingLinks)eigenvector[t1] = (eigenvector[t1] ??= 0) + danglingLinks[t1];
+        normalizeMut(eigenvector);
+        console.table({
+            danglingLinks,
+            __dbug,
+            eigenvector
+        });
+        return {
+            rank: function(node) {
+                node = cy.collection(node)[0];
+                return {
+                    eigenValue: eigenvector[nodes.indexOf(node)],
+                    initVal: initVal[nodes.indexOf(node)]
+                };
+            }
+        };
     });
-    // Compute dominant eigenvector using power method
-    for(let iter = 0; iter < iterations; iter++){
-        // Temp array with all 0's
-        let next = Array(numNodes).fill(0);
-        // Multiply matrix with previous result
-        if (eigenvector.every((x)=>x == 0
-        )) break;
-        for(let s = 0; s < numNodes; s++)for(let t = 0; t < numNodes; t++){
-            let n = s * numNodes + t;
-            next[t] += matrix[n] * eigenvector[s];
-        }
-        if (next.every((x)=>x == 0
-        )) break;
-        normalizeMut(next);
-        let diff = 0;
-        // Compute difference (squared module) of both vectors
-        for(let i = 0; i < numNodes; i++){
-            let delta = next[i] - eigenvector[i];
-            diff += delta * delta;
-        }
-        if (diff < precision) break;
-        eigenvector = next;
-    }
-    log({
-        eigenvector
-    });
-    return {
-        rank: function(node) {
-            node = cy.collection(node)[0];
-            return eigenvector[nodes.indexOf(node)];
-        }
-    };
 };
 
-},{}],"ciiiV":[function(require,module,exports) {
+},{}],"7u7EE":[function(require,module,exports) {
+const normalizeMut = (arr)=>{
+    var total = 0;
+    for(i in arr)total += arr[i];
+    for(i in arr)arr[i] = arr[i] / total;
+    return arr;
+};
+module.exports = function(cy1) {
+    cy1('collection', 'eigenRankOrig', function({ weight =()=>1
+     , iterations =200 , precision =0.000001  } = {
+    }) {
+        let cy = this._private.cy;
+        let { nodes , edges  } = this.byGroup();
+        let numNodes = nodes.length;
+        let numNodesSqd = numNodes * numNodes;
+        let _matOrd = (s, t)=>+t + s * numNodes
+        ;
+        // Construct matrix with wins and losses with each row as team and
+        // score 2(if won) or 1 (if drawn) against the column as opponent team
+        // We'll also keep track of the sum of each row
+        let matrix = Array(numNodesSqd).fill(0);
+        let eigenvector = Array(numNodes).fill(0);
+        // Now, process edges
+        for (let edge of edges){
+            let srcId = edge.data('source');
+            let tgtId = edge.data('target');
+            // Don't include loops in the matrix
+            if (srcId === tgtId) continue;
+            let s = nodes.indexOfId(srcId);
+            let t = nodes.indexOfId(tgtId);
+            let w = weight(edge);
+            matrix[_matOrd(s, t)] += w;
+            eigenvector[t] += w;
+        //console.log({s,t,n})
+        }
+        // Compute dominant eigenvector using power method
+        normalizeMut(eigenvector);
+        for(let iter = 0; iter < iterations; iter++){
+            if (eigenvector.every((x)=>!x
+            )) break;
+            let next = Array(numNodes).fill(0);
+            // Multiply matrix with previous result
+            for(let s in eigenvector)for(let t in eigenvector)next[t] += matrix[_matOrd(s, t)] * eigenvector[s];
+            if (next.every((x)=>!x
+            )) break;
+            normalizeMut(next);
+            let diff = 0;
+            // Compute difference (squared module) of both vectors
+            for(let i in eigenvector){
+                let delta = next[i] - eigenvector[i];
+                diff += delta * delta;
+            }
+            if (diff < precision) break;
+            eigenvector = next;
+        }
+        //console.log({eigenvector})
+        return {
+            rank: function(node) {
+                node = cy.collection(node)[0];
+                return eigenvector[nodes.indexOf(node)];
+            }
+        };
+    });
+};
+
+},{}],"gkKU3":[function(require,module,exports) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -26449,6 +26554,6 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}]},["3KXv7","5HwUs"], "5HwUs", "parcelRequireb2c7")
+},{}]},["6IXwR","bNKaB"], "bNKaB", "parcelRequireb2c7")
 
-//# sourceMappingURL=index.d56a3cb1.js.map
+//# sourceMappingURL=index.0641b553.js.map
