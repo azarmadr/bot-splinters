@@ -1,102 +1,153 @@
-require('dotenv').config()
-const {log,_card,_dbug, _team, _elem, sleep,} = require('./helper');
-const SM = require('./splinterApi');
-const puppeteer = require('puppeteer');
-const args = require('minimist')(process.argv.slice(2));
-const headless=0;
+require("dotenv").config();
+const cards = require("./data/cards.json");
+const { log, _card, _dbug, _arr, _elem, sleep } = require("./util");
+const SM = require("./splinterApi");
+const puppeteer = require("puppeteer");
+const args = require("minimist")(process.argv.slice(2));
+const headless = 0;
 
-;(async()=>{
+const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgated_to).length;
+(async () => {
   const browser = await puppeteer.launch({
     headless,
-    args: process.env.CHROME_NO_SANDBOX === 'true' ? ["--no-sandbox"] : ['--disable-web-security',
-      '--disable-features=IsolateOrigins',
-      ' --disable-site-isolation-trials'],
+    args:
+      process.env.CHROME_NO_SANDBOX === "true"
+        ? ["--no-sandbox"]
+        : [
+            "--disable-web-security",
+            "--disable-features=IsolateOrigins",
+            " --disable-site-isolation-trials",
+          ],
   });
   const page = await browser.newPage();
   page.setDefaultNavigationTimeout(500000);
-  page.on('dialog', async dialog => { await dialog.accept(); });
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
-  await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1, });
-  let users = process.env.ACCOUNT.split(',').map((account,i)=>{
-    if(!(args.su??process.env.SKIP_USERS??'').split(',')?.includes(account)){return{
-      account,
-      password:   process.env.PASSWORD.split(',')[i],
-      active_key: process.env.ACTIVE_KEY.split(',')[i],
-      login:      process.env?.EMAIL?.split(',')[i],
-    }}
-  }).filter(x=>x);
+  page.on("dialog", async (dialog) => {
+    await dialog.accept();
+  });
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36"
+  );
+  await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1 });
+  let users = process.env.ACCOUNT.split(",")
+    .map((account, i) => {
+      if (
+        !(args.su ?? process.env.SKIP_USERS ?? "").split(",")?.includes(account)
+      ) {
+        return {
+          account,
+          password: process.env.PASSWORD.split(",")[i],
+          active_key: process.env.ACTIVE_KEY.split(",")[i],
+          login: process.env?.EMAIL?.split(",")[i],
+          count: 5,
+        };
+      }
+    })
+    .filter((x) => x);
   SM._(page);
-  while(users.length){
-    log({'#users':users.length});
+  while (users.filter((x) => x.count).length) {
+    log({ "#users": users.length });
     const userSummary = new _dbug.tt();
-    for(const[idx,{login,account,password,active_key}]of users.entries()){
-      await page.goto('https://splinterlands.com/');
-      await SM.login(login||account,password)
-      const _ctn = await page.evaluate(`SM.Player.collection_power`);
-      const isStarter = await page.evaluate(`SM.Player.starter_pack_purchase`);
-      if(!isStarter||_ctn>=args.c){users.splice(idx,1);await page.evaluate('SM.Logout()');continue}
-      const cb=c=>!c.owned.filter(o=>
-        !o.uid.includes('starter')&&
-        !(o.market_id && o.market_listing_status === 0)&&
-        (!o.delegated_to || o.delegated_to === account)
-      ).length
-      const card_ids = await SM.cards(account).then(c=>c.filter(cb).map(c=>c.id));
-      userSummary.e={account,'Collection Power':_ctn,'card ids':card_ids.length,...(isStarter&&{isStarter})}
+    for (let [
+      idx,
+      { login, count, account, password, active_key },
+    ] of users.entries()) {
+      count--;
+      await page.goto("https://splinterlands.com/");
+      await SM.login(login || account, password);
+      const card_ids = await SM.cards(account).then((c) =>
+        c.filter(cb(account)).map((c) => c.id)
+      );
+      const { collection_power, starter_pack_purchase, balances } =
+        await page.evaluate(`new Promise(r=>r(SM.Player))`);
+      //console.table(balances)
+      const cp = Math.max(101,args.c - collection_power);
+      log(cp,args.c);
+      if (!starter_pack_purchase || collection_power >= args.c) {
+        users.splice(idx, 1);
+        await page.evaluate("SM.Logout()");
+        continue;
+      }
+      userSummary.e = {
+        account,
+        collection_power,
+        "card ids": card_ids.length,
+        ...(starter_pack_purchase && { starter_pack_purchase }),
+      };
 
-      await page.evaluate(`SM.ShowMarket('rentals')`)
-      await page.waitForSelector('.loading',{hidden:true})
-      await page.select('#filter-sort','price')
-      for (var [i,max_price,gold] of [/*[3,2,1],[2,1,1],[1,0.3,1],*/[3,0.5],[2,0.19],[1,0.1]]){
-        if(i!=1)await _elem.click(page,`.filter-section-rarities .filter-option-button:nth-child(${i}) > label`);
-        if(gold){
-          await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(2) > label`);
-          await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(1) > label`);
+      await page.evaluate(`SM.ShowMarket('rentals')`);
+      await page.waitForSelector(".loading", { hidden: true });
+      await page.select("#filter-sort", "price");
+      await _elem.click(
+        page,
+        `.filter-section-foil .filter-option-button:nth-child(2) > label`
+      );
+
+      const minx = await page.$$eval(
+        ".card.card_market",
+        (a, cp,card_ids,) =>
+          a.reduce((minx, x) => {
+            let [card_detail_id, gold, edition] = [
+              ...(x.onclick + "").matchAll(/\((.*)\)/g),
+            ][1][1]
+              .split(",")
+              .slice(0, 3)
+              .map((x) => JSON.parse(x.trim()));
+            let c = calculateCP({
+              xp: 1,
+              alpha_xp: 0,
+              card_detail_id,
+              gold,
+              edition,
+            });
+            let lp = parseFloat(x.innerText.match(/\d+.\d+/));
+            if (c < cp && (gold||!card_ids.includes(card_detail_id)
+              //&&SM.cards.find(x=>x.id==card_detail_id).rarity>2
+            ))
+              minx.push([ c, lp,(0.0001+lp)/SM.settings.dec_price,card_detail_id,gold,edition]);
+            return minx.sort((a,b)=>b[0]/b[1]-a[0]/a[1]).slice(0,3);
+          }, []),
+        cp,args.g?[]:card_ids,
+      );
+      console.table(minx.map(x=>[...x,_card.name(x[3])]));
+      for(let [c,lpDoll,lpDec,...cardDetails] of minx){try{
+        if (!cardDetails) continue;
+        await page.evaluate(`SM.ShowCardDetails(${cardDetails.join()},'rentals')`);
+        await page.waitForSelector("tbody > tr:nth-child(1) > .price");
+        const _credits =
+          balances.find((a) => a.token === "CREDITS")?.balance > 7e3 * lpDoll;
+        //log({_credits,lpDoll});
+        await page.select("#payment_currency", _credits ? "CREDITS" : "DEC");
+        const id = (
+          await page.$$eval("tbody > tr > .price", (tb) =>
+            tb.map((n) => parseFloat(n.innerText.replaceAll(",", "")))
+          )
+        ).reduce(
+          _arr.indexOfminBy((x) => (x < lpDec ? x : undefined)),
+          -1
+        );
+        if (id > -1) {
+          await _elem.click(page, `tr:nth-child(${id + 1}) .card-checkbox`);
+          await _elem.click(page, "#btn_buy");
+          await sleep(333);
+          await page.waitForSelector("#txt_rent_days");
+          await sleep(33);
+          //await page.type('#txt_rent_days','2');
+          await _elem.click(page, "#btn_rent_popup_rent");
+          if (account != "azarmadr3") await page.waitForSelector("#active_key", { timeout: 4e3 })
+            .then(()=>sleep(1231))
+            .then(()=>page.focus("#active_key"))
+            .then(()=>page.type("#active_key", active_key))
+            .then(()=>_elem.click(page, "#approve_tx"))
+            .catch(()=>page.evaluate(`SM.HideDialog()`))
+          await sleep(333);
+          await page.waitForSelector(".loading", { hidden: true, timeout: 1e5 });
         }
-        await sleep(333);
-        await page.waitForSelector('.market-price')
-        const card = await page.$$eval('.card.card_market:not(.hidden)',
-          (cards,[uoc,mp,gold])=>cards.find(a=>(parseFloat(a.innerText.match(/\d+.\d+/))
-            <SM.settings.dec_price*mp)&&(gold||uoc.includes(parseInt(a.id.match(/\d+/)))))?.id,[card_ids,max_price,args.g||gold]);
-        if(card){
-          await _elem.click(page,`#${card}`);
-          break;
-        }
-        if(i!=1)await _elem.click(page,`.filter-section-rarities .filter-option-button:nth-child(${i}) > label`);
-        if(gold){
-          await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(1) > label`);
-          await _elem.click(page,`.filter-section-foil .filter-option-button:nth-child(2) > label`);
-        }
-      }
-      await page.waitForSelector('tbody > tr:nth-child(1) > .price')
-      const _credits = await page.evaluate(
-        `SM.Player.balances.find(a=>a.token==='CREDITS')?.balance>7*10*${max_price}`)
-      await page.select('#payment_currency',_credits?'CREDITS':'DEC')
-      const id = await page.$$eval('tbody > tr > .price',(tb,max_price)=>
-        tb.map(n=>parseFloat(n.innerText.replaceAll(',',''))).reduce((idx,i,x,arr)=>
-          arr[idx]===undefined?i<=max_price?x:idx:i<=m&&arr[idx]>=i?x:idx,-1))
-      if(id>-1){
-        await _elem.click(page,`tr:nth-child(${id+1}) .card-checkbox`)
-        await _elem.click(page,'#btn_buy')
-        await sleep(333);
-        await page.waitForSelector('#txt_rent_days');
-        await sleep(33);
-        //await page.type('#txt_rent_days','2');
-        await _elem.click(page,'#btn_rent_popup_rent')
-        if(account!='azarmadr3'){
-          try{
-            await page.waitForSelector('#active_key',{timeout:10000})
-            await sleep(1231);
-            await page.focus('#active_key')
-            await page.type('#active_key',active_key)
-            await _elem.click(page,'#approve_tx')
-          }catch(e){log(e)}
-        }
-        await sleep(333);
-        await page.waitForSelector('.loading',{hidden:true,timeout:1e5})
-        await sleep(1232);
-      }
-      await page.evaluate('SM.Logout()');
-      await sleep(2.7e4);
-    };userSummary.done;}
-    browser.close();
-  })()
+        await sleep(81e1);
+      }catch(e){log(e)}}
+      if(users.length>1)await page.evaluate("SM.Logout()");
+      await sleep(81e3);
+    }
+    userSummary.done;
+  }
+  browser.close();
+})();

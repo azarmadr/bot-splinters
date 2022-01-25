@@ -5,7 +5,7 @@ const puppeteer = require('puppeteer');
 const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
 const battles = require('./battles-data');
-const {_card, log, _team, _arr,_func:{retryFor}, sleep,_dbug:{table,tt}} = require('./helper');
+const {_card, log, _team, _arr,_func:{retryFor}, sleep,_dbug:{table,tt}} = require('./util');
 const args = require('minimist')(process.argv.slice(2));
 
 // Logging function with save to a file

@@ -1,4 +1,4 @@
-const {log} = require('./helper');
+const {log} = require('./util');
 const args = require("minimist")(process.argv.slice(2));
 const {readFileSync,writeFileSync} = require('jsonfile');
 
@@ -10,8 +10,9 @@ const player = args.name ?? "";
 const depth = args.d ?? 2;
 const fn = args.fn || "";
 const battles = require("./battles-data");
-const minRank = args.mr ?? 729;
+const minRank = args.mr ?? 0;
 
+log({drs,player,depth,fn,minRank});
 if ("b" in args)
   Promise.resolve(battles.fromUsers(player, { depth, drs, fn, minRank })).then(
     () => {}

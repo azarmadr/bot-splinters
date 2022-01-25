@@ -1,7 +1,7 @@
 const AKMap = require('array-keyed-map');
 //const {readFileSync,writeFileSync} = require('jsonfile');
-const {log,_team,_card,_arr,_dbug} = require('./helper');
-
+const {log,_team,_card,_arr,_dbug} = require('./util');
+const _score = {};
 /** Finds team satisfying quest rules, and places it at head of the teams array
  * @param {Array team} teams Better to have high scoring teams
  * @param {Object} $1 quest rules
@@ -10,23 +10,23 @@ const {log,_team,_card,_arr,_dbug} = require('./helper');
  * @param {String} $1.color if the quest is splinter, provide color of the team
  */
 const priorByQuest=(teams,{type,value,color})=>{
-  var team;
+  var i;
   switch(type){
     case 'splinter':
       log({'Playing for Quest':{[value]:type}});
-      team=teams.find(t=>_card.color(t.team[0])===color);
+      i=teams.findIndex(t=>_card.color(t.team[0])===color);
       break;
     case 'no_neutral':
       log({'Playing for Quest':type});
-      team = teams.find(t=>t.team.slice(1).every(c=>_card.color(c)!='Gray'))
+      i = teams.findIndex(t=>t.team.slice(1).every(c=>_card.color(c)!='Gray'))
       break;
     case 'ability':
       log({'Playing for Quest':{[value]:type}});
-      team=teams.find(t=>t.team.some(c=>(_card.abilities(c)+'').includes(value)))
+      i=teams.findIndex(t=>t.team.some(c=>(_card.abilities(c)+'').includes(value)))
       break;
-    default: team = null;
+    default: i = null;
   }
-  if(team)teams.unshift(team);
+  if(i>0)teams.unshift(...teams.splice(i,1));
 }
 /** Sorts by score or win rate
  * @param {Boolean} byWinRate if yes, then sorts by win rate, else by score

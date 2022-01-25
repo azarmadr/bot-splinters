@@ -1,5 +1,5 @@
 var page;
-const {log,sleep} = require('./helper');
+const {log,sleep,_elem} = require('./util');
 
 const sm = {};
 sm._  =h=>page=h;
@@ -17,13 +17,15 @@ sm.login = async function(acc,pwd){
     await page.evaluate('SM.OnLogin(0)')
   }
   await sleep(729);
-  await page.evaluate('SM.HideDialog()')
+  await page.evaluate('SM.HideDialog();SM.UpdatePlayerInfo()')
 }
 sm.questClaim = async function (q,_q){
   log({'Claiming quest box':q.name});
-  await page.evaluate(([q,_q])=>{
-    try{QuestClaimReward(q,_q)}catch(e){console.log(e,'failed to claim quest');SM.HideLoading()};
-  },[q,_q]);
+  await page.evaluate(([q,_q])=>QuestClaimReward(q,_q),[q,_q])
+    .then(()=>page.waitForSelector('.loading',{hidden:true}))
+    .then(()=>_elem.click(page,'.card3d .card_img'))
+    .then(()=>_elem.click(page,'#btnCloseOpenPack'))
+    .catch(()=>log('failed to open Quest Box')??page.evaluate('SM.HideLoading()'))
 }
 sm.battle = async function(type='Ranked'){
   log(`Finding ${type} match`);
@@ -37,10 +39,9 @@ sm.battle = async function(type='Ranked'){
   await page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)');
   return cb;
 }
-sm.cards = async function(player){player=player?`'${player}'`:'SM.Player.name';
+sm.cards = async function(player){
+  player=player?`'${player}'`:'SM.Player.name';
   log ({'Obtaining Cards':player});
-  return await page.evaluate(`new Promise((res,rej)=>
-    SM.LoadCollection(${player}, 1, col=>res(col))
-  )`)
+  return await page.evaluate(`new Promise((res,rej)=> SM.LoadCollection(${player}, 1, res))`)
 }
 module.exports = sm;

@@ -1,12 +1,12 @@
 const {readFile,writeFile} = require('jsonfile');
-const {log,_arr,_team,_dbug} = require('./helper');
+const {log,_arr,_team,_dbug} = require('./util');
 const getJson=url=>Promise.race([
   require('async-get-json')(url),new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),17290))
 ]);
 
 const _battles = {},_dbugBattles=[];
 var _bc={count:0,pc:0}//,'|Battles':0,'+Battles':0};
-const __medusa=(m,t)=>(_team.colorSec(t)=='Blue'&&m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
+//const __medusa=(m,t)=>(_team.colorSec(t)=='Blue'&&m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
 
 async function getBattles(player = '',bd,minRank=0,drs='') {
   const battleHistory = await getJson(`https://api2.splinterlands.com/battle/history?player=${player}`)
@@ -25,7 +25,7 @@ async function getBattles(player = '',bd,minRank=0,drs='') {
     nuSet.add(team1.player); nuSet.add(team2.player);
     const teams = [team1,team2].map(t=>
       [winner=='DRAW'?'d':winner==t.player?'w':'l',...[t.summoner,...t.monsters]
-        .map(m=>[__medusa(m,t),m.level]).flat()]);
+        .map(m=>[m.card_detail_id,m.level]).flat()]);
     if(!_arr.eq(...teams)){
       const [[_,...t1],[r,...t2]] = teams.sort((a,b)=>_arr.cmp(a.slice(1),b.slice(1)));
       let obj = battle_obj;
@@ -39,7 +39,7 @@ async function getBattles(player = '',bd,minRank=0,drs='') {
   },bd)
 }
 _battles.merge=(obj,obj2merge)=>{
-  console.count();require('readline').moveCursor(process.stdout,0,-1);
+  //console.count();require('readline').moveCursor(process.stdout,0,-1);
   for(let[key,value] of Object.entries(obj2merge)){
     if('wld'.includes(value))obj[key]=(key in obj && obj[key]!=value)?'d':value;
     else _battles.merge(obj[key]??={},value);
@@ -50,6 +50,7 @@ _battles.save=(bl,fn='')=>new Promise(res=>readFile(`./data/battle_data${fn}.jso
   require('readline').cursorTo(process.stdout,0);
   if(e){log('Error reading file: ',e)}
   _battles.merge(battlesList,bl);
+  //console.countReset();
   require('readline').cursorTo(process.stdout,0);//log(_bc);
   Object.keys(_bc).forEach(k=>_bc[k]=0)
   writeFile(`data/battle_data${fn}.json`, battlesList).catch(log)

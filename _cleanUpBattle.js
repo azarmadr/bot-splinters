@@ -2,8 +2,8 @@
  * Converting array of battles to objects of pattern {t1:{t2:result}} */
 const AKMap = require("array-keyed-map");
 const {readFileSync,writeFileSync} = require('jsonfile');
-const {_arr,log}=require('./helper');
-const old_battles = require('./data/bdn.json');
+const {_arr,log}=require('./util');
+const old_battles = require('./data/battle_data.json');
 var nb;
 try {
   // temporary file to store battle_data while cleaning or merging multiple older battle_data
