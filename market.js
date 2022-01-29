@@ -1,5 +1,4 @@
 require("dotenv").config();
-const cards = require("./data/cards.json");
 const { log, _card, _dbug, _arr, _elem, sleep } = require("./util");
 const SM = require("./splinterApi");
 const puppeteer = require("puppeteer");
@@ -31,6 +30,7 @@ const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgat
   let users = process.env.ACCOUNT.split(",")
     .map((account, i) => {
       if (
+        args.u ? args.u?.split(',')?.includes(account) :
         !(args.su ?? process.env.SKIP_USERS ?? "").split(",")?.includes(account)
       ) {
         return {
@@ -38,36 +38,37 @@ const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgat
           password: process.env.PASSWORD.split(",")[i],
           active_key: process.env.ACTIVE_KEY.split(",")[i],
           login: process.env?.EMAIL?.split(",")[i],
-          count: 5,
         };
       }
     })
     .filter((x) => x);
   SM._(page);
-  while (users.filter((x) => x.count).length) {
+  while (users.length) {
     log({ "#users": users.length });
-    const userSummary = new _dbug.tt();
-    for (let [
-      idx,
-      { login, count, account, password, active_key },
-    ] of users.entries()) {
-      count--;
+    for (let [ idx, { login, account, password, active_key } ] of users.entries()) {
       await page.goto("https://splinterlands.com/");
       await SM.login(login || account, password);
       const card_ids = await SM.cards(account).then((c) =>
         c.filter(cb(account)).map((c) => c.id)
       );
-      const { collection_power, starter_pack_purchase, balances } =
-        await page.evaluate(`new Promise(r=>r(SM.Player))`);
+      const { collection_power, starter_pack_purchase, balances, leagues, rating} =
+        await page.evaluate(`new Promise(r=>r({...SM.Player,...SM.settings}))`);
       //console.table(balances)
-      const cp = Math.max(101,args.c - collection_power);
-      log(cp,args.c);
+      let cp0=0,cp1=0,cpu;
+      for(let {min_rating, min_power} of leagues)if(min_rating<rating){
+        [cp1,cp0] = [min_power,cp1];_dbug.tt.cp = {cp0,cp1,rating,min_rating};
+      }
+      delete _dbug.tt.cp;
+      args.c=args.l?cp1:cp0;
+      log(args.l,args.c);
       if (!starter_pack_purchase || collection_power >= args.c) {
         users.splice(idx, 1);
         await page.evaluate("SM.Logout()");
         continue;
       }
-      userSummary.e = {
+      const cp = Math.max(101,args.c - collection_power);
+      log(cp,args.c);
+      _dbug.tt.userSummary = {
         account,
         collection_power,
         "card ids": card_ids.length,
@@ -109,7 +110,7 @@ const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgat
         cp,args.g?[]:card_ids,
       );
       console.table(minx.map(x=>[...x,_card.name(x[3])]));
-      for(let [c,lpDoll,lpDec,...cardDetails] of minx){try{
+      for(let [_,lpDoll,lpDec,...cardDetails] of minx){try{
         if (!cardDetails) continue;
         await page.evaluate(`SM.ShowCardDetails(${cardDetails.join()},'rentals')`);
         await page.waitForSelector("tbody > tr:nth-child(1) > .price");
@@ -145,9 +146,9 @@ const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgat
         await sleep(81e1);
       }catch(e){log(e)}}
       if(users.length>1)await page.evaluate("SM.Logout()");
-      await sleep(81e3);
+      await sleep(27e3);
     }
-    userSummary.done;
+    delete _dbug.tt.userSummary;
   }
   browser.close();
 })();

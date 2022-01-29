@@ -12,21 +12,19 @@ const _c2id=c=>Array.isArray(c)?c[0]:c;
 const _card = new Proxy(__cards,{ get: (cards, c)=>{
   const attr = ['color','name','rarity','type','editions'];
   const stats = ['ranged','magic','attack','speed','armor','health'];
-  const i = c-1;
 
-  if(i in cards)        return cards[i];
-  else if(Number.isInteger(+i)){
+  if(c in cards)        return cards[c];
+  else if(Number.isInteger(+c)){
     const newCards = sf("https://api.splinterlands.io/cards/get_details",{
       headers: { Accept: 'application/vnd.citationstyles.csl+json' }}).json();
     writeFileSync('./data/cards.json',newCards);
-    for(c in newCards)__cards[c] = newCards[i];
-    return __cards[i];
+    for(i in newCards)__cards[i] = newCards[i];
+    return __cards[c];
   }
-  if(c in cards)        return cards[c];
-  if(attr.includes(c))  return (i)=>_card[_c2id(i)][c];
-  if(stats.includes(c)) return ([i,l])=>_card[i].stats[c]?.[l-1];
-  if(c == 'mana')       return (i)=>[_card[_c2id(i)].stats.mana].flat()[0];
-  if(c == 'abilities')  return ([i,l])=>_card[i].stats?.abilities?.slice(0,l)?.flat()||[];
+  if(attr.includes(c))  return (i)=>_card[_c2id(i)-1][c];
+  if(stats.includes(c)) return ([i,l])=>_card[i-1].stats[c]?.[l-1];
+  if(c == 'mana')       return (i)=>[_card[_c2id(i)-1].stats.mana].flat()[0];
+  if(c == 'abilities')  return ([i,l])=>_card[i-1].stats?.abilities?.slice(0,l)?.flat()||[];
   if(c == 'basic')      return cards.filter(c=>c.editions.match(/7|4/)&&c.rarity<3).map(c=>c.id);
   if(c == 'basicCards') return Object.fromEntries(cards.basic.map(c=>[c,1]));
 }})

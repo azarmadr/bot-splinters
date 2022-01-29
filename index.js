@@ -186,7 +186,7 @@ const preMatch=user=>({Player,settings})=>{
       user.quest = 0;
     }
   }
-  table([{Rating:Player.rating,ECRate:erc,t:(args.t-Date.now())/36e5,et:(99.81-erc)/12/settings.dec.ecr_regen_rate,...(completed_items&&{Quest:name,completed_items,total_items})}]);
+  table([{Rating:Player.rating,ECRate:erc,t:(args.t-Date.now())/36e5,et:(user.et=(100-erc)/12/settings.dec.ecr_regen_rate),...(completed_items&&{Quest:name,completed_items,total_items})}]);
 }
 const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
   card.owned.filter(owned=>
@@ -199,14 +199,17 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
   await checkForMissingConfigs();
   for(let [env,arg] of [['CLOSE_AFTER_ERC','c'],['SKIP_REPLAY','sr'],['HEADLESS','h'],['KEEP_BROWSER_OPEN'],['SKIP_PRACTICE','sp'],['QUEST_PRIORITY'],['CLAIM_SEASON_REWARD'],['CLAIM_REWARDS'],['UPDATE_BATTLE_DATA','ubd']])
     process.env[env]=(args[arg]??JSON.parse(process.env[env]?.toLowerCase()??false))||'';
+  const tableList =['account','erc','et','won','cp','dec','rating','netWon','decWon','w','l','d',/*'w_p','l_p','d_p'*/], toDay = new Date().toDateString();
+  const userData=require('./data/user_data.json');
   let users = process.env.ACCOUNT.split(',').map((account,x)=>{
+    const u = (userData[toDay]??={})?.[account];
     if(!(args.su??process.env.SKIP_USERS??'').split(',').includes(account))return{
-        account,
-        password:process.env.PASSWORD.split(',')[x],
-        login:process.env?.EMAIL?.split(',')[x],
-        w:0,l:0,d:0,w_p:0,l_p:0,d_p:0,won:0,decWon:0,netWon:0,
-        erc:100,rating:0,isStarter:0,isRanked:1,claimQuestReward:[],claimSeasonReward:0,
-      }
+      account,
+      password:process.env.PASSWORD.split(',')[x],
+      login:process.env?.EMAIL?.split(',')[x],
+      w:u?.w??0,l:u?.l??0,d:u?.d??0,w_p:0,l_p:0,d_p:0,won:0,decWon:u?.decWon??0,netWon:u?.netWon??0,
+      erc:100,rating:u?.rating??0,dec:u?.dec??0,isStarter:0,isRanked:1,claimQuestReward:[],claimSeasonReward:0,
+    }
   }).filter(x=>x);
   if('t'in args)args.t = args.t*60*60000+Date.now();
   log('Opening a browser');
@@ -238,8 +241,8 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
       })
       await page.evaluate('SM.Logout()');
     }
-    const tableList =['account','dec','erc','cp','rating','won','netWon','decWon','w','l','d',/*'w_p','l_p','d_p'*/];
-    table(users.map(u=>Object.fromEntries(tableList.map(x=>[x,u[x]]))));
+    table(users.map(u=>Object.fromEntries(tableList.map((x,i)=>[x,i>3?((userData[toDay][u.account]??={})[x]=u[x]):u[x]]))));
+    require('jsonfile').writeFileSync('./data/user_data.json',userData);
     if(!process.env.KEEP_BROWSER_OPEN)browser.close();
     await battles.fromUsers(users.filter(u=>!process.env.SKIP_PRACTICE||u.isRanked).map(user=>user.account),{depth:1});
     log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
