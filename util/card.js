@@ -15,6 +15,7 @@ const _card = new Proxy(__cards,{ get: (cards, c)=>{
 
   if(c in cards)        return cards[c];
   else if(Number.isInteger(+c)){
+    log('Getting new cards');
     const newCards = sf("https://api.splinterlands.io/cards/get_details",{
       headers: { Accept: 'application/vnd.citationstyles.csl+json' }}).json();
     writeFileSync('./data/cards.json',newCards);

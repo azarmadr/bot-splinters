@@ -234,7 +234,7 @@ const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
         if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
       }
       if(!process.env.SKIP_PRACTICE||user.isRanked)await startBotPlayMatch(page,user).then(()=>console.log({
-        '[]++++':'['+Array(9).fill(';;;;').join('')+'>','<~~~~~~~~':'|(xxxxx)'})).catch(async e=>{
+        '      ':'['+Array(9).fill('    ').join(' ')+'>','<        ':'|(xxxxx)'})).catch(async e=>{
         log(e,'failed to submit team, so waiting for user to input manually and close the session')
         await sleep(1.6e4);
         throw e;//can we continue here without throwing error

@@ -54,19 +54,18 @@ const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgat
       const { collection_power, starter_pack_purchase, balances, leagues, rating} =
         await page.evaluate(`new Promise(r=>r({...SM.Player,...SM.settings}))`);
       //console.table(balances)
-      let cp0=0,cp1=0,cpu;
+      let cp0=0,cp1=0;
       for(let {min_rating, min_power} of leagues)if(min_rating<rating){
         [cp1,cp0] = [min_power,cp1];_dbug.tt.cp = {cp0,cp1,rating,min_rating};
       }
       delete _dbug.tt.cp;
-      args.c=args.l?cp1:cp0;
-      log(args.l,args.c);
       if (!starter_pack_purchase || collection_power >= args.c) {
         users.splice(idx, 1);
         await page.evaluate("SM.Logout()");
         continue;
       }
-      const cp = Math.max(101,args.c - collection_power);
+      log({cpu:(args.c??args.l?cp1:cp0),collection_power});
+      const cp = Math.max(101,(args.c??args.l?cp1:cp0) - collection_power);
       log(cp,args.c);
       _dbug.tt.userSummary = {
         account,
@@ -85,7 +84,7 @@ const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgat
 
       const minx = await page.$$eval(
         ".card.card_market",
-        (a, cp,card_ids,) =>
+        (a, cp,card_ids,g) =>
           a.reduce((minx, x) => {
             let [card_detail_id, gold, edition] = [
               ...(x.onclick + "").matchAll(/\((.*)\)/g),
@@ -100,14 +99,15 @@ const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgat
               gold,
               edition,
             });
+            console.log(card_ids.length,card_ids);
             let lp = parseFloat(x.innerText.match(/\d+.\d+/));
-            if (c < cp && (gold||!card_ids.includes(card_detail_id)
+            if (c < cp && (g?!gold:1)&& (gold||card_ids.includes(card_detail_id)
               //&&SM.cards.find(x=>x.id==card_detail_id).rarity>2
             ))
               minx.push([ c, lp,(0.0001+lp)/SM.settings.dec_price,card_detail_id,gold,edition]);
             return minx.sort((a,b)=>b[0]/b[1]-a[0]/a[1]).slice(0,3);
           }, []),
-        cp,args.g?[]:card_ids,
+        cp,args.i?[]:card_ids,args.g
       );
       console.table(minx.map(x=>[...x,_card.name(x[3])]));
       for(let [_,lpDoll,lpDec,...cardDetails] of minx){try{
@@ -143,10 +143,10 @@ const cb=acc=>c=>!c.owned.filter(o=>o.delegated_to==acc||o.player==acc&&o.delgat
           await sleep(333);
           await page.waitForSelector(".loading", { hidden: true, timeout: 1e5 });
         }
-        await sleep(81e1);
+        await sleep(81e2);
       }catch(e){log(e)}}
       if(users.length>1)await page.evaluate("SM.Logout()");
-      await sleep(27e3);
+      await sleep(81e3);
     }
     delete _dbug.tt.userSummary;
   }

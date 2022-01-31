@@ -25,12 +25,13 @@ function filterOutByMana(byMana=99){
 const dotP=(x,y)=>Object.keys(x).reduce((sc,k)=>sc+x[k]*y[k],0)
 let defaultScores = {w:0,_w:0,l:0,_l:0,d:0,_d:0,count:0};
 
+const _defGetter=x=>new Proxy({},{get:(t,n)=>t.hasOwnProperty(n)?t[n]:x});
 const teamScores = (nm,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1.1,d:-0.5},xer={r:1.2,s:6},mana_cap,inactive,_scoreAll,card_r}={}) => {
   const scores = new AKMap();
-  const setScores = (t,t1,p,xr=1)=>{
-    let teams = [t,t1].map(x=>x.split(',').map(Number));
+  const setScores = (s,t,p,xr=1)=>{
+    let teams = [s,t].map(x=>x.split(',').map(Number));
     const sm = teams.reduce((s,x)=>s+_score.filterTeamByRules(x,card_r)/4+_team.isActive(x,inactive)/4,0);
-    if(!sm)return;
+    if(sm<1/2)return;
     let [w,l] = teams.map((t,_x)=>(t.some((c,x)=>x%2?0:(c in oppCards))?_score.Xer(t,xer.r)/mana_cap:1)*
       (_team.mana(t)/mana_cap)**(_x?-1:1)*sm
     );
@@ -50,16 +51,18 @@ const teamScores = (nm,{cardscores={},oppCards,myCards,res2Score={w:1,l:-1.1,d:-
     _tail.k=[];
     _dbug.tt.hrc = {level:_tail.l,nodes:Object.keys(nm).length};
     let inm = _score.nm2inm(nm);
-    for(let t in nm)if(!inm.has(t)){
-      _tail.k.push(t);
-      for(let[t1,p] of Object.entries(nm[t]))setScores(t,t1,p,(_tail.l+1)/(_tail.l+3));
-      delete nm[t];
-      scores.delete(t.split(',').map(Number));
+    for(let s in nm)if(!inm.has(s)){
+      _tail.k.push(s);
+      const up = (scores.get(s.split(',').map(Number))/Object.keys(nm[s]).length)||0;
+      for(let[t,p] of Object.entries(nm[s]))
+        setScores(s,t,p,up+(_tail.l+1)/(_tail.l+3));
+      delete nm[s];
+      scores.delete(s.split(',').map(Number));
     }
     _tail.l++;
   }while(_tail.k.length);
   _dbug.tt.hrc.forEach((x,i,a)=>x['#DanglingNodes']=x.nodes-a[i+1]?.nodes);delete _dbug.tt.hrc;
-  for(let t in nm)for(let[t1,p]of Object.entries(nm[t]))setScores(t,t1,p);
+  for(let s in nm)for(let[t,p]of Object.entries(nm[s]))setScores(s,t,p);
   /* for research
   const xerDist = {};
   scores.forEach((s,t)=>xerDist[_score.Xer(t)]=Math.max(xerDist[_score.Xer(t)]||0,s.count))
@@ -82,10 +85,8 @@ const sortMyCards=cardscores=>{
   }
 }
 const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCards=_card.basicCards,sortByWinRate,wBetterCards}) => {
-  //ruleset matching could be improved
-  //Object.assign(oppCards,_card.basicCards);
   const {attr_r,card_r}=_score.xtrctRules(ruleset);
-  const res2Score = {w:1,d:-0.81,l:-1.27},xer = {r:1.27,s:4};
+  const res2Score = {w:1,d:-0.81,l:-1.27},xer = {r:1.27,s:5};
   _dbug.table({RuleSet:{ruleset,card_r,attr_r}})
   var filteredTeams=[],cardscores={},battlesList = battles;
   for(let path of attr_r)battlesList=battlesList[path];//This assumes object exists
