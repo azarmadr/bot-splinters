@@ -1,6 +1,6 @@
 {
   "name": "bot-splinters",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "run `_cleanUpBattle.js` and update your battleData after updating\nLogin rules have changed. So make sure you have proper password",
   "main": "index.js",
   "scripts": {
