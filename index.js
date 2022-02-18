@@ -1,12 +1,18 @@
-//'use strict';
-require('dotenv').config()
-const puppeteer = require('puppeteer');
+// Parsing .env
+const args = require('minimist')(process.argv.slice(2));
+const l2s=s=>s.split('_').map(x=>x[0]).join('').toLowerCase();
+Object.entries(require('dotenv').config().parsed).map(([e,v])=>args[e]??=v.includes(',')
+  ?(args[l2s(e)]??v).split(',') :args[l2s(e)]??=JSON.parse(v)
+);
+if(!['ACCOUNT','PASSWORD'].every(e=>args[e]))
+  throw console.error('Missing ACCOUNT/PASSWORD,the REQUIRED parameter(s) in .env' +
+    '\nsee `cat .env-example` for help',args);
 
+const puppeteer = require('puppeteer');
 const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
 const battles = require('./battles-data');
-const {_card, log, _team, _arr,_func:{retryFor}, sleep,_dbug:{table,tt}} = require('./util');
-const args = require('minimist')(process.argv.slice(2));
+const {_card, log, _team, _arr,_func:{retryFor}, sleep,_dbug:{table}} = require('./util');
 
 // Logging function with save to a file
 var _file='log.txt';
@@ -32,13 +38,10 @@ function requestFocus(page) {
   });
 }
 
-function dequeue() {
-  const nextFocus = focusQueue.shift();
-  if (nextFocus) nextFocus(); else queueStarted = false;
-}
+function dequeue() { focusQueue.length?focusQueue.shift()():queueStarted = false; }
 
 let __goOn=1;
-const sleepingTime = 6e4 * (args.i ?? process.env.MINUTES_BATTLES_INTERVAL ?? 27);
+const sleepingTime = 6e4 * (args.MINUTES_BATTLES_INTERVAL ?? 27);
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
@@ -46,10 +49,10 @@ async function checkForUpdate() {
       const gitVersion = v.version.replace(/(\.0+)+$/,'').split('.');
       const version = require('./package.json').version.replace(/(\.0+)+$/,'').split('.');
       if(_arr.checkVer(gitVersion,version)){
-        const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
-        const question = util.promisify(rl.question).bind(rl);
-        log(gitVersion.join('.'),version.join('.'))
-        let answer = await question("Newer version exists!!!\nDo you want to continue? (y/N)")
+        const rl = require("readline/promises")
+          .createInterface({ input: process.stdin, output: process.stdout });
+        let answer = await rl.question(gitVersion.join('.')+version.join('.')
+          +"Newer version exists!!!\nDo you want to continue? (y/N)\n")
         log({'Note!!':require('./package.json').description})
         if(answer.match(/y/gi)) log('Continuing with older version');
         else if(answer.match(/n/gi)) throw new Error('git pull or get newer version');
@@ -57,19 +60,9 @@ async function checkForUpdate() {
       }
     })
 }
-async function checkForMissingConfigs() {
-  await [['ACCOUNT'],['PASSWORD'],['PAUSE_BEFORE_SUBMIT','p'],['ERC_THRESHOLD','e']]
-    .reduce((memo,[e,a])=>memo.then(async()=>{
-      process.env[e]=args[a]??process.env[e];
-      if (!process.env[e]) {
-        log(`Missing ${e} parameter in .env - see updated .env-example!`);
-        await sleep(60000);
-      }else if(!e.includes('PASSWORD')) log(`${e}:`,process.env[e]);
-    }),Promise.resolve())
-}
 async function getBattles(player) {
   const cl = 55;
-  if(process.env.UPDATE_BATTLE_DATA)
+  if(args.UPDATE_BATTLE_DATA)
     return battles.fromUsers(player,{cl})
   else {
     const blNew = battles.fromUsers(player,{fn:'-new',cl});
@@ -81,9 +74,12 @@ async function getBattles(player) {
 async function createBrowser(headless) {
   const browser = await puppeteer.launch({
     headless,
-    args: process.env.CHROME_NO_SANDBOX === 'true' ? ["--no-sandbox"] : ['--disable-web-security',
-      '--disable-features=IsolateOrigins',
-      ' --disable-site-isolation-trials'],
+    args: [
+      ...(args.PPTR_USER_DATA_DIR ? [`--user-data-dir=${args.PPTR_USER_DATA_DIR[0]}`]:[]),
+      ...(args.CHROME_NO_SANDBOX ? ['--no-sandbox'] : [
+        '--disable-web-security', '--disable-features=IsolateOrigins', ' --disable-site-isolation-trials'
+      ]),
+    ]
   });
   await browser.defaultBrowserContext().overridePermissions('https://splinterlands.com/',['notifications']);
   const page = await browser.newPage();
@@ -117,14 +113,14 @@ async function teamSelection(teamToPlay,{page,inactive,ruleset,notifyUser}){
     page.waitForSelector('.item--summoner.item--selected',{timeout:1e3})
   ))
   if (_card.color(Summoner) === 'Gold') {
-    const splinter = _team.splinter(teamToPlay.team,inactive); log({splinter});
+    const splinter = _team.splinter(inactive)(teamToPlay.team); log({splinter});
     await retryFor(3,3000,!__goOn,async()=>page.click(`[data-original-title="${splinter}"] label`))
   }
   for(const[mon]of Monsters){
     //log({[`Playing ${_card.name(mon)}`]:mon})
     await retryFor(3,3000,__goOn,async()=>page.click(`[card_detail_id="${mon}"] img`))
   }
-  if(notifyUser)await sleep(Math.min(60,Math.abs(process.env.PAUSE_BEFORE_SUBMIT))*999);
+  if(notifyUser)await sleep(Math.min(60,Math.abs(args.PAUSE_BEFORE_SUBMIT))*999);
   await retryFor(3,300,__goOn,async()=>page.click('.btn-green')).catch(log);
   log('Team submitted, Waiting for opponent');
 }
@@ -136,21 +132,20 @@ async function startBotPlayMatch(page,user) {
   const oppCards = await SM.cards(opponent_player).then(cards2Obj(opponent_player))
     .then(c=>Object.fromEntries(Object.entries(c).filter(x=>!inactive.includes(_card.color(x)))))
     .catch(e=>log(e,'Opp Cards Failed')??{})
-  table([{mana_cap, ruleset, inactive,...user.quest,[`${user.account} Deck`]:Object.keys(myCards).length,[`${opponent_player} Deck`]:Object.keys(oppCards).length}])
-  if(Object.keys(oppCards).length)table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{
-    return{[_card.type(Id).slice(0,3)]:_card.name(Id),Id,Lvl,[_card.color(Id).slice(0,2)]:_card.abilities([Id,Lvl]).join()}})
-    .sort((a,b)=>('Mon'in a)-('Mon'in b)))
+  console.table([{mana_cap, ruleset, inactive,...user.quest,[`${user.account} Deck`]:Object.keys(myCards).length,[`${opponent_player} Deck`]:Object.keys(oppCards).length}])
+  //if(Object.keys(oppCards).length)table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{ return{[_card.type(Id).slice(0,3)]:_card.name(Id),Id,Lvl,[_card.color(Id).slice(0,2)]:_card.abilities([Id,Lvl]).join()}}) .sort((a,b)=>('Mon'in a)-('Mon'in b)))
   var battlesList =await getBattles(opponent_player).catch(e=>{log(e);return require('./data/battle_data.json')});
   const pt = playableTeams(battlesList,{mana_cap,ruleset,inactive,quest:user.quest,oppCards,myCards,sortByWinRate:user.isStarter||!user.isRanked});
-  table(pt.slice(0,5).map(({team,...s})=>({...team.map(c=>_card.name(c)+c[1]),...s})));
+  table(pt.slice(0,5).map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
+  table(pt.sort((a,b)=>b.s_-a.s_).slice(0,5).map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
   const teamToPlay = pt[0];
   // team Selection
   const rf = await requestFocus(page);
-  await teamSelection(teamToPlay,{page,ruleset,inactive,notifyUser:!process.env.HEADLESS&&user.isRanked&&!user.isStarter}); // Eof teamSelection
+  await teamSelection(teamToPlay,{page,ruleset,inactive,notifyUser:!args.HEADLESS&&user.isRanked&&!user.isStarter}); // Eof teamSelection
   await Promise.any([
     page.waitForSelector('#btnRumble', { timeout: 16e4 })
     .then(()=>page.evaluate(`startFightLoop();localStorage.setItem('sl:battle_speed', 6)`))
-    .then(()=>process.env.SKIP_REPLAY||
+    .then(()=>args.SKIP_REPLAY||
       page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(2e3*mana_cap)})),
     page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(3e5)}),
   ]).then(()=>page.evaluate('SM.CurrentView.data').then(postBattle(user)))
@@ -167,8 +162,8 @@ const preMatch=user=>({Player,settings})=>{
   user.isStarter = !Player.starter_pack_purchase;
   user.cp = Player.collection_power;
   user.claimSeasonReward =
-    process.env.CLAIM_SEASON_REWARD && Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
-  user.isRanked = user.isStarter||erc>81&&user.rating<400||erc>(args.e??process.env.ERC_THRESHOLD)||
+    args.CLAIM_SEASON_REWARD && Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
+  user.isRanked = user.isStarter||erc>81&&user.rating<400||erc>args.ERC_THRESHOLD||
     args.t-Date.now()>(99.81-erc)*3e5/settings.dec.ecr_regen_rate
 
   //if quest done claim reward
@@ -178,7 +173,7 @@ const preMatch=user=>({Player,settings})=>{
     var {name,completed_items,total_items}=Player.quest;
     const quest = settings.quests.find(x=>x.name==name)
     if(completed_items<total_items){
-      if((Number(args.q)||3)*Math.random()<1&&process.env.QUEST_PRIORITY)
+      if((Number(args.q)||3)*Math.random()<1&&args.QUEST_PRIORITY)
         user.quest = {type:quest.objective_type,color:quest.data.color,value:quest.data.value};
     }
     if(completed_items>=total_items){
@@ -188,66 +183,67 @@ const preMatch=user=>({Player,settings})=>{
   }
   table([{Rating:Player.rating,ECRate:erc,t:(args.t-Date.now())/36e5,et:(user.et=(100-erc)/12/settings.dec.ecr_regen_rate),...(completed_items&&{Quest:name,completed_items,total_items})}]);
 }
-const cards2Obj=acc=>cards=>Object.fromEntries(cards.map(card=>
-  card.owned.filter(owned=>
+const cards2Obj=acc=>cards=>cards
+  .flatMap(card=>card.owned.filter(owned=>
     !(owned.market_id && owned.market_listing_status === 0) &&
     (!owned.delegated_to || owned.delegated_to === acc) &&
     (!(owned.last_used_player!==acc&&Date.parse(owned.last_used_date)>Date.now()-86400000))
-  ).map(owned=>[card.id,owned.level]).sort((a,b)=>a[1]-b[1])
-).flat())
+  ))
+  .reduce((agg,{card_detail_id,level})=>Object.assign(
+    agg,agg[card_detail_id]>level?agg[card_detail_id]:{[card_detail_id]:level}
+  ),{})
 ;(async () => {
-  await checkForMissingConfigs();
-  for(let [env,arg] of [['CLOSE_AFTER_ERC','c'],['SKIP_REPLAY','sr'],['HEADLESS','h'],['KEEP_BROWSER_OPEN'],['SKIP_PRACTICE','sp'],['QUEST_PRIORITY'],['CLAIM_SEASON_REWARD'],['CLAIM_REWARDS'],['UPDATE_BATTLE_DATA','ubd']])
-    process.env[env]=(args[arg]??JSON.parse(process.env[env]?.toLowerCase()??false))||'';
   const tableList =['account','erc','et','won','cp','dec','rating','netWon','decWon','w','l','d',/*'w_p','l_p','d_p'*/], toDay = new Date().toDateString();
   const userData=require('./data/user_data.json');
-  let users = process.env.ACCOUNT.split(',').map((account,x)=>{
+  let users = args.ACCOUNT.map((account,i)=>{
     const u = (userData[toDay]??={})?.[account];
-    if(!(args.su??process.env.SKIP_USERS??'').split(',').includes(account))return{
+    return{
       account,
-      password:process.env.PASSWORD.split(',')[x],
-      login:process.env?.EMAIL?.split(',')[x],
-      w:u?.w??0,l:u?.l??0,d:u?.d??0,w_p:0,l_p:0,d_p:0,won:0,decWon:u?.decWon??0,netWon:u?.netWon??0,
-      erc:100,rating:u?.rating??0,dec:u?.dec??0,isStarter:0,isRanked:1,claimQuestReward:[],claimSeasonReward:0,
+      password:args.PASSWORD[i],
+      login:args?.EMAIL[i],
+      w:u?.w??0,l:u?.l??0,d:u?.d??0,w_p:0,l_p:0,d_p:0,won:0,decWon:u?.decWon??0,netWon:u?.netWon??0,erc:100,
+      rating:u?.rating??0,dec:u?.dec??0,isStarter:0,isRanked:1,claimQuestReward:[],claimSeasonReward:0,
     }
-  }).filter(x=>x);
+  }).filter(x=>!args.SKIP_USERS?.includes(x.account));
   if('t'in args)args.t = args.t*60*60000+Date.now();
   log('Opening a browser');
-  let browser = await createBrowser(process.env.HEADLESS);
+  let browser = await createBrowser(args.HEADLESS);
   let page = (await browser.pages())[1];
 
-  while (true) {
+  while(!args.CLOSE_AFTER_ERC||users.some(x=>!x.isStarter&&x.isRanked)){
     await checkForUpdate();
-    for (const user of users.filter(u=>!process.env.SKIP_PRACTICE||u.isRanked)) {
+    for (const user of users
+      .filter(u=>!args.SKIP_PRACTICE||u.isRanked)
+    ) {
       if(browser.process().killed){
-        browser = await createBrowser(process.env.HEADLESS);
+        browser = await createBrowser(args.HEADLESS);
         page = (await browser.pages())[1];
       }
-      await page.goto('https://splinterlands.com/');
+      await page.goto('https://splinterlands.com/',{waitUntil: 'networkidle0'});
       SM._(page);
-      await SM.login(user.login || user.account,user.password)
+      await SM.login(user.login || user.account,user.password);
       await page.evaluate('SM.ShowBattleHistory()'); await sleep(1729);
       await SM.cards(user.account)
       await page.evaluate('Object.assign({},{Player:SM.Player,settings:SM.settings})').then(preMatch(user))
-      if(process.env.CLAIM_REWARDS){
+      if(args.CLAIM_REWARDS){
         if(user.claimSeasonReward)                         await page.evaluate('claim()');
         if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
       }
-      if(!process.env.SKIP_PRACTICE||user.isRanked)await startBotPlayMatch(page,user).then(()=>console.log({
+      if(!args.SKIP_PRACTICE||user.isRanked)await startBotPlayMatch(page,user).then(()=>console.log({
         '      ':'['+Array(9).fill('    ').join(' ')+'>','<        ':'|(xxxxx)'})).catch(async e=>{
         log(e,'failed to submit team, so waiting for user to input manually and close the session')
-        await sleep(1.6e4);
+        await sleep(81e3);
         throw e;//can we continue here without throwing error
       })
       await page.evaluate('SM.Logout()');
     }
     table(users.map(u=>Object.fromEntries(tableList.map((x,i)=>[x,i>3?((userData[toDay][u.account]??={})[x]=u[x]):u[x]]))));
     require('jsonfile').writeFileSync('./data/user_data.json',userData);
-    if(!process.env.KEEP_BROWSER_OPEN)browser.close();
-    await battles.fromUsers(users.filter(u=>!process.env.SKIP_PRACTICE||u.isRanked).map(user=>user.account),{depth:1});
+    if(!args.KEEP_BROWSER_OPEN)browser.close();
+    await battles.fromUsers(users.filter(u=>!args.SKIP_PRACTICE||u.isRanked).map(user=>user.account),{depth:1});
     log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
     log('--------------------------End of Session--------------------------------\n\n');
-    if(process.env.CLOSE_AFTER_ERC&&users.every(x=>x.isStarter||!x.isRanked)){ await browser.close(); break; }
     await sleep(sleepingTime);
   }
+  await browser.close();
 })()

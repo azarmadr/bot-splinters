@@ -37,10 +37,17 @@ _dbug.timer =class{
     return t
   }
 }
+const isEObj=o=>o&&Object.keys(obj).length === 0&&Object.getPrototypeOf(obj) === Object.prototype;
 const _logTimer = new _dbug.timer();
 const log=(...m)=>console.log(_logTimer._d,(new Error()).stack.split("\n").find((c,i)=>
   !c.includes('_dbug')&&i==2||!c.includes('tt')&&i==3||i==4).match(/[^:\\/]+:\d+/)?.[0],...m);
 
+_dbug.f = (f,cb) => (...args)=>{
+  const ret = f(...args);
+  let _ = {args:args.slice(0,f.length),ret};
+  log('dbug',{..._,...(cb&&{cb:cb(_)})});
+  return ret
+}
 _dbug.in1 =(...m)=>{
   rl.clearLine(process.stdout,0)
   rl.cursorTo(process.stdout,0);
@@ -54,14 +61,12 @@ _dbug.table = m => {
   try{rl.moveCursor(process.stdout,0,-1);log();}catch(e){console.warn(e)}
 }
 _dbug.tt = new Proxy({},{
-  set: (obj, prop, v)=>{
-    if(obj.hasOwnProperty(prop))obj[prop].push(v);
-    else obj[prop] = [v];
-  },
-  deleteProperty: (obj, prop)=>{if(prop in obj){
-    _dbug.table(obj[prop]);
-    delete obj[prop];
-  }}
+  set:            (obj, prop, v) => obj.hasOwnProperty(prop)?obj[prop].push(v):obj[prop]=[v],
+  deleteProperty: (obj, prop)    => (prop in obj)&&(_dbug.table(obj[prop]),delete obj[prop]),
+});
+_dbug.$1s = new Proxy({},{
+  set:(obj,prop,v)=>obj[prop]??=1+log(v),
+  get:(obj,prop)  =>f=>(...args)=>obj[prop]??=f(...args)
 });
 _func.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
   if(!--n){
@@ -75,7 +80,16 @@ _func.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
       _func.retryFor(n,to,continueAfterAllRetries,func,err))
   })
 }
+_func.cached = (fn, map = {}) => (...arg) => {
+  const inCache = (arg.length==1?arg:JSON.stringify(arg)) in map;
+  if (!inCache) {
+    const value = fn(...arg);
+    return map[(arg.length==1?arg:JSON.stringify(arg))] ??=
+      (typeof value === 'function' ? _func.cached(value, {}) : value);
+  }
 
+  return map[arg.length==1?arg:JSON.stringify(arg)];
+};
 _elem.click = async function(page, selector, timeout = 20000, delayBeforeClicking = 0) {
   try {
     const elem = await page.waitForSelector(selector, { timeout });

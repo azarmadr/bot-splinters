@@ -25,11 +25,15 @@
     "dotenv": "^10.0.0",
     "jsonfile": "^6.1.0",
     "puppeteer": "^13.1.2",
+    "ramda": "^0.28.0",
     "sync-fetch": "^0.3.1"
   },
   "devDependencies": {
     "asciichart": "^1.5.25",
-    "glicko2": "^0.8.6",
-    "jest": "^27.4.5"
+    "cytoscape": "^3.20.0",
+    "eslint": "^8.9.0",
+    "eslint-plugin-fp": "^2.3.0",
+    "jest": "^27.4.5",
+    "parcel": "^2.2.1"
   }
 }

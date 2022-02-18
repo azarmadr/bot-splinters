@@ -6,6 +6,7 @@ sm._  =h=>page=h;
 sm.__ = async function(p=page){return p.evaluate('SM');}
 sm.login = async function(acc,pwd){
   log({Logging:acc})
+  //await sleep(3e4); await page.evaluate(`new Promise(res=>res(SM.Logout()))`);
   if(acc.indexOf('@')>0)
     await page.evaluate(`new Promise((res,rej)=>
       SM.EmailLogin('${acc}','${pwd}').then(r=>(r&&r.success)?res(r):rej(r.error))

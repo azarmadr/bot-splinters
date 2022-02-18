@@ -1,8 +1,15 @@
+const R = require('ramda');
 const _arr = {
   eq:(a,b)=>a.length===b.length&&a.every((v,i)=>Array.isArray(v)?_arr.eq(v,b[i]):v===b[i])
   ,eqSet:(a,b)=>{
     var [aSet,bSet] = [a,b].map(x=>new Set(x.map(JSON.stringify))); // To allow compare array of obj
     return aSet.size===bSet.size&&Array.from(aSet).every(e=>bSet.has(e));
+  }
+  ,subSet:(a,b)=>[b].map(x=>new Set(x.map(JSON.stringify)))
+                    .every(bs=>a.every(ae=>bs.has(JSON.stringify(ae))))
+  ,strictSubSet: (a,b)=>{
+    var [aSet,bSet] = [a,b].map(x=>new Set(x.map(JSON.stringify))); // To allow compare array of obj
+    return Array.from(aSet).every(e=>bSet.has(e))&&Array.from(bSet).some(e=>!aSet.has(e))
   }
   ,cmp: (a,b)=> // return a>b
   a.length === b.length?a.reduce((r,v,i)=>r||(Array.isArray(v)?_arr.cmp(v,b[i]):v-b[i]),0):a.length-b.length
@@ -13,22 +20,18 @@ const _arr = {
     }
     return a.length>b.length
   }
-  ,chunk : (arr, n) => {
-    if(n<=0)throw new Error('First argument to splitEvery must be a positive integer')
-    var result = [],idx = 0;
-    while(idx<arr.length)result.push(arr.slice(idx,idx+=n))
-    return result
-  }
-  ,chunk2:arr=>_arr.chunk(arr,2)
+  ,chunk : R.splitEvery
+  ,chunk2: R.splitEvery(2)
   ,indexOfminBy : (fn=x=>x)=>(idx,x,i,arr)=> arr[idx]===undefined&&fn(x)!==undefined?i:(fn(x)<fn(arr[idx]))?i:idx
-  ,normalizeMut:arr=>{
-    var total = 0;
+  ,normalizeMut:(arr,{toOne}={})=>{
+    var total = 0,xer = toOne?Object.keys(arr).length:1;
     for(i in arr)total+=arr[i];
-    for(i in arr)arr[i]=arr[i]/total;
+    for(i in arr)arr[i]=arr[i]*xer/total;
     return arr;
   }
   ,normalize:arr=>_arr.normalizeMut(arr.slice(0))
 }
+/*
 const _akmap = {}, _obj={};
 
 const AKM  = require('array-keyed-map');
@@ -59,8 +62,10 @@ _akmap.fromPlainObject = obj => {
   }
 }
 
-module.exports = {_arr,_obj,_akmap};
 _obj.invert=o=>Object.fromEntries(Object.entries(o).map(x=>[x[1],x[0]]));
 _obj.withDefault=(fn=(t,n)=>t.hasOwnProperty?t[n]:0)=>{
   return new Proxy({}, { get: fn });
 }
+*/
+
+module.exports = {_arr/*,_obj,_akmap*/};
