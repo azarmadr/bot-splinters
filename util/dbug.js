@@ -37,7 +37,7 @@ _dbug.timer =class{
     return t
   }
 }
-const isEObj=o=>o&&Object.keys(obj).length === 0&&Object.getPrototypeOf(obj) === Object.prototype;
+_dbug.isEObj=o=>o&&Object.keys(obj).length === 0&&Object.getPrototypeOf(obj) === Object.prototype;
 const _logTimer = new _dbug.timer();
 const log=(...m)=>console.log(_logTimer._d,(new Error()).stack.split("\n").find((c,i)=>
   !c.includes('_dbug')&&i==2||!c.includes('tt')&&i==3||i==4).match(/[^:\\/]+:\d+/)?.[0],...m);
@@ -62,7 +62,7 @@ _dbug.table = m => {
 }
 _dbug.tt = new Proxy({},{
   set:            (obj, prop, v) => obj.hasOwnProperty(prop)?obj[prop].push(v):obj[prop]=[v],
-  deleteProperty: (obj, prop)    => (prop in obj)&&(_dbug.table(obj[prop]),delete obj[prop]),
+  deleteProperty: (obj, prop)    => (prop in obj)&&obj[prop].length&&(_dbug.table(obj[prop]),delete obj[prop]),
 });
 _dbug.$1s = new Proxy({},{
   set:(obj,prop,v)=>obj[prop]??=1+log(v),

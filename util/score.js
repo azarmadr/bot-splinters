@@ -48,6 +48,27 @@ _score.nm2inm=nm=>{
   for(let s in nm)for(let t of Object.keys(nm[s]))inm.add(t);
   return inm;
 }
+/* For Weak Magic the table should be as follows: t1 m 1100
+ *                                                   a 1010
+ *                                                t2 m 0x0x
+ *                                                   a 00xx */
+_score.move2Std=(rule='')=>t=>_team(t).every((c,i)=>
+  rule.match(/Back to Basics|Target Practice|Equal Opportunity|Aim True|Earthquake|Weak Magic|Close Range/)&&i<1?true:
+  rule.match(/Melee Mayhem|Super Sneak/)&&i<2?true:
+  rule=='Melee Mayhem'     ?_card.attack(c)==0:
+  rule=='Super Sneak'      ?(_card.attack(c)==0||_card.abilities(c).join().match(/Sneak/)):
+  rule=='Back to Basics'   ?_card.abilities(c).length==0:
+  rule=='Target Practice'  ?!(_card.ranged(c)||_card.magic(c))||_card.abilities(c).join().match(/Snipe/):
+  rule=='Equal Opportunity'?_card.abilities(c).join().match(/Opportunity/):
+  rule=='Aim True'         ?!_card.attack(c)&&!_card.ranged(c)||_card.abilities(c).join().match(/True Strike/):
+  rule=='Earthquake'       ?_card.abilities(c).join().match(/Flying/):
+  rule=='Weak Magic'       ?_card.magic(c)==0://||_card.armor(c)==0): complicated rule.
+  rule=='Close Range'      ?_card.ranged(c)==0||_card.abilities(c).join().match(/Close Range/):
+  rule=='Unprotected'      ?_card.armor(c)<=0:
+  rule=='Fog of War'       ?!_card.abilities(c).join().match(/Snipe|Sneak/):
+  rule=='Healed Out'       ?!_card.abilities(c).join().match(/Triage|Tank Heal|Heal/):
+  false
+)
 _score.cardRules=(rule='')=>c=>
   rule.includes('Lost Magic')   ?_card.magic(c)==0     :rule.includes('Up Close & Personal')?_card.attack(c)>0 :
   rule.includes('Broken Arrows')?_card.ranged(c)==0    :rule.includes('Keep Your Distance') ?_card.attack(c)==0:
@@ -106,7 +127,7 @@ _score.betterTeam=(ruleset,mycards,mana_cap)=>t=>{
   }
     return nt;
   },[...t])
-  if(mana_cap-_team.mana(nTeam)){
+  if(nTeam.length<7&&mana_cap>_team.mana(nTeam)){
     let c = filteredCards(nTeam)().reduce((bc,c)=>cps(bc,'score')<cps(c,'score')?c:bc,null)
     if(c)nTeam.push(c);
   }

@@ -1,5 +1,6 @@
 //const {readFileSync,writeFileSync} = require('jsonfile');
-const {log,_score,_team,_card,_arr,_dbug} = require('./util');
+const R = require('ramda')
+const {log,_score,_team,_card,_func,_dbug} = require('./util');
 function sortByProperty(sortByWinRate){
   return (...e)=>{
     const[a,b]    =e.map(x=>Array.isArray(x)?x[1]:x);
@@ -51,25 +52,45 @@ const teamScores = (nm,{/*cardscores={},*/oppCards,myCards,res2Score={w:1,l:-1.1
     )
     .map(([t,s])=>({team:_team(t),...s,score:_score.Xer(t,xer.s)*dotP(res2Score,s)/mana_cap**3}))
 }
-const pos=(i,l)=>i>l/2?i-l:i;
+const pos=_func.cached((i,l)=>i>l/2?i-l:i);
+const attrRules=_func.cached(attr_r=>{
+  const ruleCombos=R.uniq([['Standard'],...R.splitEvery(1,attr_r),attr_r])
+  return {
+    path:mana=>ruleCombos.map(R.append(mana)),
+    predicate:R.reverse(ruleCombos).map(R.when(R.equals(['Standard']),R.always([])))
+  }
+})
+const mergeBattlesByPredicate=(battles,predicate)=>(nm,path,i)=>{
+  let p=t=>predicate[i].map(_score.move2Std).every(f=>f(t));
+  let b=R.path(path,battles)??{}
+  let count = {c:0,pr:predicate[i].join(),path:path.join()}
+  //log(predicate[i].map(_score.move2Std))
+  //R.forEachObjIndexed(1,R.pickBy(predicate,b));
+  for(let s in b)if(p(s))for(let t in b[s])if(p(t)){
+    (nm[s]??={})[t] = b[s][t]
+    count.c++
+  }
+  if(count.c)_dbug.tt.mbp = count
+  return nm
+}
 const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCards=_card.basicCards,sortByWinRate,wBetterCards}) => {
   const {attr_r,card_r}=_team.getRules(ruleset);
   if(ruleset.includes('Taking Sides'))inactive+='Gray';
   const res2Score = {w:1,d:-0.81,l:-1.27},xer = {r:1.27,s:5};
   //_dbug.table({RuleSet:{ruleset,card_r,attr_r}})
-  var filteredTeams=[],/*cardscores={},*/battlesList = battles;
-  for(let path of attr_r)battlesList=battlesList[path];//This assumes object exists
-  for(let mana of Object.keys(battlesList).filter(x=>x<=mana_cap&&Number(x)).sort((a,b)=>b-a)){
-    //log({mana});
+  var filteredTeams=[]/*,cardscores={}*/;
+  const {path,predicate} = attrRules(attr_r);
+  const nm=_func.cached(mana=>path(mana).reduce(mergeBattlesByPredicate(battles,predicate),{}));
+  for(let mana of R.range(12,mana_cap+1).reverse())if(!R.isEmpty(nm(mana))){
     res2Score.l*=mana_cap/mana;res2Score.w*=mana/mana_cap;res2Score.d*=mana_cap/mana;
     xer.r*=mana/mana_cap;xer.s*=mana/mana_cap;
-    teamScores(battlesList[mana]
-      ,{res2Score,xer,mana_cap,inactive,/*cardscores,*/myCards,oppCards,card_r})
+    teamScores(nm(mana)
+      ,{res2Score,xer,mana_cap,inactive/*,cardscores*/,myCards,oppCards,card_r})
       .sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
       .forEach(x=>filteredTeams.push(x))
     _dbug.tt.score = {'#Scores':filteredTeams.length,...res2Score,...xer}
     if(sortByWinRate||(filteredTeams.length>27))break;
-  }delete _dbug.tt.score;
+  }delete _dbug.tt.score;delete _dbug.tt.mbp;
   const cardscores = filteredTeams.reduce((cs,{team,score})=>{
     team.forEach((x,i,{length})=>
       (cs[x]??={score:0},cs[x][pos(i,length)]??=0,cs[x].score+=score,cs[x][pos(i,length)]+=score));
@@ -80,10 +101,8 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
   filteredTeams.sort(sortByProperty(sortByWinRate)).splice(3+filteredTeams_length/27)
   filteredTeams.forEach((_,i,arr)=>arr[i].rank=i);
   log('trimming', {filteredTeams_length},'to',filteredTeams.length)
-  _score.teamStats(battlesList[mana_cap],filteredTeams);
+  _score.teamStats(nm(mana_cap),filteredTeams);
   if(quest)_score.forQuest(filteredTeams,quest);
-  //log(filteredTeams.reduce(_dbug.f((r,t)=> (r.c++,t.team.every(c=>_score.cardRules(card_r)(c))||r.f++,r),JSON.stringify) ,{c:0,f:0}));
-  //log(filteredTeams[0].team.map(_card.name))
   //writeFile(`data/${player}_${fn}.json`, filteredTeams).catch(log);
   const mycards = Object.entries(myCards)
     .filter(c=>!inactive.includes(_card.color(c))&&_score.cardRules(card_r)(c))

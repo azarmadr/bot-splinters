@@ -1,5 +1,6 @@
+const R = require('ramda')
 const {readFile,writeFile} = require('jsonfile');
-const {log,_arr,_team,_dbug} = require('./util');
+const {log,_arr,_team,_score,_dbug} = require('./util');
 const getJson=(player)=>Promise.race([
   require('async-get-json')(`https://game-api.splinterlands.com/battle/history?player=${player}`)
     .catch(()=>require('async-get-json')(`https://api2.splinterlands.com/battle/history?player=${player}`))
@@ -10,7 +11,7 @@ const _battles = {},_dbugBattles=[];
 var _bc={count:0,pc:0}//,'|Battles':0,'+Battles':0};
 //const __medusa=(m,t)=>(_team.colorSec(t)=='Blue'&&m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
 
-async function getBattles(player = '',bd,minRank=0,drs='') {
+async function getBattles(player = '',bd,minRank=0,drs=''){
   const battleHistory = await getJson(player)
     .then(b=>b.filter(b=>minRank<Math.max(b.player_1_rating_final,b.player_2_rating_final)
       &&!b.details.includes('"type":"Surrender"')
@@ -24,7 +25,9 @@ async function getBattles(player = '',bd,minRank=0,drs='') {
       [t.summoner,...t.monsters].flatMap(m=>[m.card_detail_id,m.level]));
     if(!_arr.eq(t1,t2)){
       let obj = battle_obj;
-      for(let path of [..._team.getRules(b.ruleset).attr_r,b.mana_cap])obj=obj[path]??={};
+      const attr_r= _team.getRules(b.ruleset).attr_r.filter(rs=>![t1,t2].every(_score.move2Std(rs)))
+      if(R.isEmpty(attr_r))attr_r.push('Standard')
+      for(let path of [...attr_r,b.mana_cap])obj=obj[path]??={};
       if(winner=='DRAW'){
         (obj[t1]??={})[t2]??=1;
         (obj[t2]??={})[t1]??=1;
