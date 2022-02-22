@@ -53,20 +53,21 @@ _score.nm2inm=nm=>{
  *                                                t2 m 0x0x
  *                                                   a 00xx */
 _score.move2Std=(rule='')=>t=>_team(t).every((c,i)=>
-  rule.match(/Back to Basics|Target Practice|Equal Opportunity|Aim True|Earthquake|Weak Magic|Close Range/)&&i<1?true:
-  rule.match(/Melee Mayhem|Super Sneak/)&&i<2?true:
+  rule.match(/Armored Up|Back to Basics|Target Practice|Aim True|Earthquake|Weak Magic|Close Range/)&&i<1?true:
+  rule.match(/Melee Mayhem|Super Sneak|Equal Opportunity/)&&i<2?true:
   rule=='Melee Mayhem'     ?_card.attack(c)==0:
   rule=='Super Sneak'      ?(_card.attack(c)==0||_card.abilities(c).join().match(/Sneak/)):
   rule=='Back to Basics'   ?_card.abilities(c).length==0:
   rule=='Target Practice'  ?!(_card.ranged(c)||_card.magic(c))||_card.abilities(c).join().match(/Snipe/):
   rule=='Equal Opportunity'?_card.abilities(c).join().match(/Opportunity/):
-  rule=='Aim True'         ?!_card.attack(c)&&!_card.ranged(c)||_card.abilities(c).join().match(/True Strike/):
+  rule=='Aim True'         ?!_card.attack(c)&&!_card.ranged(c)||_card.abilities(c).includes('True Strike'):
   rule=='Earthquake'       ?_card.abilities(c).join().match(/Flying/):
   rule=='Weak Magic'       ?_card.magic(c)==0://||_card.armor(c)==0): complicated rule.
   rule=='Close Range'      ?_card.ranged(c)==0||_card.abilities(c).join().match(/Close Range/):
   rule=='Unprotected'      ?_card.armor(c)<=0:
   rule=='Fog of War'       ?!_card.abilities(c).join().match(/Snipe|Sneak/):
   rule=='Healed Out'       ?!_card.abilities(c).join().match(/Triage|Tank Heal|Heal/):
+  rule=='Armored Up'       ?!_card.abilities(c).includes('Void Armor')&&(_card.magic(c)||!_card.attack(c)&&!_card.ranged(c)):
   false
 )
 _score.cardRules=(rule='')=>c=>
