@@ -110,7 +110,7 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
         await sleep(3e2);
         await page.evaluate('SM.HideDialog()');
       }catch(e){log(e)}}
-      await sleep(27e3);
+      await sleep(81e2);
       delete _dbug.tt.userSummary;
     }while(true)
     await page.evaluate("SM.Logout()");

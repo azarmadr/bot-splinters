@@ -61,7 +61,7 @@ const attrRules=_func.cached(attr_r=>{
   }
 })
 const mergeBattlesByPredicate=(battles,predicate)=>(nm,path,i)=>{
-  let p=t=>predicate[i].map(_score.move2Std).every(f=>f(t));
+  let p=t=>predicate[i].map(R.construct(String)).map(_score.move2Std).every(f=>f(t));
   let b=R.path(path,battles)??{}
   let count = {c:0,pr:predicate[i].join(),path:path.join()}
   //log(predicate[i].map(_score.move2Std))
@@ -74,7 +74,7 @@ const mergeBattlesByPredicate=(battles,predicate)=>(nm,path,i)=>{
   return nm
 }
 const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCards=_card.basicCards,sortByWinRate,wBetterCards}) => {
-  const {attr_r,card_r}=_team.getRules(ruleset);
+  const {attr_r,card_r}=ruleset;
   if(ruleset.includes('Taking Sides'))inactive+='Gray';
   const res2Score = {w:1,d:-0.81,l:-1.27},xer = {r:1.27,s:5};
   //_dbug.table({RuleSet:{ruleset,card_r,attr_r}})

@@ -59,7 +59,7 @@ _score.move2Std=(rule='')=>t=>_team(t).every((c,i)=>
   rule=='Super Sneak'      ?(_card.attack(c)==0||_card.abilities(c).join().match(/Sneak/)):
   rule=='Back to Basics'   ?_card.abilities(c).length==0:
   rule=='Target Practice'  ?!(_card.ranged(c)||_card.magic(c))||_card.abilities(c).join().match(/Snipe/):
-  rule=='Equal Opportunity'?_card.abilities(c).join().match(/Opportunity/):
+  rule=='Equal Opportunity'?_card.abilities(c).join().match(/Opportunity|Snipe|Sneak/):
   rule=='Aim True'         ?!_card.attack(c)&&!_card.ranged(c)||_card.abilities(c).includes('True Strike'):
   rule=='Earthquake'       ?_card.abilities(c).join().match(/Flying/):
   rule=='Weak Magic'       ?_card.magic(c)==0://||_card.armor(c)==0): complicated rule.
