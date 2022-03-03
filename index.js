@@ -40,7 +40,7 @@ function requestFocus(page) {
 
 function dequeue() { focusQueue.length?focusQueue.shift()():queueStarted = false; }
 
-let __goOn=1;
+let _go=1;
 const sleepingTime = 6e4 * (args.MINUTES_BATTLES_INTERVAL ?? 27);
 
 async function checkForUpdate() {
@@ -60,15 +60,15 @@ async function checkForUpdate() {
       }
     })
 }
+const fn = args.UPDATE_BATTLE_DATA?'':'_new';
 async function getBattles(player) {
   const cl = 55;
   if(args.UPDATE_BATTLE_DATA)
     return battles.fromUsers(player,{cl})
   else {
-    const blNew = battles.fromUsers(player,{fn:'-new',cl});
-    const bl = require('./data/battle_data.json');
-    battles.merge(bl,blNew);
-    return bl;
+    battles.fromUsers(player,{fn,cl});
+    //battles.merge(bl,blNew);
+    return require('./data/battle_data.json');
   }
 }
 async function createBrowser(headless) {
@@ -107,21 +107,21 @@ async function teamSelection(teamToPlay,{page,inactive,ruleset,notifyUser}){
   table({Stats});
   if(notifyUser)await page.evaluate(`var n=new Notification('Battle Ready');
       n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
-  await page.waitForSelector(`[card_detail_id="${Summoner[0]}"] `,{timeout:1001}).catch(()=>page.reload()
+  await page.waitForSelector(`[card_detail_id="${Summoner[0]}"]`,{timeout:1001}).catch(()=>page.reload()
     .then(()=>sleep(5000)).then(()=>page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)')))
-  await retryFor(3,3000,!__goOn,async()=>page.click(`[card_detail_id="${Summoner[0]}"] img`).then(()=>
-    page.waitForSelector('.item--summoner.item--selected',{timeout:1e3})
+  await retryFor(3,3000,!_go,async()=>page.$eval(`[card_detail_id="${Summoner[0]}"] img`,e=>e.click())
+    .then(()=>page.waitForSelector('.item--summoner.item--selected',{timeout:1e3})
   ))
   if (_card.color(Summoner) === 'Gold') {
     const splinter = _team.splinter(inactive)(teamToPlay.team); log({splinter});
-    await retryFor(3,3000,!__goOn,async()=>page.click(`[data-original-title="${splinter}"] label`))
+    await retryFor(3,3000,!_go,async()=>page.$eval(`[data-original-title="${splinter}"] label`,e=>e.click()))
   }
   for(const[mon]of Monsters){
     //log({[`Playing ${_card.name(mon)}`]:mon})
-    await retryFor(3,3000,__goOn,async()=>page.click(`[card_detail_id="${mon}"] img`))
+    await retryFor(3,3000,_go,async()=>page.$eval(`[card_detail_id="${mon}"] img`,e=>e.click()))
   }
   if(notifyUser)await sleep(Math.min(60,Math.abs(args.PAUSE_BEFORE_SUBMIT))*999);
-  await retryFor(3,300,__goOn,async()=>page.click('.btn-green')).catch(log);
+  await retryFor(3,300,_go,async()=>page.click('.btn-green')).catch(log);
   log('Team submitted, Waiting for opponent');
 }
 async function startBotPlayMatch(page,user) {
@@ -137,10 +137,11 @@ async function startBotPlayMatch(page,user) {
   var battlesList =await getBattles(opponent_player).catch(e=>{log(e);return require('./data/battle_data.json')});
   const pt = playableTeams(battlesList,{mana_cap,ruleset:_team.getRules(ruleset),inactive,quest:user.quest,oppCards,myCards,sortByWinRate:user.isStarter||!user.isRanked});
   table(pt.slice(0,5).map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
-  table(pt.sort((a,b)=>b.s_-a.s_).slice(0,5).map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
+  if(!user.isStarter) table(pt.sort((a,b)=>b.score+b.ev-a.score-a.ev).slice(0,5)
+    .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
   const teamToPlay = pt[0];
   // team Selection
-  const rf = await requestFocus(page);
+  //const rf = await requestFocus(page);
   await teamSelection(teamToPlay,{page,ruleset,inactive,notifyUser:!args.HEADLESS&&user.isRanked&&!user.isStarter}); // Eof teamSelection
   await Promise.any([
     page.waitForSelector('#btnRumble', { timeout: 16e4 })
@@ -150,7 +151,7 @@ async function startBotPlayMatch(page,user) {
     page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(3e5)}),
   ]).then(()=>page.evaluate('SM.CurrentView.data').then(postBattle(user)))
     .catch(() => log('Wrapping up Battle'));
-  rf();
+  //rf();
 }
 const calculateECR=({capture_rate, last_reward_time},{dec})=>
   Math.min(10000,(parseInt(capture_rate) || 10000) + (Date.now() - new Date(last_reward_time)) / 3000 * dec.ecr_regen_rate)/100;
@@ -212,9 +213,7 @@ const cards2Obj=acc=>cards=>cards
 
   while(!args.CLOSE_AFTER_ERC||users.some(x=>!x.isStarter&&x.isRanked)){
     await checkForUpdate();
-    for (const user of users
-      .filter(u=>!args.SKIP_PRACTICE||u.isRanked)
-    ) {
+    for (const user of users.filter(u=>!args.SKIP_PRACTICE||u.isRanked)) {
       if(browser.process().killed){
         browser = await createBrowser(args.HEADLESS);
         page = (await browser.pages())[1];
@@ -236,11 +235,12 @@ const cards2Obj=acc=>cards=>cards
         throw e;//can we continue here without throwing error
       })
       await page.evaluate('SM.Logout()');
+      tableList.map((x,i)=>i>3&&((userData[toDay][user.account]??={})[x]=user[x]))
+      require('jsonfile').writeFileSync('./data/user_data.json',userData);
     }
-    table(users.map(u=>Object.fromEntries(tableList.map((x,i)=>[x,i>3?((userData[toDay][u.account]??={})[x]=u[x]):u[x]]))));
-    require('jsonfile').writeFileSync('./data/user_data.json',userData);
+    table(users.map(u=>Object.fromEntries(tableList.map(x=>[x,u[x]]))));
     if(!args.KEEP_BROWSER_OPEN)browser.close();
-    await battles.fromUsers(users.filter(u=>!args.SKIP_PRACTICE||u.isRanked).map(user=>user.account),{depth:1});
+    await battles.fromUsers(users.filter(u=>!args.SKIP_PRACTICE||u.isRanked).map(user=>user.account),{depth:1,fn});
     log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
     log('--------------------------End of Session--------------------------------\n\n');
     await sleep(sleepingTime);

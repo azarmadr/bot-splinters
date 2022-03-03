@@ -23,13 +23,19 @@ const _arr = {
   ,chunk : R.splitEvery
   ,chunk2: R.splitEvery(2)
   ,indexOfminBy : (fn=x=>x)=>(idx,x,i,arr)=> arr[idx]===undefined&&fn(x)!==undefined?i:(fn(x)<fn(arr[idx]))?i:idx
-  ,normalizeMut:(arr,{toOne}={})=>{
-    var total = 0,xer = toOne?Object.keys(arr).length:1;
-    for(i in arr)total+=arr[i];
-    for(i in arr)arr[i]=arr[i]*xer/total;
+  ,normalizeMut:(arr,key=null,toOne=0)=>{
+    var total = 0,xer = toOne?1:Object.keys(arr).length;
+    const elem=i=>key?arr[i][key]:arr[i];
+    for(i in arr)total+=elem(i)??0;
+    for(i in arr)key?
+      arr[i][key]??=0:
+      arr[i]??=0;
+    for(i in arr)key?
+      arr[i][key]*=xer/total:
+      arr[i]*=xer/total;
     return arr;
   }
-  ,normalize:arr=>_arr.normalizeMut(arr.slice(0))
+  ,normalize:(arr,key,v)=>_arr.normalizeMut(arr.slice(0),key,v)
 }
 /*
 const _akmap = {}, _obj={};

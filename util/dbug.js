@@ -70,7 +70,7 @@ _dbug.$1s = new Proxy({},{
 });
 _func.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
   if(!--n){
-    log({'Failed after multiple retries':''});
+    log({'Failed after multiple retries':n});
     if(continueAfterAllRetries)return Promise.resolve(err);
     else return Promise.reject(err);
   }
@@ -91,16 +91,8 @@ _func.cached = (fn, map = {}) => (...arg) => {
   return map[arg.length==1?arg:JSON.stringify(arg)];
 };
 _elem.click = async function(page, selector, timeout = 20000, delayBeforeClicking = 0) {
-  try {
-    const elem = await page.waitForSelector(selector, { timeout });
-    if (elem) {
-      await sleep(delayBeforeClicking);
-      await elem.click();
-      return selector;
-    }
-  } catch (e) {/*log(e)*/}
-  log('Error: Could not find element ' + selector);
-  return false;
+    await page.waitForSelector(selector, { timeout })
+      .then(e=>sleep(delayBeforeClicking).then(()=>e.click()))
 }
 _elem.getText = async function(page, selector, timeout=20000) {
   const element = await page.waitForSelector(selector,  { timeout });

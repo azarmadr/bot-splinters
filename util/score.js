@@ -3,6 +3,49 @@ const {log,_dbug,_func} = require('./dbug');
 const {_card,_team} = require('./card');
 const {_arr} = require('./array');
 const _score = {};
+const _defGetter=x=>new Proxy({},{get:(t,n)=>t.hasOwnProperty(n)?t[n]:x});
+_score.rmDanglingLinks=nm=>{
+  const _tail = {l:0}, dlScore = _defGetter(0);
+  do{
+    _tail.k=[];
+    let inm = _score.nm2inm(nm);
+    //_dbug.tt.hrc = {level:_tail.l,nodes:Object.keys(nm).length,iNodes:inm.size};
+    for(let s in nm)if(!inm.has(s)){
+      _tail.k.push(s);
+      const up = (dlScore[s]/Object.keys(nm[s]).length)||0;
+      for(let t in nm[s]) dlScore[t]+=(_tail.l+1)/(_tail.l+3)+up;
+      delete dlScore[s];delete nm[s];
+    }
+    _tail.l++;
+  }while(_tail.k.length);
+  //_dbug.tt.hrc.forEach((x,i,a)=>{
+  //  x['#SinkNodes']       = x.iNodes-a[i+1]?.iNodes;
+  //  x['#DanglingNodes']   = x.nodes-a[i+1]?.nodes
+  //});delete _dbug.tt.hrc;
+  _arr.normalizeMut(dlScore,null,1);
+  return dlScore;
+}
+_score.eigenRank=(nm,{tolerance=6,max_iter=200}={})=>{
+  const dlScore = _score.rmDanglingLinks(nm);
+  const nodeScore = _defGetter(1);
+  // power iterations
+  for(let iter of Array(max_iter).keys()){
+    const nxt = _defGetter(0);
+    for(let s in nm)for(let t in nm[s])nxt[t]+=nm[s][t]*nodeScore[s];
+    if(Object.values(nxt).every(x=>!x))break;
+    _arr.normalizeMut(nxt,{toOne:1});
+    let diff = 0;
+    for(let n in nxt)diff+=Math.abs(nxt[n]-nodeScore[n]);
+
+    //_dbug.tt.iter = {iter,diff};
+    if(diff*10**tolerance<1){log({'converged@':iter});break;}
+    for(let n in nxt)nodeScore[n] = nxt[n];
+  } //delete _dbug.tt.iter;
+
+  for(let n in dlScore)nodeScore[n]+=dlScore[n];
+  return Object.entries(nodeScore).sort((a,b)=>b[1]-a[1])
+    .map((x,i)=>({team:x[0],eigenValue:x[1],eigenRank:i}));
+}
 
 _score.forQuest=(teams,{type,value,color})=>{
   log({'Playing for Quest':value?{[value]:type}:type});
@@ -16,15 +59,24 @@ _score.forQuest=(teams,{type,value,color})=>{
 _score.rare=(id,level,x=2)=>(+level==1&&_card.basic.includes(id))?1:(x**(_card.rarity(id)/3+2/3)*level)
 _score.Xer=(team,x=2)=>_team(team).reduce((s,[id,level])=>
   _score.rare(id,level,x)*(_card.mana(id)||1)+s,0)
-_score.teamStats = (battles, teams,{res2Score={w:1,d:-0.5,l:-1}}={})=>{
+_score.bCopyBy=(battles,predicate=_=>true,predicate1=predicate)=>{
+  let o = {};
+  for(let s in battles)if(predicate(s))for(let t in battles[s])if(predicate1(t))(o[s]??={})[t]=battles[s][t];
+  return o
+}
+_score.teamStats = (battles, teams,{res2Score={w:3,d:1,l:0}}={})=>{;
   const bs = Object.fromEntries(teams.map((x,i)=>[x.team,i]));
-  Object.entries(battles)
-    .flatMap(([s, v])=>s in bs ? Object.entries(v).flatMap(([t, r]) =>
-      t in bs?[s,t].map((x,i)=>({team:x,c_:r/2,[r==2?(i?'w':'l')+'_':'d_']:r/2,})):[]
-    ) : [])
+  const bOfTeams = _score.bCopyBy(battles,R.has(R.__,bs))
+  //{{_s
+  Object.entries(bOfTeams)
+    .flatMap(([s, v])=>Object.entries(v).flatMap(([t, r]) =>
+      [s,t].map((x,i)=>({team:x,c_:r/2,[r==2?(i?'w_':'l_'):'d_']:r/2,}))
+    ))
     .reduce((_,{team,...s}) => Object.entries(s).forEach(([k, v])=>
       teams[bs[team]][k]= (teams[bs[team]]?.[k] ?? 0) + v), null)
-  teams.forEach((x,i)=>teams[i].s_= res2Score.w*(x.w_??0) + res2Score.l*(x.l_??0) + res2Score.d*(x.d_??0))
+  //teams.forEach((x,i)=>teams[i].s_= res2Score.w*(x.w_??0) + res2Score.l*(x.l_??0) + res2Score.d*(x.d_??0))
+  //}}_s
+  _score.eigenRank(bOfTeams).forEach(({team:t,eigenRank:er,eigenValue:ev})=>(teams[bs[t]].er=er,teams[bs[t]].ev=ev))
 }
 _score.battle2nm=(battles,{oppCards={},inactive='',card_r}={})=>{
   const nm = {};
@@ -59,7 +111,7 @@ _score.move2Std=(rule='')=>t=>_team(t).every((c,i)=>
   rule=='Super Sneak'      ?(_card.attack(c)==0||_card.abilities(c).join().match(/Sneak/)):
   rule=='Back to Basics'   ?_card.abilities(c).length==0:
   rule=='Target Practice'  ?!(_card.ranged(c)||_card.magic(c))||_card.abilities(c).join().match(/Snipe/):
-  rule=='Equal Opportunity'?_card.abilities(c).join().match(/Opportunity|Snipe|Sneak/):
+  rule=='Equal Opportunity'?_card.abilities(c).join().match(/Opportunity|Snipe|Sneak/)||i<3&&_card.abilities(c).includes('Reach'):
   rule=='Aim True'         ?!_card.attack(c)&&!_card.ranged(c)||_card.abilities(c).includes('True Strike'):
   rule=='Earthquake'       ?_card.abilities(c).join().match(/Flying/):
   rule=='Weak Magic'       ?_card.magic(c)==0://||_card.armor(c)==0): complicated rule.
@@ -85,14 +137,13 @@ const filterAbilities=(ruleset,c)=>ablt=>ruleset.split(',').every(rule =>
   rule=='Super Sneak'       ? !(_card.attack(c)&&ablt.match(/Sneak|Opportunity|Reach/)):
   rule=='Back to Basics'    ? false:
   rule=='Fog of War'        ? !ablt.match(/Sneak|Snipe/):
-  rule=='Equal Opportunity' ? !ablt.match(/Snipe|Sneak|Opportunity|Reach/)://Should i add Sneak and Snipe too?
-  rule=='Target Practice'   ? !ablt.match(/Snipe/):
+  rule=='Equal Opportunity' ? !ablt.match(/Opportunity|Reach/):
+  rule=='Target Practice'   ? !ablt.match(/Snipe/)://Opportunity is also being over ridden here but only for ranged & magic
   rule=='Melee Mayhem'      ? !ablt.match(/Reach/):
   rule=='Aim True'          ? !ablt.match(/Flying|Dodge/):
   rule=='Unprotected'       ? !ablt.match(/Protect|Repair|Rust|Shatter|Void Armor|Piercing/):
   rule=='Healed Out'        ? !ablt.match(/Triage|Affliction|Heal/):
   rule=='Heavy Hitters'     ? !ablt.match(/Knock Out/):
-  //rule=='Equalizer'         ? !ablt.match(/Strengthen|Weaken/): // still unsure
   rule=='Holy Protection'   ? !ablt.match(/Divine Shield/): // unsure
   rule=='Spreading Fury'    ? !ablt.match(/Enrage/): true)
 const c2v=_func.cached((a,b)=>(b-a)**2*(a<b)); //comparison2value

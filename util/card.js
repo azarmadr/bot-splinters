@@ -1,9 +1,15 @@
 const R = require('ramda');
 const {_arr} = require('./array')
-const __cards = require("../data/cards.json");
 const sf = require("sync-fetch");
 const {writeFileSync} = require('jsonfile');
 const {log,_func} = require('./dbug');
+const __cards = function(url,ifNull){//immediately returning function
+  try{
+    return require(url)
+  }catch(e){
+    log(e);return ifNull
+  }
+}("../data/cards.json",[])
 
 
 const _c2id=_func.cached(c=>Array.isArray(c)?c[0]:c);

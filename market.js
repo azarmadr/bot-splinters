@@ -13,6 +13,8 @@ const SM = require("./splinterApi");
 const puppeteer = require("puppeteer");
 const headless = 0;
 
+const waitList = {};
+
 const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delegated_to);
 (async () => {
   const browser = await puppeteer.launch({
@@ -38,14 +40,16 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
   SM._(page);
   await page.goto('https://splinterlands.com/',{waitUntil: 'networkidle0'});
   log({ "#users": users.length });
+  const {leagues} = await page.evaluate(`new Promise(r=>r({...SM.settings}))`);
+  const leaguesRating=_func.cached(r=>leagues.reduce(([cp0,cp1],{min_rating, min_power})=>
+    min_rating>r ? [cp0,cp1] : (_dbug.tt.cp = [cp1,min_power]),[0,0])[args.l?1:0])
   for (let { login, account, password, active_key } of users) {
     await SM.login(login || account, password);
     do{
-      const { collection_power, starter_pack_purchase, balances, leagues, rating} =
-        await page.evaluate(`new Promise(r=>r({...SM.Player,...SM.settings}))`);
+      const { collection_power, starter_pack_purchase, balances, rating} =
+        await page.evaluate(`new Promise(r=>r({...SM.Player}))`);
       const card_ids = await SM.cards(account).then(c => c.flatMap(cb(account)).map(x=>x.card_detail_id));
-      let cpu =args.c??_func.cached(r=>leagues.reduce(([cp0,cp1],{min_rating, min_power})=>
-        min_rating>r ? [cp0,cp1] : (_dbug.tt.cp = [cp1,min_power]),[0,0])[args.l?1:0])(rating)
+      let cpu =Math.max(1e3,Math.min(15e3,args.c??leaguesRating(rating)));
       delete _dbug.tt.cp;
       if (!starter_pack_purchase || collection_power >= cpu) break;
       log({cpu,collection_power});
@@ -62,20 +66,25 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
       await page.select("#filter-sort", "price");
       await _elem.click( page, `.filter-section-foil .filter-option-button:nth-child(2) > label`);
 
+      Object.keys(waitList).forEach(k=>Date.now()-81e4>waitList[k]&&delete waitList[k]);
+
       const minx = await page.$$eval(
         ".card.card_market",
-        (a, cp,card_ids,g) => a.flatMap(x => {
+        (a, cp,card_ids,g,waitList) => a.flatMap(x => {
           let [id, gold, edition] = [...x.onclick.toString().matchAll(/\((\d.*)\)/g)][0][1].split(",")
             .map((x,i)=>i>2?0:JSON.parse(x.trim()));
+          if([id, gold, edition] in waitList) return [];
           let c = calculateCP({ xp: 1, alpha_xp: 0, card_detail_id: id, gold, edition });
           let lp = parseFloat(x.innerText.match(/\d+.\d+/));
           return((gold||!card_ids.includes(id))&&!(g&&gold)&&c<cp)?[
             [c,lp,(0.0001+lp)/SM.settings.dec_price,id,gold,edition]
           ] : [];
-        }).reduce((minx,x)=>[x,...minx].sort((a,b)=>b[0]/b[1]-a[0]/a[1]).slice(0,3),[]),
-        cp,args.i?[]:card_ids,args.g
+        }).reduce((minx,x)=>[x,...minx].sort((a,b)=>b[0]/b[1]-a[0]/a[1]).slice(0,1),[]),
+        cp,args.i?[]:card_ids,args.g,waitList
       );
       console.table(minx.map(x=>[...x,_card.name(x[3])]));
+      minx.forEach(x=>waitList[[x[3],x[4],x[5]]]=Date.now());
+      console.table(waitList);
       for(let [_,lpDoll,lpDec,...cardDetails] of minx){try{
         if (!cardDetails) continue;
         await page.evaluate(`SM.ShowCardDetails(${cardDetails.join()},'rentals')`);
