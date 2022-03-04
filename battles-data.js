@@ -63,26 +63,19 @@ _battles.save=(bl,fn='')=>new Promise(res=>readFile(`./data/battle_data${fn}.jso
   if(_dbugBattles.length)writeFile('data/dbugBattles.json',_dbugBattles).catch(log)
   res(battlesList);
 }))
-/*
-const bs = x => bs[x];
-Object.assign(bs,new Proxy({},{
-  get: (o,p)=>{
-    return Date.now()-o[p]??0>27e4;
-  },
-  set: (o,p,v)=>
-}))
-*/
-const bS = new Set();
+
+const checkIfPresent=(obj,delay)=>x=>Date.now()-(obj[x]??=Date.now())>delay&&(obj[x]=Date.now());
+const bS = checkIfPresent({},81e4);
 _battles.fromUsers=(players,{depth=2,minRank,drs,blackSet=bS,bObj={},fn='',cl=27}={})=>new Promise(res=>{
-  const ul = [...new Set(Array.isArray(players)?players:players.split(','))].filter(x=>!blackSet.has(x));
-  blackSet=new Set([...ul,...blackSet]);
+  const ul = [...new Set(Array.isArray(players)?players:players.split(','))].filter(x=>!blackSet(x));
+  ul.forEach(blackSet);
   Promise.resolve(_arr.chunk(cl,ul).reduce(
     (memo,ul_chunk)=>memo.then(bd=>
       Promise.all(ul_chunk.map(u=>getBattles(u,bd,minRank,drs))).then(()=>bd)
     ),Promise.resolve({battle_obj:{},nuSet:new Set()})
   )).then(({battle_obj,nuSet})=>{
     _battles.merge(bObj,battle_obj);
-    for(p of nuSet)if(blackSet.has(p))nuSet.delete(p);
+    for(p of nuSet)if(blackSet(p))nuSet.delete(p);
     if(--depth>0&&nuSet.size)
       return res(_battles.fromUsers([...nuSet].filter((_,i)=>i<243),{bObj,drs,depth,minRank,blackSet,fn,cl}))
     else return res(_battles.save(battle_obj,fn))

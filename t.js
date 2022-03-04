@@ -14,9 +14,10 @@ const minRank = args.mr ?? 0;
 const mergeNempty =bd=>o=>{
   const ob = require(o),count = [];
   Object.entries(ob).forEach(([rs,rs_])=>Object.entries(rs_).forEach(([rs1,crs])=>{
-    const obj = (bd[rs]??={})[rs1];
+    const obj = (bd[rs]??={})[rs1]??={};
     if(rs1.match(/\d+/)){
       const mana = rs1;
+      //log({mana,rs});
       const {c} = merge(obj,crs)
       if(c)
         count.push({rs,mana,c});
@@ -32,14 +33,14 @@ const mergeNempty =bd=>o=>{
     }
   }))
   if(count.length){
-    const {__,...res} = count.reduce((a,{rs,rs1,mana,c})=>{
+    const res = count.reduce((a,{rs,rs1,mana,c})=>{
       let x = rs+(rs1?'_|_'+rs1:'');
       if(a[x]){a[x].c+=c,a[x][mana]=c}
       else {a[x]={c,[mana]:c}}
       a.__.c+=c;a.__[mana]??=0;a.__[mana]+=c;
       return a
-    },{__:{c:0}})
-    console.table({...res,__});
+    },{__:{c:0}});
+    console.table(Object.keys(res).sort((a,b)=>res[a].c-res[b].c).reduce((a,k)=>(a[k]=res[k],a),{}));
     writeFileSync(o,ob);
     writeFileSync(`./data/battle_data${fn}.json`, bd);
   }
