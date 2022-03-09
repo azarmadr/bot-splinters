@@ -79,7 +79,7 @@ const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCa
       .sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
       .forEach(x=>teams.push(x))
     _dbug.tt.score = {'#Scores':teams.length,mana,...res2Score,...xer}
-    if(sortByWinRate||(teams.length>27))break;
+    if(sortByWinRate&&teams.length||(teams.length>27))break;
   }delete _dbug.tt.score;delete _dbug.tt.mbp;
   const cardscores = teams.reduce((cs,{team,score})=>{
     team.forEach((x,i,{length})=>
