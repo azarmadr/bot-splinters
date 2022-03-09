@@ -1,6 +1,6 @@
 {
   "name": "bot-splinters",
-  "version": "2.7.1",
+  "version": "2.7.2",
   "description": "updating battles stats so that now battles are stored under the mana of the highest team mana in the data file. hence the 99 manacap will be removed in the file.\nrun `_cleanUpBattle.js`\n update your battleData after updating",
   "main": "index.js",
   "scripts": {
