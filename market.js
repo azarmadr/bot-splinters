@@ -51,8 +51,8 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
       const card_ids = await SM.cards(account).then(c => c.flatMap(cb(account)).map(x=>x.card_detail_id));
       let cpu =Math.max(1e3,Math.min(15e3,args.c??leaguesRating(rating)));
       delete _dbug.tt.cp;
-      if (!starter_pack_purchase || collection_power >= cpu) break;
       log({cpu,collection_power});
+      if (!starter_pack_purchase || collection_power >= cpu) break;
       const cp = Math.max(101,cpu - collection_power);
       log(cp,args.c);
       _dbug.table({[account]:{
@@ -84,7 +84,7 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
       );
       console.table(minx.map(x=>[...x,_card.name(x[3])]));
       minx.forEach(x=>waitList[[x[3],x[4],x[5]]]=Date.now());
-      console.table(waitList);
+      require('readline').moveCursor(process.stdout,0,-13);
       for(let [_,lpDoll,lpDec,...cardDetails] of minx){try{
         if (!cardDetails) continue;
         await page.evaluate(`SM.ShowCardDetails(${cardDetails.join()},'rentals')`);

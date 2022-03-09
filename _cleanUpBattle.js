@@ -1,32 +1,50 @@
 /** Motive for the release tag 2.2:
  * Converting array of battles to objects of pattern {t1:{t2:result}} */
 const {readFileSync,writeFileSync} = require('jsonfile');
-const {_arr,log}=require('./util');
+const {_dbug,_team,log}=require('./util');
 const fileName = './data/battle_data.json';
-const old_battles = require(fileName);
-var nb;
-try {
-  // temporary file to store battle_data while cleaning or merging multiple older battle_data
-  nb = readFileSync('./data/battle_data-temp.json')
-}catch(e){
-  log(e)
-  nb = {}
+const nb = require(fileName);
+const {merge} = require("./battles-data");
+const R = require('ramda')
+
+let ac={c:0,a:0,e:0,s:0};
+const mm_=(rs,mana,crs)=>{
+  let c={s:0,c:0};
+  for(let s in crs)if(c.s++||1)for(let _ in crs[s])c.c++;
+  if(_dbug.tt.n?.at(-1)?.rs!==rs.toString())delete _dbug.tt.n
+  _dbug.tt.n = {...c,rs:rs+'',mana};
+  Object.keys(c).forEach(k=>ac[k]+=c[k])
 }
-const nBattles = (obj, obj2merge) => {
-  for (let [s, v] of Object.entries(obj2merge)) {
-    if(s.includes(',')){for(let[t,r]of Object.entries(v)){
-      console.count();require('readline').moveCursor(process.stdout,0,-1);
-      if(r=='l')     (obj[t]??={})[s]=2;
-      else if(r=='w')(obj[s]??={})[t]=2;
-      else{
-        (obj[t]??={})[s]??=1;
-        (obj[s]??={})[t]??=1;
+const mm=(rs,mana,crs)=>{
+  let c={c:0,a:0,e:0};
+  for(let s in crs){
+    if(_team(s).length==1)(delete crs[s],c.a++);
+    else for(let t in crs[s]){
+      let nmana = Math.max(_team.mana(s),_team.mana(t),12);
+      if(nmana!=mana){
+        c.a++;
+        c.c+=merge(rs.reduce((a,rule)=>a[rule],nb)[nmana]??={},{[s]:{[t]:crs[s][t]}}).c;
+        delete crs[s][t];
       }
-    }} else nBattles(obj[s] ??= {}, v);
+    }
+    if(R.isEmpty(crs[s]))(delete crs[s],c.e++);
   }
-};
-nBattles(nb, old_battles);
-log()
+  if(_dbug.tt.n?.at(-1)?.rs!==rs.toString())delete _dbug.tt.n
+  if(c.a)_dbug.tt.n = {...c,rs:rs+'',mana};
+  Object.keys(c).forEach(k=>ac[k]+=c[k])
+}
+
+Object.entries(nb).forEach(([rs,rs_])=>Object.entries(rs_).forEach(([rs1,crs])=>
+  rs1.match(/\d+/)?mm([rs],rs1,crs):
+  Object.entries(crs).forEach(([mana,crs])=>mm([rs,rs1],mana,crs))
+))
+delete _dbug.tt.n;
+const rmeobj=o=>{ for(let[k,v]of Object.entries(o)){
+  if(R.isEmpty(v))(ac.e++,delete o[k])
+  else if(R.type(v)=='Object')rmeobj(v)
+}}
+//rmeobj(nb)
+log({...ac})
 // if satisfied,rename the `battle_data-temp.json` to `battle_data.json`
-writeFileSync(fileName.replace(/.json/,'-temp.json'),nb)
+//const {Standard,...rem} = nb; writeFileSync(fileName.replace(/.json/,'-t.json'),{Standard,...rem})
 log('done')

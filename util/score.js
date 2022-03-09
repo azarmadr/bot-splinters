@@ -33,7 +33,7 @@ _score.eigenRank=(nm,{tolerance=6,max_iter=200}={})=>{
     const nxt = _defGetter(0);
     for(let s in nm)for(let t in nm[s])nxt[t]+=nm[s][t]*nodeScore[s];
     if(Object.values(nxt).every(x=>!x))break;
-    _arr.normalizeMut(nxt,{toOne:1});
+    _arr.normalizeMut(nxt);
     let diff = 0;
     for(let n in nxt)diff+=Math.abs(nxt[n]-nodeScore[n]);
 

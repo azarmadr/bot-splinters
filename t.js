@@ -6,7 +6,7 @@ const drs = args.drs ?? "";
 const player = args.n ?? "";
 const depth = args.d ?? 2;
 const fn = args.f ?? "";
-const {fromUsers,merge,save} = require("./battles-data");
+const {fromUsers,merge} = require("./battles-data");
 const minRank = args.mr ?? 0;
 
 //log({drs,player,depth,fn,minRank,args});
@@ -24,8 +24,7 @@ const mergeNempty =bd=>o=>{
       ob[rs][rs1] = {};
     }else{
       Object.entries(crs).forEach(([mana,crs1])=>{
-        const obj1 =obj[mana]??={};
-        const {c} = merge(obj1,crs1)
+        const {c} = merge(obj[mana]??={},crs1)
         if(c)
           count.push({rs,rs1,mana,c});
         ob[rs][rs1][mana] = {};
@@ -34,10 +33,11 @@ const mergeNempty =bd=>o=>{
   }))
   if(count.length){
     const res = count.reduce((a,{rs,rs1,mana,c})=>{
-      let x = rs+(rs1?'_|_'+rs1:'');
-      if(a[x]){a[x].c+=c,a[x][mana]=c}
-      else {a[x]={c,[mana]:c}}
-      a.__.c+=c;a.__[mana]??=0;a.__[mana]+=c;
+      let m = Math.floor(mana/3)*3;
+      let x = rs+(rs1?'|'+rs1:'');
+      if(a[x]){a[x].c+=c,a[x][m]=c}
+      else {a[x]={c,[m]:c}}
+      a.__.c+=c;a.__[m]??=0;a.__[m]+=c;
       return a
     },{__:{c:0}});
     console.table(Object.keys(res).sort((a,b)=>res[a].c-res[b].c).reduce((a,k)=>(a[k]=res[k],a),{}));

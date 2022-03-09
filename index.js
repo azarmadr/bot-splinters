@@ -24,22 +24,6 @@ console.log = function () {
   logFile.write(util.format.apply(null,arguments).replace(/\033\[[0-9;]*m/g,"") + '\n');
 }
 
-const focusQueue = [];
-let queueStarted = false;
-function requestFocus(page) {
-  return new Promise(resolve => {
-    focusQueue.push(() => {
-      queueStarted = true;
-      page.bringToFront();
-      resolve(dequeue);
-    });
-    // do first dequeue if queue was empty
-    if (!queueStarted) dequeue();
-  });
-}
-
-function dequeue() { focusQueue.length?focusQueue.shift()():queueStarted = false; }
-
 let _go=1;
 const sleepingTime = 6e4 * (args.MINUTES_BATTLES_INTERVAL ?? 27);
 
@@ -141,7 +125,6 @@ async function startBotPlayMatch(page,user) {
     .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
   const teamToPlay = pt[0];
   // team Selection
-  //const rf = await requestFocus(page);
   await teamSelection(teamToPlay,{page,ruleset,inactive,notifyUser:!args.HEADLESS&&user.isRanked&&!user.isStarter}); // Eof teamSelection
   await Promise.any([
     page.waitForSelector('#btnRumble', { timeout: 16e4 })
@@ -151,7 +134,6 @@ async function startBotPlayMatch(page,user) {
     page.waitForSelector('div.modal.fade.v2.battle-results.in',{timeout:(3e5)}),
   ]).then(()=>page.evaluate('SM.CurrentView.data').then(postBattle(user)))
     .catch(() => log('Wrapping up Battle'));
-  //rf();
 }
 const calculateECR=({capture_rate, last_reward_time},{dec})=>
   Math.min(10000,(parseInt(capture_rate) || 10000) + (Date.now() - new Date(last_reward_time)) / 3000 * dec.ecr_regen_rate)/100;
@@ -229,7 +211,7 @@ const cards2Obj=acc=>cards=>cards
         if(user.claimQuestReward?.filter(x=>x)?.length==2) await SM.questClaim(...user.claimQuestReward)
       }
       if(!args.SKIP_PRACTICE||user.isRanked)await startBotPlayMatch(page,user).then(()=>console.log({
-        '      ':'['+Array(9).fill('    ').join(' ')+'>','<        ':'|(xxxxx)'})).catch(async e=>{
+        '      ':' '+Array(9).fill('    ').join(' ')+' ','         ':'        '})).catch(async e=>{
         log(e,'failed to submit team, so waiting for user to input manually and close the session')
         await sleep(81e3);
         throw e;//can we continue here without throwing error
@@ -240,7 +222,8 @@ const cards2Obj=acc=>cards=>cards
     }
     table(users.map(u=>Object.fromEntries(tableList.map(x=>[x,u[x]]))));
     if(!args.KEEP_BROWSER_OPEN)browser.close();
-    await battles.fromUsers(users.filter(u=>!args.SKIP_PRACTICE||u.isRanked).map(user=>user.account),{depth:1,fn});
+    await battles.fromUsers(users.filter(u=>!args.SKIP_PRACTICE||u.isRanked)
+      .map(user=>user.account),{depth:1,fn});
     log('Waiting for the next battle in',sleepingTime/1000/60,'minutes at',new Date(Date.now()+sleepingTime).toLocaleString());
     log('--------------------------End of Session--------------------------------\n\n');
     await sleep(sleepingTime);

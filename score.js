@@ -60,24 +60,25 @@ const mergeBattlesByPredicate=(battles,predicate)=>(nm,path,i)=>{
 const playableTeams = (battles,{mana_cap,ruleset,inactive,quest,oppCards={},myCards=_card.basicCards,sortByWinRate,wBetterCards}) => {
   const {attr_r,card_r}=ruleset;
   if(ruleset.includes('Taking Sides'))inactive+='Gray';
-  const res2Score = {w:1,d:-0.81,l:-1.27},xer = {r:1.27,s:9};
+  const res2Score = {w:1,d:-0.81,l:-1.27},xer={r:1.27,s:7};
+  const __v = {...res2Score,...xer};
   //_dbug.table({RuleSet:{ruleset,card_r,attr_r}})
   var teams=[]/*,cardscores={}*/;
   const {path,predicate} = attrRules(attr_r);
   const nm=_func.cached(mana=>path(mana).reduce(mergeBattlesByPredicate(battles,predicate),{}));
   for(let mana of R.range(12,mana_cap+1).reverse())if(!R.isEmpty(nm(mana))){
     if(!ruleset.includes('Little League')){
-      res2Score.l *=Math.sqrt(mana_cap/mana)
-      res2Score.d *=Math.sqrt(mana_cap/mana)
-      res2Score.w *=Math.sqrt(mana/mana_cap)
-      xer.r       *=Math.sqrt(mana/mana_cap)
-      xer.s       *=Math.sqrt(mana/mana_cap)
+      res2Score.l =Math.sqrt(mana_cap/mana)*__v.l
+      res2Score.d =Math.sqrt(mana_cap/mana)*__v.d
+      res2Score.w =Math.sqrt(mana/mana_cap)*__v.w
+      xer.r       =Math.sqrt(mana/mana_cap)*__v.r
+      xer.s       =Math.sqrt(mana/mana_cap)*__v.s
     }
     teamScores(nm(mana)
       ,{res2Score,xer,mana_cap,inactive,myCards,oppCards,card_r})
       .sort(sortByProperty(sortByWinRate)).filter((_,i,{length})=>i<length/3)
       .forEach(x=>teams.push(x))
-    _dbug.tt.score = {'#Scores':teams.length,...res2Score,...xer}
+    _dbug.tt.score = {'#Scores':teams.length,mana,...res2Score,...xer}
     if(sortByWinRate||(teams.length>27))break;
   }delete _dbug.tt.score;delete _dbug.tt.mbp;
   const cardscores = teams.reduce((cs,{team,score})=>{
