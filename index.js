@@ -25,7 +25,7 @@ console.log = function () {
 }
 
 let _go=1;
-const sleepingTime = 6e4 * (args.MINUTES_BATTLES_INTERVAL ?? 27);
+const sleepingTime = 6e4 * (args.SESSION_INTERVAL ?? 27);
 
 async function checkForUpdate() {
   await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
@@ -92,7 +92,7 @@ async function teamSelection(teamToPlay,{page,inactive,ruleset,notifyUser}){
   if(notifyUser)await page.evaluate(`var n=new Notification('Battle Ready');
       n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
   await page.waitForSelector(`[card_detail_id="${Summoner[0]}"]`,{timeout:1001}).catch(()=>page.reload()
-    .then(()=>sleep(5000)).then(()=>page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)')))
+    .then(()=>sleep(7001)).then(()=>page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)')))
   await retryFor(3,3000,!_go,async()=>page.$eval(`[card_detail_id="${Summoner[0]}"] img`,e=>e.click())
     .then(()=>page.waitForSelector('.item--summoner.item--selected',{timeout:1e3})
   ))
@@ -121,6 +121,8 @@ async function startBotPlayMatch(page,user) {
   var battlesList =await getBattles(opponent_player).catch(e=>{log(e);return require('./data/battle_data.json')});
   const pt = playableTeams(battlesList,{mana_cap,ruleset:_team.getRules(ruleset),inactive,quest:user.quest,oppCards,myCards,sortByWinRate:user.isStarter||!user.isRanked});
   table(pt.slice(0,5).map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
+  if(!user.isStarter) table(pt.sort((a,b)=>b._w+a._l-a._w-b._l).slice(0,5)
+    .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
   if(!user.isStarter) table(pt.sort((a,b)=>b.score+b.ev-a.score-a.ev).slice(0,5)
     .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
   const teamToPlay = pt[0];

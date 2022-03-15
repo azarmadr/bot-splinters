@@ -1,7 +1,7 @@
 /** Motive for the release tag 2.2:
  * Converting array of battles to objects of pattern {t1:{t2:result}} */
 const {readFileSync,writeFileSync} = require('jsonfile');
-const {_dbug,_team,log}=require('./util');
+const {_arr,_dbug,_team,log}=require('./util');
 const fileName = './data/battle_data.json';
 const nb = require(fileName);
 const {merge} = require("./battles-data");
@@ -29,7 +29,7 @@ const mm=(rs,mana,crs)=>{
     }
     if(R.isEmpty(crs[s]))(delete crs[s],c.e++);
   }
-  if(_dbug.tt.n?.at(-1)?.rs!==rs.toString())delete _dbug.tt.n
+  if(_dbug.tt.n?.at(-1)?.rs!==rs.toString())(delete _dbug.tt.n,log(rs+'',mana))
   if(c.a)_dbug.tt.n = {...c,rs:rs+'',mana};
   Object.keys(c).forEach(k=>ac[k]+=c[k])
 }
@@ -39,12 +39,10 @@ Object.entries(nb).forEach(([rs,rs_])=>Object.entries(rs_).forEach(([rs1,crs])=>
   Object.entries(crs).forEach(([mana,crs])=>mm([rs,rs1],mana,crs))
 ))
 delete _dbug.tt.n;
-const rmeobj=o=>{ for(let[k,v]of Object.entries(o)){
-  if(R.isEmpty(v))(ac.e++,delete o[k])
-  else if(R.type(v)=='Object')rmeobj(v)
-}}
-//rmeobj(nb)
-log({...ac})
+log({...ac,e:_arr.rmEmpty(nb)})
 // if satisfied,rename the `battle_data-temp.json` to `battle_data.json`
-//const {Standard,...rem} = nb; writeFileSync(fileName.replace(/.json/,'-t.json'),{Standard,...rem})
-log('done')
+if(ac.a||ac.e||ac.s){
+  const {Standard,...rem} = nb;
+  writeFileSync(fileName.replace(/.json/,'-t.json'),{Standard,...rem})
+  log('done')
+}else log(fileName,'is intact')

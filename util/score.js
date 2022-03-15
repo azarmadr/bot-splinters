@@ -59,14 +59,14 @@ _score.forQuest=(teams,{type,value,color})=>{
 _score.rare=(id,level,x=2)=>(+level==1&&_card.basic.includes(id))?1:(x**(_card.rarity(id)/3+2/3)*level)
 _score.Xer=(team,x=2)=>_team(team).reduce((s,[id,level])=>
   _score.rare(id,level,x)*(_card.mana(id)||1)+s,0)
-_score.bCopyBy=(battles,predicate=_=>true,predicate1=predicate)=>{
-  let o = {};
-  for(let s in battles)if(predicate(s))for(let t in battles[s])if(predicate1(t))(o[s]??={})[t]=battles[s][t];
+_score.bCopyBy=(o,battles,predicate=_=>true,predicate1=predicate)=>{
+  for(let s in battles)if(predicate(s))for(let t in battles[s])if(predicate1(t,s))
+    (o[s]??={})[t]=battles[s][t];
   return o
 }
 _score.teamStats = (battles, teams,{res2Score={w:3,d:1,l:0}}={})=>{;
   const bs = Object.fromEntries(teams.map((x,i)=>[x.team,i]));
-  const bOfTeams = _score.bCopyBy(battles,R.has(R.__,bs))
+  const bOfTeams = _score.bCopyBy({},battles,R.has(R.__,bs))
   //{{_s
   Object.entries(bOfTeams)
     .flatMap(([s, v])=>Object.entries(v).flatMap(([t, r]) =>

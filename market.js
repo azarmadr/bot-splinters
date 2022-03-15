@@ -90,7 +90,7 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
         await page.evaluate(`SM.ShowCardDetails(${cardDetails.join()},'rentals')`);
         await page.waitForSelector("tbody > tr:nth-child(1) > .price");
         const _credits =
-          balances.find((a) => a.token === "CREDITS")?.balance > 7e3 * lpDoll;
+          balances.find((a) => a.token === "CREDITS")?.balance > 8e3 * lpDoll;
         //log({_credits,lpDoll});
         await page.select("#payment_currency", _credits ? "CREDITS" : "DEC");
         const id = (

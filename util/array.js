@@ -1,4 +1,11 @@
 const R = require('ramda');
+const __IIFE_RM_EMPTY_OBJ=(o,p=o,count)=>{
+  for(let[k,v]of Object.entries(o)){
+    if(R.isEmpty(v))(count.e++,delete o[k])
+    else if(R.type(v)=='Object')__IIFE_RM_EMPTY_OBJ(v,p,count)
+  }
+  if(o!=p&&R.isEmpty(o))__IIFE_RM_EMPTY_OBJ(p,p,count)
+}
 const _arr = {
   eq:(a,b)=>a.length===b.length&&a.every((v,i)=>Array.isArray(v)?_arr.eq(v,b[i]):v===b[i])
   ,eqSet:(a,b)=>{
@@ -36,6 +43,11 @@ const _arr = {
     return arr;
   }
   ,normalize:(arr,key,v)=>_arr.normalizeMut(arr.slice(0),key,v)
+  ,rmEmpty:o=>{
+    const count = {e:0};
+    __IIFE_RM_EMPTY_OBJ(o,o,count)
+    return count.e
+  }
 }
 /*
 const _akmap = {}, _obj={};

@@ -41,7 +41,7 @@ const mergeNempty =bd=>o=>{
       return a
     },{__:{c:0}});
     console.table(Object.keys(res).sort((a,b)=>res[a].c-res[b].c).reduce((a,k)=>(a[k]=res[k],a),{}));
-    writeFileSync(o,ob);
+    if(args.r)writeFileSync(o,ob);
     writeFileSync(`./data/battle_data${fn}.json`, bd);
   }
 }
@@ -52,7 +52,10 @@ if ("b" in args){
     () => {}
   );
 }else if ("m" in args) {
-  const bd = readFileSync(`./data/battle_data${fn}.json`);
+  var bd;
+  try{
+    bd = readFileSync(`./data/battle_data${fn}.json`);
+  }catch(e){log(e);bd = {}}
   args.m
     .split(",")
     .map(x => log(x) ?? x)
