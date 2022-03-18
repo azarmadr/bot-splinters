@@ -56,12 +56,11 @@ _score.forQuest=(teams,{type,value,color})=>{
     null;
   if(i>0)teams.unshift(...teams.splice(i,1));
 }
-_score.rare=(id,level,x=2)=>(+level==1&&_card.basic.includes(id))?1:(x**(_card.rarity(id)/3+2/3)*level)
-_score.Xer=(team,x=2)=>_team(team).reduce((s,[id,level])=>
-  _score.rare(id,level,x)*(_card.mana(id)||1)+s,0)
-_score.bCopyBy=(o,battles,predicate=_=>true,predicate1=predicate)=>{
-  for(let s in battles)if(predicate(s))for(let t in battles[s])if(predicate1(t,s))
-    (o[s]??={})[t]=battles[s][t];
+_score.rare=(id,level)=>(+level==1&&_card.basic.includes(id))?0:((_card.rarity(id)/3+2/3)*level)
+_score.Xer=(team,x=2)=>_team(team).reduce((s,[id,level])=>(x**_score.rare(id,level))*(_card.mana(id)||1)+s,0)
+_score.bCopyBy=(o,battles,predicate=_=>true,predicate1=predicate,count={c:0,t:0})=>{
+  for(let s in battles)if(predicate(s))for(let t in battles[s])if(count.t++,predicate1(t,s))
+    (count.c++,(o[s]??={})[t]=battles[s][t]);
   return o
 }
 _score.teamStats = (battles, teams,{res2Score={w:3,d:1,l:0}}={})=>{;
@@ -99,6 +98,8 @@ _score.nm2inm=nm=>{
   const inm = new Set();
   for(let s in nm)for(let t of Object.keys(nm[s]))inm.add(t);
   return inm;
+}
+_score.cardAlias=ruleset=>c=>{
 }
 /* For Weak Magic the table should be as follows: t1 m 1100
  *                                                   a 1010

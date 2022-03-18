@@ -49,7 +49,7 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
       const { collection_power, starter_pack_purchase, balances, rating} =
         await page.evaluate(`new Promise(r=>r({...SM.Player}))`);
       const card_ids = await SM.cards(account).then(c => c.flatMap(cb(account)).map(x=>x.card_detail_id));
-      let cpu =Math.max(1e3,Math.min(15e3,args.c??leaguesRating(rating)));
+      let cpu =Math.max(1e3,args.c??Math.min(15e3,leaguesRating(rating)));
       delete _dbug.tt.cp;
       log({cpu,collection_power});
       if (!starter_pack_purchase || collection_power >= cpu) break;

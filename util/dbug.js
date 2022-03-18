@@ -41,6 +41,7 @@ _dbug.isEObj=o=>o&&Object.keys(obj).length === 0&&Object.getPrototypeOf(obj) ===
 const _logTimer = new _dbug.timer();
 const log=(...m)=>console.log(_logTimer._d,(new Error()).stack.split("\n").find((c,i)=>
   !c.includes('_dbug')&&i==2||!c.includes('tt')&&i==3||i==4).match(/[^:\\/]+:\d+/)?.[0],...m);
+const dbug=(...m)=>process.env.displayDebug||log(...m)
 
 _dbug.f = (f,cb) => (...args)=>{
   const ret = f(...args);
@@ -105,4 +106,4 @@ _elem.getTextByXpath = async function(page, selector, timeout=20000) {
   return text;
 }
 
-module.exports = {log,sleep, _dbug, _func, _elem,}
+module.exports = {log,sleep, _dbug, _func, _elem,dbug,}

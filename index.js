@@ -1,4 +1,5 @@
 // Parsing .env
+const R = require('ramda');
 const args = require('minimist')(process.argv.slice(2));
 const l2s=s=>s.split('_').map(x=>x[0]).join('').toLowerCase();
 Object.entries(require('dotenv').config().parsed).map(([e,v])=>args[e]??=v.includes(',')
@@ -19,7 +20,7 @@ var _file='log.txt';
 const util = require('util');
 const logFile = require('fs').createWriteStream(_file,{flags:'w'});
 const formatEd =(...x)=> util.formatWithOptions({colors:true},...x)
-console.log = function () {
+if(args.LOG) console.log = function () {
   process.stdout.write(formatEd.apply(null, arguments) + '\n');
   logFile.write(util.format.apply(null,arguments).replace(/\033\[[0-9;]*m/g,"") + '\n');
 }
@@ -121,11 +122,11 @@ async function startBotPlayMatch(page,user) {
   var battlesList =await getBattles(opponent_player).catch(e=>{log(e);return require('./data/battle_data.json')});
   const pt = playableTeams(battlesList,{mana_cap,ruleset:_team.getRules(ruleset),inactive,quest:user.quest,oppCards,myCards,sortByWinRate:user.isStarter||!user.isRanked});
   table(pt.slice(0,5).map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
-  if(!user.isStarter) table(pt.sort((a,b)=>b._w+a._l-a._w-b._l).slice(0,5)
+  if(!user.isStarter) table(R.sortBy(x=>x._l-x._w,pt).slice(0,5)
     .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
   if(!user.isStarter) table(pt.sort((a,b)=>b.score+b.ev-a.score-a.ev).slice(0,5)
     .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
-  const teamToPlay = pt[0];
+  const [teamToPlay] = pt;
   // team Selection
   await teamSelection(teamToPlay,{page,ruleset,inactive,notifyUser:!args.HEADLESS&&user.isRanked&&!user.isStarter}); // Eof teamSelection
   await Promise.any([
