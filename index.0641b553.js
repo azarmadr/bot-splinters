@@ -559,7 +559,7 @@ var cy = _cytoscapeDefault.default({
                 'line-color': '#ccc',
                 'target-arrow-color': '#ccc',
                 'target-arrow-shape': 'triangle',
-                'curve-style': 'bezier'
+                'curve-style': 'straight-triangle'
             }
         },
         {
@@ -650,10 +650,30 @@ document.getElementById('addTeam').onclick = ()=>{
     nextID++;
     pageRank();
 };
+function normalizedPageRank(opts) {
+    var pr = cy.elements().pageRank(opts);
+    var borders = {
+        min: Number.MAX_VALUE,
+        max: Number.MIN_VALUE
+    };
+    cy.nodes().forEach((n)=>Object.keys(borders).forEach((f)=>borders[f] = Math[f](borders[f], pr.rank(n))
+        )
+    );
+    const arr = Array(cy.nodes().length).fill(0);
+    cy.nodes().forEach((a)=>arr[cy.nodes().indexOf(a)] = (pr.rank(a) - borders.min) / (borders.max - borders.min)
+    );
+    return {
+        rank: function(node) {
+            node = cy.collection(node)[0];
+            return arr[cy.nodes().indexOf(node)];
+        }
+    };
+}
 function pageRank() {
-    var pr = cy.elements().pageRank({
+    var pr = normalizedPageRank({
         'dampingfactor': 0.85
     });
+    //var pr = cy.elements().pageRank({'dampingfactor': 0.85});
     var er = cy.elements().eigenRank();
     var or = cy.elements().eigenRankOrig();
     window.pr = cy.elements();
@@ -679,7 +699,6 @@ function deleteSelected() {
     cy.elements().removeClass('faded');
     pageRank();
 }
-document.getElementById('runPageRank').onclick = pageRank;
 document.getElementById('delete').onclick = deleteSelected;
 
 },{"cytoscape":"cxe8j","./eigenRank":"amQOS","./eigenRankOrig":"7u7EE","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cxe8j":[function(require,module,exports) {
@@ -26354,6 +26373,15 @@ const normalizeMut = (arr)=>{
     for(i in arr)arr[i] = arr[i] / total;
     return arr;
 };
+const normalize = (arr)=>{
+    let [min, max] = [
+        'min',
+        'max'
+    ].map((x)=>Math[x].apply(null, arr)
+    );
+    for(i in arr)arr[i] = (arr[i] - min) / (max - min);
+    return arr;
+};
 module.exports = function(cy1) {
     cy1('collection', 'eigenRank', function({ weight =()=>1
      , iterations =200 , precision =0.000001  } = {
@@ -26382,12 +26410,12 @@ module.exports = function(cy1) {
             eigenvector[t] += w;
         //console.log({s,t,n})
         }
-        let initVal = normalizeMut(eigenvector.slice(0));
+        let initVal = normalize(eigenvector.slice(0));
         // remove dangling links and save them as a tie-breaker
         let _tail = {
             l: 0
         }, danglingLinks = Array(numNodes).fill(0);
-        console.clear();
+        //console.clear();
         do {
             _tail.e = 0;
             let __dbug = [
@@ -26402,12 +26430,7 @@ module.exports = function(cy1) {
                 delete eigenvector[s];
                 _tail.e++;
             }
-            console.table({
-                __dbug,
-                eigenvector,
-                danglingLinks,
-                _tail
-            });
+            //console.table({__dbug,eigenvector,danglingLinks,_tail})
             _tail.l++;
         }while (_tail.e)
         danglingLinks.forEach((x, i, a)=>x || delete a[i]
@@ -26441,7 +26464,7 @@ module.exports = function(cy1) {
         danglingLinks.forEach((x, i, a)=>a[i] = x / dlfs
         );
         for(let t1 in danglingLinks)eigenvector[t1] = (eigenvector[t1] ??= 0) + danglingLinks[t1];
-        normalizeMut(eigenvector);
+        normalize(eigenvector);
         console.table({
             danglingLinks,
             __dbug,
@@ -26464,6 +26487,15 @@ const normalizeMut = (arr)=>{
     var total = 0;
     for(i in arr)total += arr[i];
     for(i in arr)arr[i] = arr[i] / total;
+    return arr;
+};
+const normalize = (arr)=>{
+    let [min, max] = [
+        'min',
+        'max'
+    ].map((x)=>Math[x].apply(null, arr)
+    );
+    for(i in arr)arr[i] = (arr[i] - min) / (max - min);
     return arr;
 };
 module.exports = function(cy1) {
@@ -26514,7 +26546,7 @@ module.exports = function(cy1) {
             if (diff < precision) break;
             eigenvector = next;
         }
-        //console.log({eigenvector})
+        normalize(eigenvector);
         return {
             rank: function(node) {
                 node = cy.collection(node)[0];
