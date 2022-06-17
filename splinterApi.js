@@ -1,5 +1,5 @@
 var page;
-const {log,sleep,_elem} = require('./util');
+const {log,sleep,_elem,B} = require('./util');
 
 const sm = {};
 sm._  =h=>page=h;
@@ -26,6 +26,7 @@ sm.questClaim = async function (q,_q){
     .then(()=>page.waitForSelector('.loading',{hidden:true}))
     .then(()=>_elem.click(page,'.card3d .card_img'))
     .then(()=>_elem.click(page,'#btnCloseOpenPack'))
+    .then(()=>sleep(27e2))
     .catch(()=>log('failed to open Quest Box')??page.evaluate('SM.HideLoading()'))
 }
 sm.battle = async function(type='Ranked'){
@@ -38,11 +39,12 @@ sm.battle = async function(type='Ranked'){
   })`)
   await sleep(729);
   await page.evaluate('SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)');
-  return cb;
+  //log(cb)
+  return B(cb);
 }
 sm.cards = async function(player){
   player=player?`'${player}'`:'SM.Player.name';
-  log ({'Obtaining Cards':player});
+  log({'Obtaining Cards':player});
   return await page.evaluate(`new Promise((res,rej)=> SM.LoadCollection(${player}, 1, res))`)
 }
 module.exports = sm;

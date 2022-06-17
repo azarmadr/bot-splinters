@@ -30,20 +30,28 @@ const _arr = {
   ,chunk : R.splitEvery
   ,chunk2: R.splitEvery(2)
   ,indexOfminBy : (fn=x=>x)=>(idx,x,i,arr)=> arr[idx]===undefined&&fn(x)!==undefined?i:(fn(x)<fn(arr[idx]))?i:idx
-  ,normalizeMut:(arr,key=null,toOne=0)=>{
-    var total = 0,xer = toOne?1:Object.keys(arr).filter(k=>key?arr[k][key]:arr[k]).length;
-    const elem=i=>key?arr[i][key]:arr[i];
-    for(i in arr)total+=elem(i)??0;
+  ,normalizeMut:(arr,path=null,opt=0)=>{
+    var p =i=> R.path(path?[i,path]:[i],arr);
+    var total = 0;for(let i in arr)total+=p(i)??0;
+    var min = Number.MAX_VALUE;for(let i in arr)min=Math.min(p(i)??0,min);
+    var max = Number.MIN_VALUE;for(let i in arr)max=Math.max(p(i)??0,max);
+    let {num,den} = {
+      0:{
+        num:i=>p(i)??0,den:total
+      },1:{
+        num:i=>(p(i)??0)*Object.keys(arr).filter(p).length,den:total
+      },2:{
+        num:i=>(p(i)??0)-min,den:max-min
+      }
+    }[opt];
     if(!total)return arr;
-    for(i in arr)key?
-      arr[i][key]??=0:
-      arr[i]??=0;
-    for(i in arr)key?
-      arr[i][key]*=xer/total:
-      arr[i]*=xer/total;
+    for(let i in arr){
+      let value = num(i)/den;
+      path? arr[i][path]=value: arr[i]=value;
+    }
     return arr;
   }
-  ,normalize:(arr,key,v)=>_arr.normalizeMut(arr.slice(0),key,v)
+  ,normalize:(arr,path,v)=>_arr.normalizeMut(arr.slice(0),path,v)
   ,rmEmpty:o=>{
     const count = {e:0};
     __IIFE_RM_EMPTY_OBJ(o,o,count)

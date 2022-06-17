@@ -1,3 +1,4 @@
+const R = require('ramda')
 const _dbug = {},_func={},_elem={};
 
 const rl = require("readline");
@@ -49,6 +50,7 @@ _dbug.f = (f,cb) => (...args)=>{
   log('dbug',{..._,...(cb&&{cb:cb(_)})});
   return ret
 }
+_dbug.r = v=> log(v)??v
 _dbug.in1 =(...m)=>{
   rl.clearLine(process.stdout,0)
   rl.cursorTo(process.stdout,0);
@@ -81,16 +83,11 @@ _func.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
       _func.retryFor(n,to,continueAfterAllRetries,func,err))
   })
 }
-_func.cached = (fn, map = {}) => (...arg) => {
-  const inCache = (arg.length==1?arg:JSON.stringify(arg)) in map;
-  if (!inCache) {
-    const value = fn(...arg);
-    return map[(arg.length==1?arg:JSON.stringify(arg))] ??=
-      (typeof value === 'function' ? _func.cached(value, {}) : value);
-  }
-
-  return map[arg.length==1?arg:JSON.stringify(arg)];
-};
+//const pathOrSet=>(v,path,arr)=>arr
+_func.cached=(fn, map = {})=>R.type(fn)=='Function'?
+  (...arg)=>arg.reduce((map,a)=>map[a]??={},map).__??=_func.cached(fn(...arg))
+  //(...arg)=>R.init(arg).reduce((map,a)=>map[a]??={},map)[R.last(arg)]??=_func.cached(fn(...arg))
+  :fn
 _elem.click = async function(page, selector, timeout = 20000, delayBeforeClicking = 0) {
     await page.waitForSelector(selector, { timeout })
       .then(e=>sleep(delayBeforeClicking).then(()=>e.click()))

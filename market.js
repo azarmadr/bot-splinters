@@ -15,6 +15,7 @@ const headless = 0;
 
 const waitList = {};
 
+const rentDuration=ends=>parseInt((Date.parse(ends)-Date.now())/24/36e5+1.5)+'';
 const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delegated_to);
 (async () => {
   const browser = await puppeteer.launch({
@@ -40,7 +41,7 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
   SM._(page);
   await page.goto('https://splinterlands.com/',{waitUntil: 'networkidle0'});
   log({ "#users": users.length });
-  const {leagues} = await page.evaluate(`new Promise(r=>r({...SM.settings}))`);
+  const {leagues,season:{ends}} = await page.evaluate(`new Promise(r=>r({...SM.settings}))`);
   const leaguesRating=_func.cached(r=>leagues.reduce(([cp0,cp1],{min_rating, min_power})=>
     min_rating>r ? [cp0,cp1] : (_dbug.tt.cp = [cp1,min_power]),[0,0])[args.l?1:0])
   for (let { login, account, password, active_key } of users) {
@@ -85,12 +86,13 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
       console.table(minx.map(x=>[...x,_card.name(x[3])]));
       minx.forEach(x=>waitList[[x[3],x[4],x[5]]]=Date.now());
       require('readline').moveCursor(process.stdout,0,-13);
-      for(let [_,lpDoll,lpDec,...cardDetails] of minx){try{
-        if (!cardDetails) continue;
+      try{
+        let [_,lpDoll,lpDec,...cardDetails] = minx[0];
+        if (cardDetails){
         await page.evaluate(`SM.ShowCardDetails(${cardDetails.join()},'rentals')`);
         await page.waitForSelector("tbody > tr:nth-child(1) > .price");
         const _credits =
-          balances.find((a) => a.token === "CREDITS")?.balance > 8e3 * lpDoll;
+          balances.find((a) => a.token === "CREDITS")?.balance > 10e3 * lpDoll;
         //log({_credits,lpDoll});
         await page.select("#payment_currency", _credits ? "CREDITS" : "DEC");
         const id = (
@@ -104,8 +106,12 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
         if (id > -1) {
           await _elem.click(page, `tr:nth-child(${id + 1}) .card-checkbox`);
           await _elem.click(page, "#btn_buy").then(R.always(sleep(333)));
-          await page.waitForSelector("#txt_rent_days").then(R.always(sleep(33)));
-          //await page.type('#txt_rent_days','2');
+          await page.waitForSelector("#txt_rent_days")
+            .then(R.always(sleep(33)))
+            .then(()=>page.focus('#txt_rent_days',''))
+            .then(()=>page.keyboard.press('Delete'))
+            .then(()=>page.keyboard.press('Backspace'))
+            .then(()=>page.type('#txt_rent_days',rentDuration(ends)));
           await _elem.click(page, "#btn_rent_popup_rent");
           if (account != "azarmadr3") await page.waitForSelector("#active_key", { timeout: 4e3 })
             .then(()=>sleep(1231))
@@ -113,13 +119,12 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
             .then(()=>page.type("#active_key", active_key))
             .then(()=>_elem.click(page, "#approve_tx"))
             .catch(()=>page.evaluate(`SM.HideDialog()`))
-          await sleep(333);
-          await page.waitForSelector(".loading", { hidden: true, timeout: 1e5 });
+          await page.waitForSelector(".loading", { visible: true, timeout: 1e2 }).catch(()=>{})
+          await page.waitForSelector(".loading", { hidden:  true, timeout: 1e5 });
         }
-        await sleep(3e2);
         await page.evaluate('SM.HideDialog()');
-      }catch(e){log(e)}}
-      await sleep(81e2);
+      }}catch(e){log(e)}
+      await sleep(3e2);
       delete _dbug.tt.userSummary;
     }while(true)
     await page.evaluate("SM.Logout()");
