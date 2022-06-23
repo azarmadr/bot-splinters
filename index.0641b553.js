@@ -526,10 +526,12 @@ var _cytoscape = require("cytoscape");
 var _cytoscapeDefault = parcelHelpers.interopDefault(_cytoscape);
 var _eigenRank = require("./eigenRank");
 var _eigenRankDefault = parcelHelpers.interopDefault(_eigenRank);
-var _eigenRankOrig = require("./eigenRankOrig");
-var _eigenRankOrigDefault = parcelHelpers.interopDefault(_eigenRankOrig);
+var _louvain = require("./louvain");
+var _louvainDefault = parcelHelpers.interopDefault(_louvain);
+//import eigenRank2 from './eigenRankOrig';
 _cytoscapeDefault.default.use(_eigenRankDefault.default);
-_cytoscapeDefault.default.use(_eigenRankOrigDefault.default);
+_cytoscapeDefault.default.use(_louvainDefault.default);
+//cytoscape.use(eigenRank2);
 var nextID = 0;
 var relType = 'w';
 var cy = _cytoscapeDefault.default({
@@ -553,6 +555,12 @@ var cy = _cytoscapeDefault.default({
             }
         },
         {
+            selector: ':parent',
+            style: {
+                'text-valign': 'top'
+            }
+        },
+        {
             selector: 'edge',
             style: {
                 'width': 3,
@@ -570,11 +578,12 @@ var cy = _cytoscapeDefault.default({
             }
         }
     ],
+    //layout: { name: 'grid', fit: true, padding: 10, rows: 2 },
     layout: {
         name: 'grid',
-        fit: false,
-        padding: 10,
-        rows: 1
+        fit: true,
+        padding: 11,
+        rows: 3
     },
     ready: function() {
         let cy1 = this;
@@ -670,25 +679,35 @@ function normalizedPageRank(opts) {
     };
 }
 function pageRank() {
+    console.clear();
+    cy.nodes().forEach((n1)=>{
+        if (n1.isParent()) {
+            n1.children().forEach((n)=>n.move({
+                    parent: null
+                })
+            );
+            n1.remove();
+        }
+    });
     var pr = normalizedPageRank({
         'dampingfactor': 0.85
     });
-    //var pr = cy.elements().pageRank({'dampingfactor': 0.85});
     var er = cy.elements().eigenRank();
-    var or = cy.elements().eigenRankOrig();
+    //var or = cy.elements().eigenRankOrig();
     window.pr = cy.elements();
     cy.nodes().forEach((ele)=>{
+        //er: ${Math.round(er.rank(ele).eigenValue*1e3)/1e3}
+        //ir: ${Math.round(er.rank(ele).initVal*1e3)/1e3}
         ele.style({
             'content': `${ele.data('name')}
 pr: ${Math.round(pr.rank(ele) * 1000) / 1000}
-or: ${Math.round(or.rank(ele) * 1000) / 1000}
 
-er: ${Math.round(er.rank(ele).eigenValue * 1000) / 1000}
-ir: ${Math.round(er.rank(ele).initVal * 1000) / 1000}
+er: ${Math.round(er.rank(ele) * 1000) / 1000}
 `
         });
     });
     cy.nodes().flashClass('nolabel', 1);
+    cy.elements().louvain();
 }
 function deleteSelected() {
     var selection = cy.$(':selected');
@@ -701,7 +720,7 @@ function deleteSelected() {
 }
 document.getElementById('delete').onclick = deleteSelected;
 
-},{"cytoscape":"cxe8j","./eigenRank":"amQOS","./eigenRankOrig":"7u7EE","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cxe8j":[function(require,module,exports) {
+},{"cytoscape":"cxe8j","./eigenRank":"amQOS","./louvain":"eUQQe","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cxe8j":[function(require,module,exports) {
 /**
  * Copyright (c) 2016-2021, The Cytoscape Consortium.
  *
@@ -26410,127 +26429,9 @@ module.exports = function(cy1) {
             eigenvector[t] += w;
         //console.log({s,t,n})
         }
-        let initVal = normalize(eigenvector.slice(0));
-        // remove dangling links and save them as a tie-breaker
-        let _tail = {
-            l: 0
-        }, danglingLinks = Array(numNodes).fill(0);
-        //console.clear();
-        do {
-            _tail.e = 0;
-            let __dbug = [
-                ...eigenvector
-            ];
-            for(let s in __dbug)if (__dbug[s] == 0) {
-                for(let t in eigenvector){
-                    let es = matrix[_matOrd(s, t)];
-                    eigenvector[t] -= es;
-                    danglingLinks[t] += es * ((_tail.l + 1) / (_tail.l + 3) + _tail.l);
-                }
-                delete eigenvector[s];
-                _tail.e++;
-            }
-            //console.table({__dbug,eigenvector,danglingLinks,_tail})
-            _tail.l++;
-        }while (_tail.e)
-        danglingLinks.forEach((x, i, a)=>x || delete a[i]
-        );
-        normalizeMut(danglingLinks);
-        //console.log({matrix,eigenvector})
         // Compute dominant eigenvector using power method
         normalizeMut(eigenvector);
         for(let iter = 0; iter < iterations; iter++){
-            let next = Array(numNodes).fill(0);
-            // Multiply matrix with previous result
-            for(let s in eigenvector)for(let t in eigenvector)next[t] += matrix[_matOrd(s, t)] * eigenvector[s];
-            if (next.every((x)=>!x
-            )) break;
-            normalizeMut(next);
-            let diff = 0;
-            // Compute difference (squared module) of both vectors
-            for(let i in eigenvector){
-                let delta = next[i] - eigenvector[i];
-                diff += delta * delta;
-            }
-            if (diff < precision) break;
-            eigenvector = next;
-        }
-        const __dbug = [
-            ...eigenvector
-        ];
-        let evfs = Object.keys(eigenvector).length, dlfs = Object.keys(danglingLinks).length;
-        eigenvector.forEach((x, i, a)=>a[i] = x * evfs
-        );
-        danglingLinks.forEach((x, i, a)=>a[i] = x / dlfs
-        );
-        for(let t1 in danglingLinks)eigenvector[t1] = (eigenvector[t1] ??= 0) + danglingLinks[t1];
-        normalize(eigenvector);
-        console.table({
-            danglingLinks,
-            __dbug,
-            eigenvector
-        });
-        return {
-            rank: function(node) {
-                node = cy.collection(node)[0];
-                return {
-                    eigenValue: eigenvector[nodes.indexOf(node)],
-                    initVal: initVal[nodes.indexOf(node)]
-                };
-            }
-        };
-    });
-};
-
-},{}],"7u7EE":[function(require,module,exports) {
-const normalizeMut = (arr)=>{
-    var total = 0;
-    for(i in arr)total += arr[i];
-    for(i in arr)arr[i] = arr[i] / total;
-    return arr;
-};
-const normalize = (arr)=>{
-    let [min, max] = [
-        'min',
-        'max'
-    ].map((x)=>Math[x].apply(null, arr)
-    );
-    for(i in arr)arr[i] = (arr[i] - min) / (max - min);
-    return arr;
-};
-module.exports = function(cy1) {
-    cy1('collection', 'eigenRankOrig', function({ weight =()=>1
-     , iterations =200 , precision =0.000001  } = {
-    }) {
-        let cy = this._private.cy;
-        let { nodes , edges  } = this.byGroup();
-        let numNodes = nodes.length;
-        let numNodesSqd = numNodes * numNodes;
-        let _matOrd = (s, t)=>+t + s * numNodes
-        ;
-        // Construct matrix with wins and losses with each row as team and
-        // score 2(if won) or 1 (if drawn) against the column as opponent team
-        // We'll also keep track of the sum of each row
-        let matrix = Array(numNodesSqd).fill(0);
-        let eigenvector = Array(numNodes).fill(0);
-        // Now, process edges
-        for (let edge of edges){
-            let srcId = edge.data('source');
-            let tgtId = edge.data('target');
-            // Don't include loops in the matrix
-            if (srcId === tgtId) continue;
-            let s = nodes.indexOfId(srcId);
-            let t = nodes.indexOfId(tgtId);
-            let w = weight(edge);
-            matrix[_matOrd(s, t)] += w;
-            eigenvector[t] += w;
-        //console.log({s,t,n})
-        }
-        // Compute dominant eigenvector using power method
-        normalizeMut(eigenvector);
-        for(let iter = 0; iter < iterations; iter++){
-            if (eigenvector.every((x)=>!x
-            )) break;
             let next = Array(numNodes).fill(0);
             // Multiply matrix with previous result
             for(let s in eigenvector)for(let t in eigenvector)next[t] += matrix[_matOrd(s, t)] * eigenvector[s];
@@ -26553,6 +26454,144 @@ module.exports = function(cy1) {
                 return eigenvector[nodes.indexOf(node)];
             }
         };
+    });
+};
+
+},{}],"eUQQe":[function(require,module,exports) {
+const normalizeMut = (arr)=>{
+    var total = 0;
+    for(i in arr)total += arr[i];
+    for(i in arr)arr[i] = arr[i] / total;
+    return arr;
+};
+const normalize = (arr)=>{
+    let [min, max] = [
+        'min',
+        'max'
+    ].map((x)=>Math[x].apply(null, arr)
+    );
+    for(i in arr)arr[i] = (arr[i] - min) / (max - min);
+    return arr;
+};
+function shuffleArray(array) {
+    for(let i = array.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [
+            array[j],
+            array[i]
+        ];
+    }
+    return array;
+}
+module.exports = function(cy1) {
+    cy1('collection', 'louvain', function({ weight =()=>1
+     , iterations =200 , precision =0.000001  } = {
+    }) {
+        let cy = this._private.cy;
+        let { nodes , edges  } = this.byGroup();
+        let numNodes = nodes.length;
+        let numNodesSqd = numNodes * numNodes;
+        let _matOrd = (s, t)=>+t + s * numNodes
+        ;
+        const calcDegree = (c)=>c.degree = Array.from(c.members).reduce((a, n)=>a + nodes[n].degree()
+            , 0)
+        ;
+        // Construct matrix with wins and losses with each row as team and
+        // score 2(if won) or 1 (if drawn) against the column as opponent team
+        // We'll also keep track of the sum of each row
+        let matrix = Array(numNodesSqd).fill(0);
+        let eigenvector = Array(numNodes).fill(0);
+        let sCommunities = {
+        };
+        nodes.forEach((node, i)=>sCommunities[i] = {
+                members: new Set([
+                    i
+                ]),
+                degree: node.degree()
+            }
+        );
+        let m = edges.reduce((s, e)=>s + weight(e)
+        , 0);
+        for(let dirty = 1, loop = 0; loop < iterations && dirty === 1; loop++){
+            dirty = 0;
+            let __l = [];
+            shuffleArray([
+                ...Array(numNodes).keys()
+            ]).forEach((i)=>{
+                let dm = -1, nc = -1, de, dd;
+                let node = nodes[i];
+                let cp = sCommunities[i].degree;
+                let d = node.degree();
+                node.neighborhood().nodes().map((x)=>nodes.indexOfId(x.data('id'))
+                ).filter((x)=>!sCommunities[i].members.has(x)
+                ).forEach((n)=>{
+                    let c = sCommunities[n];
+                    let cn = c.degree;
+                    let e2cn = Array.from(c.members).flatMap((n)=>node.edgesWith(nodes[n]).map((x)=>weight(x)
+                        )
+                    ).reduce((e, x)=>e + x
+                    , 0);
+                    let e2cp = Array.from(sCommunities[i].members).filter((x)=>x !== i
+                    ).flatMap((n)=>node.edgesWith(nodes[n]).map((x)=>weight(x)
+                        )
+                    ).reduce((e, x)=>e + x
+                    , 0);
+                    let idm = (de = e2cn - e2cp) - (dd = d * (cn + d - cp) / 2 / m);
+                    if (idm > 0 && idm > dm) [dm, nc] = [
+                        idm,
+                        n
+                    ];
+                    __l.push({
+                        loop,
+                        m,
+                        i,
+                        n,
+                        nc,
+                        de,
+                        dd,
+                        d,
+                        cp,
+                        cn,
+                        e2cp,
+                        e2cn,
+                        idm,
+                        dm
+                    });
+                });
+                if (dm > 0) {
+                    sCommunities[i].members.delete(i);
+                    sCommunities[nc].members.add(i);
+                    calcDegree(sCommunities[nc]);
+                    sCommunities[i] = sCommunities[nc];
+                    dirty = 1;
+                }
+            });
+            console.table(__l);
+            console.table(Array.from(new Set(Object.values(sCommunities))).map((x)=>({
+                    ...x,
+                    members: Array.from(x.members) + ''
+                })
+            ));
+        //console.log(JSON.stringify(__l))
+        //console.log(JSON.stringify(Array.from(new Set(Object.values(sCommunities))).map(x=>({...x,members:Array.from(x.members)+''}))))
+        }
+        let communities = Object.values(sCommunities).filter((x, i, a)=>i == a.findIndex((y)=>y == x
+            )
+        );
+        communities.forEach((c, i)=>{
+            let parent = `louvain Undirected Community ${i}`;
+            let comm = cy.add({
+                group: 'nodes',
+                data: {
+                    id: parent
+                }
+            });
+            Array.from(c.members).forEach((n)=>nodes[n].move({
+                    parent
+                })
+            );
+        });
+        return communities;
     });
 };
 
