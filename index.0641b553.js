@@ -639,10 +639,9 @@ let tpr = pr(require('../data/battle_data.json'),{mana_cap,ruleset,inactive,myCa
 var e = cy.add([
   ...[...tpr.nodeScores].map(x=>({ group: 'nodes', data: { id: x[0], score: x[1][0], } })),
 ]);
-*/ document.querySelector('#result').onclick = ()=>{
-    var box = document.getElementById('result');
-    relType = box.checked ? 'd' : 'w';
-    document.querySelector('#result ~ label').innerText = 'Relationships are ' + (box.checked ? 'Draws' : 'Wins');
+*/ document.getElementById('result').onclick = ()=>{
+    relType = relType == 'w' ? 'd' : 'w';
+    document.getElementById('result').innerText = relType == 'w' ? 'Wins' : 'Draws';
 };
 document.getElementById('addTeam').onclick = ()=>{
     cy.add({
@@ -657,6 +656,12 @@ document.getElementById('addTeam').onclick = ()=>{
         }
     });
     nextID++;
+    pageRank();
+};
+var mode = 1;
+document.getElementById('community').onclick = ()=>{
+    mode ^= 1;
+    document.getElementById('community').innerText = `Louvain ${mode ? '' : 'Un'}Directed Community`;
     pageRank();
 };
 function normalizedPageRank(opts) {
@@ -707,7 +712,9 @@ er: ${Math.round(er.rank(ele) * 1000) / 1000}
         });
     });
     cy.nodes().flashClass('nolabel', 1);
-    cy.elements().louvain();
+    cy.elements().louvain({
+        mode
+    });
 }
 function deleteSelected() {
     var selection = cy.$(':selected');
@@ -26458,22 +26465,27 @@ module.exports = function(cy1) {
 };
 
 },{}],"eUQQe":[function(require,module,exports) {
-const normalizeMut = (arr)=>{
-    var total = 0;
-    for(i in arr)total += arr[i];
-    for(i in arr)arr[i] = arr[i] / total;
-    return arr;
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+var _louvainUndirected = require("./louvain-undirected");
+var _louvainUndirectedDefault = parcelHelpers.interopDefault(_louvainUndirected);
+var _louvainDirected = require("./louvain-directed");
+var _louvainDirectedDefault = parcelHelpers.interopDefault(_louvainDirected);
+module.exports = function(cy) {
+    cy('collection', 'louvain', function({ weight =()=>1
+     , iterations =200 , mode =0  } = {
+    }) {
+        return mode ? _louvainDirectedDefault.default(this._private.cy, this.byGroup(), {
+            weight,
+            iterations
+        }) : _louvainUndirectedDefault.default(this._private.cy, this.byGroup(), {
+            weight,
+            iterations
+        });
+    });
 };
-const normalize = (arr)=>{
-    let [min, max] = [
-        'min',
-        'max'
-    ].map((x)=>Math[x].apply(null, arr)
-    );
-    for(i in arr)arr[i] = (arr[i] - min) / (max - min);
-    return arr;
-};
-function shuffleArray(array) {
+
+},{"./louvain-undirected":"gmHyI","./louvain-directed":"ftFL4","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"gmHyI":[function(require,module,exports) {
+const shuffleArray = (array)=>{
     for(let i = array.length - 1; i > 0; i--){
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [
@@ -26482,116 +26494,220 @@ function shuffleArray(array) {
         ];
     }
     return array;
-}
-module.exports = function(cy1) {
-    cy1('collection', 'louvain', function({ weight =()=>1
-     , iterations =200 , precision =0.000001  } = {
-    }) {
-        let cy = this._private.cy;
-        let { nodes , edges  } = this.byGroup();
-        let numNodes = nodes.length;
-        let numNodesSqd = numNodes * numNodes;
-        let _matOrd = (s, t)=>+t + s * numNodes
-        ;
-        const calcDegree = (c)=>c.degree = Array.from(c.members).reduce((a, n)=>a + nodes[n].degree()
-            , 0)
-        ;
-        // Construct matrix with wins and losses with each row as team and
-        // score 2(if won) or 1 (if drawn) against the column as opponent team
-        // We'll also keep track of the sum of each row
-        let matrix = Array(numNodesSqd).fill(0);
-        let eigenvector = Array(numNodes).fill(0);
-        let sCommunities = {
-        };
-        nodes.forEach((node, i)=>sCommunities[i] = {
-                members: new Set([
-                    i
-                ]),
-                degree: node.degree()
-            }
-        );
-        let m = edges.reduce((s, e)=>s + weight(e)
-        , 0);
-        for(let dirty = 1, loop = 0; loop < iterations && dirty === 1; loop++){
-            dirty = 0;
-            let __l = [];
-            shuffleArray([
-                ...Array(numNodes).keys()
-            ]).forEach((i)=>{
-                let dm = -1, nc = -1, de, dd;
-                let node = nodes[i];
-                let cp = sCommunities[i].degree;
-                let d = node.degree();
-                node.neighborhood().nodes().map((x)=>nodes.indexOfId(x.data('id'))
-                ).filter((x)=>!sCommunities[i].members.has(x)
-                ).forEach((n)=>{
-                    let c = sCommunities[n];
-                    let cn = c.degree;
-                    let e2cn = Array.from(c.members).flatMap((n)=>node.edgesWith(nodes[n]).map((x)=>weight(x)
-                        )
-                    ).reduce((e, x)=>e + x
-                    , 0);
-                    let e2cp = Array.from(sCommunities[i].members).filter((x)=>x !== i
-                    ).flatMap((n)=>node.edgesWith(nodes[n]).map((x)=>weight(x)
-                        )
-                    ).reduce((e, x)=>e + x
-                    , 0);
-                    let idm = (de = e2cn - e2cp) - (dd = d * (cn + d - cp) / 2 / m);
-                    if (idm > 0 && idm > dm) [dm, nc] = [
-                        idm,
-                        n
-                    ];
-                    __l.push({
-                        loop,
-                        m,
-                        i,
-                        n,
-                        nc,
-                        de,
-                        dd,
-                        d,
-                        cp,
-                        cn,
-                        e2cp,
-                        e2cn,
-                        idm,
-                        dm
-                    });
-                });
-                if (dm > 0) {
-                    sCommunities[i].members.delete(i);
-                    sCommunities[nc].members.add(i);
-                    calcDegree(sCommunities[nc]);
-                    sCommunities[i] = sCommunities[nc];
-                    dirty = 1;
-                }
-            });
-            console.table(__l);
-            console.table(Array.from(new Set(Object.values(sCommunities))).map((x)=>({
-                    ...x,
-                    members: Array.from(x.members) + ''
-                })
-            ));
-        //console.log(JSON.stringify(__l))
-        //console.log(JSON.stringify(Array.from(new Set(Object.values(sCommunities))).map(x=>({...x,members:Array.from(x.members)+''}))))
+};
+module.exports = (cy, { nodes , edges  }, { weight =()=>1
+ , iterations =200  } = {
+})=>{
+    let numNodes = nodes.length;
+    const calcDegree = (c)=>c.degree = Array.from(c.members).reduce((a, n)=>a + nodes[n].degree()
+        , 0)
+    ;
+    // Construct matrix with wins and losses with each row as team and
+    // score 2(if won) or 1 (if drawn) against the column as opponent team
+    // We'll also keep track of the sum of each row
+    let sCommunities = {
+    };
+    nodes.forEach((node, i)=>sCommunities[i] = {
+            members: new Set([
+                i
+            ]),
+            degree: node.degree()
         }
-        let communities = Object.values(sCommunities).filter((x, i, a)=>i == a.findIndex((y)=>y == x
-            )
-        );
-        communities.forEach((c, i)=>{
-            let parent = `louvain Undirected Community ${i}`;
-            let comm = cy.add({
-                group: 'nodes',
-                data: {
-                    id: parent
-                }
+    );
+    let m = edges.reduce((s, e)=>s + weight(e)
+    , 0);
+    for(let dirty = 1, loop = 0; loop < iterations && dirty === 1; loop++){
+        dirty = 0;
+        let __l = [];
+        shuffleArray([
+            ...Array(numNodes).keys()
+        ]).forEach((i)=>{
+            let dm = -1, nc = -1, de, dd;
+            let node = nodes[i];
+            let cp = sCommunities[i].degree;
+            let d = node.degree();
+            node.neighborhood().nodes().map((x)=>nodes.indexOfId(x.data('id'))
+            ).filter((x)=>!sCommunities[i].members.has(x)
+            ).forEach((n)=>{
+                let cn = sCommunities[n].degree;
+                let e2cn = Array.from(sCommunities[n].members).flatMap((n)=>node.edgesWith(nodes[n]).map((x)=>weight(x)
+                    )
+                ).reduce((e, x)=>e + x
+                , 0);
+                let e2cp = Array.from(sCommunities[i].members).filter((x)=>x !== i
+                ).flatMap((n)=>node.edgesWith(nodes[n]).map((x)=>weight(x)
+                    )
+                ).reduce((e, x)=>e + x
+                , 0);
+                let idm = (de = e2cn - e2cp) - (dd = d * (cn + d - cp) / 2 / m);
+                if (idm > 0 && idm > dm) [dm, nc] = [
+                    idm,
+                    n
+                ];
+                __l.push({
+                    loop,
+                    m,
+                    i,
+                    n,
+                    nc,
+                    de,
+                    dd,
+                    d,
+                    cp,
+                    cn,
+                    e2cp,
+                    e2cn,
+                    idm,
+                    dm
+                });
             });
-            Array.from(c.members).forEach((n)=>nodes[n].move({
-                    parent
-                })
-            );
+            if (dm > 0) {
+                sCommunities[nc].members.add(i);
+                sCommunities[i].members.delete(i);
+                sCommunities[i] = sCommunities[nc];
+                calcDegree(sCommunities[nc]);
+                calcDegree(sCommunities[i]);
+                dirty = 1;
+            }
         });
-        return communities;
+        console.table(__l);
+        console.table(Array.from(new Set(Object.values(sCommunities))).map((x)=>({
+                ...x,
+                members: Array.from(x.members) + ''
+            })
+        ));
+    //console.log(JSON.stringify(__l))
+    //console.log(JSON.stringify(Array.from(new Set(Object.values(sCommunities))).map(x=>({...x,members:Array.from(x.members)+''}))))
+    }
+    return Object.values(sCommunities).filter((x, i, a)=>i == a.findIndex((y)=>y == x
+        )
+    ).map((c, i)=>{
+        let parent = `louvain Undirected Community ${i}`;
+        cy.add({
+            group: 'nodes',
+            data: {
+                id: parent
+            }
+        });
+        Array.from(c.members).forEach((n)=>nodes[n].move({
+                parent
+            })
+        );
+    });
+};
+
+},{}],"ftFL4":[function(require,module,exports) {
+const shuffleArray = (array)=>{
+    for(let i = array.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [
+            array[j],
+            array[i]
+        ];
+    }
+    return array;
+};
+module.exports = (cy, { nodes , edges  }, { weight =()=>1
+ , iterations =200  } = {
+})=>{
+    let numNodes = nodes.length;
+    const calcDegree = (c)=>{
+        c.inDegree = Array.from(c.members).reduce((a, n)=>a + nodes[n].indegree()
+        , 0);
+        c.outDegree = Array.from(c.members).reduce((a, n)=>a + nodes[n].outdegree()
+        , 0);
+    };
+    let sCommunities = {
+    };
+    nodes.forEach((node, i)=>calcDegree(sCommunities[i] = {
+            members: new Set([
+                i
+            ])
+        })
+    );
+    let m = edges.reduce((s, e)=>s + weight(e)
+    , 0);
+    for(let dirty = 1, loop = 0; loop < iterations && dirty === 1; loop++){
+        dirty = 0;
+        let __l = [];
+        shuffleArray([
+            ...Array(numNodes).keys()
+        ]).forEach((i)=>{
+            let dm = -1, nc = -1, de, dd;
+            let node = nodes[i];
+            let { inDegree: cpi , outDegree: cpo  } = sCommunities[i];
+            let di = node.indegree();
+            let dO = node.outdegree();
+            node.neighborhood().nodes().map((x)=>nodes.indexOfId(x.data('id'))
+            ).filter((x)=>!sCommunities[i].members.has(x)
+            ).forEach((n)=>{
+                let { inDegree: cni , outDegree: cno  } = sCommunities[n];
+                let e2cn = Array.from(sCommunities[n].members).flatMap((n)=>node.edgesWith(nodes[n]).map((x)=>weight(x)
+                    )
+                ).reduce((e, x)=>e + x
+                , 0);
+                let e2cp = Array.from(sCommunities[i].members).filter((x)=>x !== i
+                ).flatMap((n)=>node.edgesWith(nodes[n]).map((x)=>weight(x)
+                    )
+                ).reduce((e, x)=>e + x
+                , 0);
+                let idm = (de = e2cn - e2cp) - (dd = (di * (cno + dO - cpo) + dO * (cni + di - cpi)) / m);
+                if (idm > 0 && idm > dm) [dm, nc] = [
+                    idm,
+                    n
+                ];
+                __l.push({
+                    loop,
+                    m,
+                    i,
+                    n,
+                    nc,
+                    de,
+                    dd,
+                    di,
+                    dO,
+                    cpi,
+                    cpo,
+                    cni,
+                    cno,
+                    e2cp,
+                    e2cn,
+                    idm,
+                    dm
+                });
+            });
+            if (dm > 0) {
+                sCommunities[nc].members.add(i);
+                sCommunities[i].members.delete(i);
+                sCommunities[i] = sCommunities[nc];
+                calcDegree(sCommunities[nc]);
+                calcDegree(sCommunities[i]);
+                dirty = 1;
+            }
+        });
+        console.table(__l);
+        console.table(Array.from(new Set(Object.values(sCommunities))).map((x)=>({
+                ...x,
+                members: Array.from(x.members) + ''
+            })
+        ));
+    //console.log(JSON.stringify(__l))
+    //console.log(JSON.stringify(Array.from(new Set(Object.values(sCommunities))).map(x=>({...x,members:Array.from(x.members)+''}))))
+    }
+    return Object.values(sCommunities).filter((x, i, a)=>i == a.findIndex((y)=>y == x
+        )
+    ).map((c, i)=>{
+        let parent = `louvain Directed Community ${i}`;
+        cy.add({
+            group: 'nodes',
+            data: {
+                id: parent
+            }
+        });
+        Array.from(c.members).forEach((n)=>nodes[n].move({
+                parent
+            })
+        );
     });
 };
 
