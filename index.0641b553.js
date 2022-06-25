@@ -545,8 +545,8 @@ var cy = _cytoscapeDefault.default({
             selector: 'node',
             style: {
                 'shape': 'rectangle',
-                'width': '80',
-                'height': '100',
+                'width': '66',
+                'height': '54',
                 'content': 'data(name)',
                 'text-valign': 'center',
                 'background-color': '#FFFF99',
@@ -593,9 +593,7 @@ var cy = _cytoscapeDefault.default({
     //layout: { name: 'grid', fit: true, padding: 11, rows: 3 },
     layout: {
         name: 'fcose',
-        fit: true,
-        padding: 11,
-        rows: 3
+        fit: true
     },
     ready: function() {
         let cy1 = this;
@@ -603,45 +601,33 @@ var cy = _cytoscapeDefault.default({
         cy1.selectedNode = null;
         cy1.on('tap', 'node:childless', function(e) {
             var node = e.target;
-            console.log(node.map((x)=>x.data().id
-            ));
             if (cy1.selectedNode !== null && cy1.selectedNode !== node) {
-                if (node.isChildless()) {
-                    cy1.add({
-                        group: "edges",
-                        data: {
-                            target: node.id(),
-                            source: cy1.selectedNode.id()
-                        }
-                    });
-                    if (relType == 'w') cy1.add({
-                        group: "edges",
-                        data: {
-                            target: node.id(),
-                            source: cy1.selectedNode.id()
-                        }
-                    });
-                    else cy1.add({
-                        group: "edges",
-                        data: {
-                            source: node.id(),
-                            target: cy1.selectedNode.id()
-                        }
-                    });
-                    pageRank();
-                    cy1.layout({
-                        name: 'fcose'
-                    }).run();
-                    cy1.elements().removeClass('faded');
-                    cy1.elements().removeClass('hidden');
-                    cy1.selectedNode = null;
-                } else {
-                    node.descendants().filter(':cildless').removeClass('faded');
-                    node.descendants().filter(':cildless').removeClass('faded');
-                    cy1.selectedNode = null;
-                }
+                cy1.add({
+                    group: "edges",
+                    data: {
+                        target: node.id(),
+                        source: cy1.selectedNode.id()
+                    }
+                });
+                if (relType == 'w') cy1.add({
+                    group: "edges",
+                    data: {
+                        target: node.id(),
+                        source: cy1.selectedNode.id()
+                    }
+                });
+                else cy1.add({
+                    group: "edges",
+                    data: {
+                        source: node.id(),
+                        target: cy1.selectedNode.id()
+                    }
+                });
+                pageRank();
+                larr.shift()?.run();
+                cy1.elements().removeClass('faded');
+                cy1.selectedNode = null;
             } else {
-                //cy.nodes().filter(':parent').addClass('hidden')
                 cy1.elements().addClass('faded');
                 node.removeClass('faded');
                 node.select();
@@ -654,8 +640,40 @@ var cy = _cytoscapeDefault.default({
                 cy1.selectedNode = null;
             }
         });
+        //cy.on('add','node', ()=>genLayout(1))
+        //cy.on('move','node', ()=>genLayout(1))
+        cy1.on('layoutstop', ()=>{
+            //console.log(larr.length)
+            larr.shift()?.run();
+        });
     }
 });
+console.log(cy.layout({
+    name: 'fcose',
+    tilingPaddingVertical: 3,
+    tilingPaddingHorizontal: 3,
+    //relativePlacementConstraint,
+    nodeReplusion: (n)=>n.degree() ? 4444 : 333
+    ,
+    idealEdgeLength: (_)=>27
+    ,
+    animationDuration: 27
+}));
+var larr = [];
+var genLayout = (t)=>//larr.push(
+    cy.layout({
+        name: 'fcose',
+        tilingPaddingVertical: 3,
+        tilingPaddingHorizontal: 3,
+        //relativePlacementConstraint,
+        nodeReplusion: (n)=>n.degree() ? 4444 : 333
+        ,
+        idealEdgeLength: (_)=>27
+        ,
+        animationDuration: 243 * t
+    }).run()
+;
+//)
 /*
 const pr = require('../teamRank').playableTeams;
 let [inactive,ruleset,mana_cap]=['','Melee Mayhem',12];
@@ -728,13 +746,12 @@ function pageRank() {
         ele.style({
             'content': `${ele.data('name')}
 pr: ${Math.round(pr.rank(ele) * 1000) / 1000}
-
 er: ${Math.round(er.rank(ele) * 1000) / 1000}
 `
         });
     });
     cy.nodes().flashClass('nolabel', 1);
-    for(let res = 1, level = 1; Boolean(res); level++){
+    for(let res = 1, count = 0, level = 1; Boolean(res); level++, count++){
         console.log({
             level
         });
@@ -742,8 +759,9 @@ er: ${Math.round(er.rank(ele) * 1000) / 1000}
             mode,
             level
         });
-        if (level > 27) break;
+        if (level > 27 || count > 27) break;
     }
+    genLayout(3);
 }
 function deleteSelected() {
     var selection = cy.$(':selected');
@@ -755,7 +773,21 @@ function deleteSelected() {
     pageRank();
 }
 document.getElementById('delete').onclick = deleteSelected;
-for(let i = 0; i < 12; i++)addTeam();
+for(let i = 0; i < 12; i++){
+    cy.add({
+        group: "nodes",
+        data: {
+            id: '' + nextID,
+            name: 'Team ' + nextID
+        },
+        position: {
+            x: 100 + nextID % 4 * 150,
+            y: 100 + 120 * Math.floor(nextID / 4)
+        }
+    });
+    nextID++;
+    if (i == 11) pageRank();
+}
 
 },{"cytoscape":"cxe8j","cytoscape-fcose":"6GhNo","./eigenRank":"amQOS","./louvain":"eUQQe","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cxe8j":[function(require,module,exports) {
 /**
@@ -36095,7 +36127,7 @@ module.exports = function(cy1) {
 };
 
 },{}],"eUQQe":[function(require,module,exports) {
-let m, edgeType;
+let m, edgeType = 1;
 const shuffleArray = (array)=>{
     for(let i = array.length - 1; i > 0; i--){
         const j = Math.floor(Math.random() * (i + 1));
@@ -36106,37 +36138,25 @@ const shuffleArray = (array)=>{
     }
     return array;
 };
-const getDegree = (n)=>n.descendants().add(n).reduce((a, x)=>(edgeType ? (a.i += x.indegree(), a.o += x.outdegree()) : a += x.degree(), a)
-    , edgeType ? {
+const getDegree = (n, e = edgeType)=>n.descendants().add(n).reduce((a, x)=>(e ? (a.i += x.indegree(), a.o += x.outdegree()) : a += x.degree(), a)
+    , e ? {
         i: 0,
         o: 0
     } : 0)
 ;
-const getCommDegree = (c)=>edgeType ? {
-        i: c.indegree,
-        o: c.outdegree
-    } : c.degree
-;
 const degreeExchange = (cn, d, cp)=>edgeType ? d.i * (cn.o + d.o - cp.o) + d.o * (cn.i + d.i - cp.i) : d * (cn + d - cp) / 2
 ;
-const louvainCommunityDetection = (cy, nodes, { weight , iterations , level  } = {
+const louvainCommunityDetection = (cy, { weight , iterations , level  } = {
 })=>{
-    let sCommunities = {
-    };
-    const calcDegree = (c)=>{
-        [
-            'indegree',
-            'outdegree'
-        ].forEach((x)=>c[x] = Array.from(c.members).flatMap((n)=>nodes[n].descendants().add(nodes[n])
-            ).reduce((a, n)=>a + n[x]()
-            , 0)
-        );
-        c.degree = c.indegree + c.outdegree;
-    };
-    nodes.forEach((_, i)=>calcDegree(sCommunities[i] = {
-            members: new Set([
-                i
-            ])
+    let nodes = cy.nodes().filter((n)=>n.isOrphan() && getDegree(n, 0)
+    );
+    nodes.forEach((n, i)=>n.move({
+            parent: cy.add({
+                group: 'nodes',
+                data: {
+                    id: `L${level}-C${i}`
+                }
+            }).id()
         })
     );
     for(let dirty = 1, loop = 0; loop < iterations && dirty === 1; loop++){
@@ -36147,33 +36167,26 @@ const louvainCommunityDetection = (cy, nodes, { weight , iterations , level  } =
         ]).forEach((i)=>{
             let dm = -1, nc = -1, de, dd;
             let node = nodes[i];
-            let cp = getCommDegree(sCommunities[i]);
+            let parent = node.parent();
+            let cp = getDegree(parent);
             let d = getDegree(node);
-            let neighbors = node.descendants().add(node).neighborhood().nodes();
-            neighbors.parents().add(neighbors).filter(':orphan').map((x)=>nodes.indexOfId(x.data('id'))
-            ).filter((x)=>!sCommunities[i].members.has(x)
-            ).forEach((n)=>{
-                let cn = getCommDegree(sCommunities[n]);
-                let e2cn = Array.from(sCommunities[n].members).flatMap((n)=>node.descendants().add(node).edgesWith(nodes[n].descendants().add(nodes[n])).map((x)=>weight(x)
-                    )
-                ).reduce((e, x)=>e + x
+            node.descendants().add(node).neighborhood().nodes().parents().filter(':orphan').forEach((n)=>{
+                let cn = getDegree(n);
+                let e2cn = node.descendants().add(node).edgesWith(n.descendants().add(node)).reduce((a, e)=>a + weight(e)
                 , 0);
-                let e2cp = Array.from(sCommunities[i].members).filter((x)=>x !== i
-                ).flatMap((n)=>node.descendants().add(node).edgesWith(nodes[n].descendants().add(nodes[n])).map((x)=>weight(x)
-                    )
-                ).reduce((e, x)=>e + x
+                let e2cp = node.descendants().add(node).edgesWith(node.siblings()).reduce((a, e)=>a + weight(e)
                 , 0);
                 let idm = (de = e2cn - e2cp) - (dd = degreeExchange(cn, d, cp) / m);
                 if (idm > 0 && idm > dm) [dm, nc] = [
                     idm,
-                    n
+                    n.id()
                 ];
                 __l.push({
                     loop,
                     m,
                     i,
-                    n,
-                    nc,
+                    n: n.id(),
+                    nc: nc,
                     de,
                     dd,
                     d,
@@ -36186,48 +36199,45 @@ const louvainCommunityDetection = (cy, nodes, { weight , iterations , level  } =
                 });
             });
             if (dm > 0) {
-                sCommunities[nc].members.add(i);
-                sCommunities[i].members.delete(i);
-                calcDegree(sCommunities[nc]);
-                calcDegree(sCommunities[i]);
-                sCommunities[i] = sCommunities[nc];
+                node.move({
+                    parent: nc
+                });
                 dirty = 1;
             }
         });
-    //console.table(__l)
+        //cy.nodes().filter(':childless:orphan[^name]').remove()
+        cy.nodes().filter(':orphan').filter(':childless[^name]').remove();
+        console.table(__l);
+        console.table(nodes.parents().map((n1)=>n1.descendants().filter('[name]').map((n)=>n.id()
+            ).join()
+        ));
     //console.table(Array.from(new Set(Object.values(sCommunities))).map(x=>({...x,members:Array.from(x.members)+''})))
     //console.log(JSON.stringify(__l))
     //console.log(JSON.stringify(Array.from(new Set(Object.values(sCommunities))).map(x=>({...x,members:Array.from(x.members)+''}))))
     }
-    return new Set(Object.values(sCommunities)).size == nodes.length ? null : Object.values(sCommunities).filter((x, i, a)=>i == a.findIndex((y)=>y == x
-        )
-    ).map((c, i)=>{
-        let parent = `L${level}-C${i}`;
-        let Community = cy.add({
-            group: 'nodes',
-            data: {
-                id: parent
-            }
+    //cy.nodes().filter(':childless').forEach(n=>n.move({parent:null}))
+    nodes.filter((n)=>n.siblings().length == 0
+    ).forEach((n)=>{
+        let p = n.parent();
+        n.move({
+            parent: null
         });
-        Array.from(c.members).forEach((n)=>nodes[n].move({
-                parent
-            })
-        );
-        return Community;
-    }).reduce((a)=>a
-    , true);
+        p.remove();
+    });
+    return cy.nodes().filter((n)=>n.isOrphan() && getDegree(n, 0)
+    ).length != nodes.length;
 };
 const reflect = (args)=>console.log(args) ?? args
 ;
 module.exports = function(cy1) {
     cy1('collection', 'louvain', function({ weight =()=>1
-     , iterations =200 , mode =1 , level =1  } = {
+     , iterations =27 , mode =1 , level =1  } = {
     }) {
         let { cy  } = this._private;
         m = this.edges().reduce((s, e)=>s + weight(e)
         , 0);
         edgeType ??= mode;
-        return louvainCommunityDetection(cy, this.nodes().filter(':orphan'), {
+        return louvainCommunityDetection(cy, {
             weight,
             iterations,
             level
