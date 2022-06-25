@@ -601,7 +601,7 @@ var cy = _cytoscapeDefault.default({
         cy1.selectedNode = null;
         cy1.on('tap', 'node', function(e) {
             var node = e.target;
-            if (cy1.selectedNode !== null && cy1.selectedNode !== node) {
+            if (cy1.selectedNode !== null && cy1.selectedNode !== node && node.isChildless()) {
                 cy1.add({
                     group: "edges",
                     data: {
