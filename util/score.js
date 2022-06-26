@@ -1,9 +1,10 @@
 const R = require('ramda');
 const {log,_dbug,_func} = require('./dbug');
-const {_card,getRules,_team} = require('./card');
+const {_card,_team} = require('./card');
 const {_arr} = require('./array');
 const _score = {};
-const _defGetter=x=>new Proxy({},{get:(t,n)=>t.hasOwnProperty(n)?t[n]:x});
+//const _defGetter=x=>new Proxy({},{get:(t,n)=>t.hasOwnProperty(n)?t[n]:x});
+const _defGetter=x=>new Proxy({},{get:(o,n)=>o[n]??=x});
 
 _score.rmDanglingLinks=nm=>{
   const _tail = {l:0}, dlScore = _defGetter(0);
@@ -25,12 +26,13 @@ _score.rmDanglingLinks=nm=>{
   _arr.normalizeMut(dlScore,null,1);
   return dlScore;
 }
-_score.eigenRank=(nm,{tolerance=6,max_iter=200}={})=>{
-  const nodeScore = _defGetter(1);
+_score.eigenRank=(nm,{tolerance=6,iters=200}={})=>{
+  let nodeScore = _defGetter(1);
   // power iterations
-  for(let iter of Array(max_iter).keys()){
+  // TODO Oscillating values
+  for(let iter of Array(iters).fill(0).keys()){
     const nxt = _defGetter(0);
-    for(let s in nm)for(let t in nm[s])nxt[t]+=nm[s][t]*nodeScore[s];
+    for(let s in nm)if(nodeScore[s])for(let t in nm[s])nxt[t]+=nm[s][t]*nodeScore[s];
     if(Object.values(nxt).every(x=>!x))break;
     _arr.normalizeMut(nxt);
     let diff = 0;
@@ -38,11 +40,15 @@ _score.eigenRank=(nm,{tolerance=6,max_iter=200}={})=>{
 
     //_dbug.tt.iter = {iter,diff};
     if(diff*10**tolerance<1){log({'converged@':iter});break;}
-    for(let n in nxt)nodeScore[n] = nxt[n];
+    for(let e in nodeScore)nodeScore[e]=+nxt[e].toFixed(tolerance);
+    //log(nodeScore)
   } //delete _dbug.tt.iter;
 
-  return Object.entries(nodeScore).sort((a,b)=>b[1]-a[1])
-    .map((x,i)=>({team:x[0],eigenValue:x[1],eigenRank:i}));
+  if(Object.keys(nodeScore)<9)log({nodeScore})
+  _arr.normalizeMut(nodeScore,null,2)
+  if(Object.keys(nodeScore)<9)log({nodeScore})
+  return R.sortBy(x=>-x[1],Object.entries(nodeScore))
+    .map(([t,e],i)=>({team:t,eigenValue:e,eigenRank:i}));
 }
 
 _score.forQuest=(teams,{type,value,color})=>{
@@ -52,7 +58,7 @@ _score.forQuest=(teams,{type,value,color})=>{
     type == 'no_neutral' ? teams.findIndex(t=>t.team.every(c=>_card.color(c)!='Gray')):
     type == 'ability'    ? teams.findIndex(t=>t.team.some(c=>(_card.abilities(c)+'').includes(value))):
     null;
-  if(i>0)teams.unshift(...teams.splice(i,1));
+  if(i>0&&i<9)teams.unshift(...teams.splice(i,1));
 }
 _score.bCopyBy=(o,battles,tPredicate=R.always(1),bPredicate=R.always(1),count={c:0,t:0})=>{
   for(let s in battles)if(tPredicate(s))for(let t in battles[s])if(count.t++,tPredicate(t)&&bPredicate(t,s))
@@ -71,7 +77,10 @@ _score.teamStats = (battles, teams,res2Score={w:3,d:1,l:0})=>{;
       teams[bs[team]][k]= (teams[bs[team]]?.[k] ?? 0) + v), null)
   //teams.forEach((x,i)=>teams[i].s_= res2Score.w*(x.w_??0) + res2Score.l*(x.l_??0) + res2Score.d*(x.d_??0))
   //}}_s
-  _score.eigenRank(bOfTeams).forEach(({team:t,eigenRank:er,eigenValue:ev})=>(teams[bs[t]].er=er,teams[bs[t]].ev=ev))
+  _score.eigenRank(bOfTeams).forEach(({team:t,eigenRank:er,eigenValue:ev})=>{
+    teams[bs[t]].er=er;
+    teams[bs[t]].ev=ev
+  })
 }
 _score.nm2inm=nm=>{
   const inm = new Set();
@@ -79,28 +88,6 @@ _score.nm2inm=nm=>{
   return inm;
 }
 _score.cardAlias=ruleset=>c=>{ }
-/* For Weak Magic the table should be as follows: t1 m 1100
- *                                                   a 1010
- *                                                t2 m 0x0x
- *                                                   a 00xx */
-_score.move2Std=(rule='')=>t=>_team(t).every((c,i)=>
-  rule.match(/Armored Up|Back to Basics|Target Practice|Aim True|Earthquake|Weak Magic|Close Range/)&&i<1?true:
-  rule.match(/Melee Mayhem|Super Sneak|Equal Opportunity/)&&i<2?true:
-  rule=='Melee Mayhem'     ?_card.attack(c)==0:
-  rule=='Super Sneak'      ?(_card.attack(c)==0||_card.abilities(c).join().match(/Sneak/)):
-  rule=='Back to Basics'   ?_card.abilities(c).length==0:
-  rule=='Target Practice'  ?!(_card.ranged(c)||_card.magic(c))||_card.abilities(c).join().match(/Snipe/):
-  rule=='Equal Opportunity'?_card.abilities(c).join().match(/Opportunity|Snipe|Sneak/)||i<3&&_card.abilities(c).includes('Reach'):
-  rule=='Aim True'         ?!_card.attack(c)&&!_card.ranged(c)||_card.abilities(c).includes('True Strike'):
-  rule=='Earthquake'       ?_card.abilities(c).join().match(/Flying/):
-  rule=='Weak Magic'       ?_card.magic(c)==0://||_card.armor(c)==0): complicated rule.
-  rule=='Close Range'      ?_card.ranged(c)==0||_card.abilities(c).join().match(/Close Range/):
-  rule=='Unprotected'      ?_card.armor(c)<=0:
-  rule=='Fog of War'       ?!_card.abilities(c).join().match(/Snipe|Sneak/):
-  rule=='Healed Out'       ?!_card.abilities(c).join().match(/Triage|Tank Heal|Heal/):
-  rule=='Armored Up'       ?!_card.abilities(c).includes('Void Armor')&&(_card.magic(c)||!_card.attack(c)&&!_card.ranged(c)):
-  false
-)
 const filterAbilities=(ruleset,c)=>ablt=>ruleset.split(',').every(rule =>
   rule=='Super Sneak'       ? !(_card.attack(c)&&ablt.match(/Sneak|Opportunity|Reach/)):
   rule=='Back to Basics'    ? false:
@@ -171,57 +158,5 @@ _score.wBetterCards=B=>({team,...stats},idx)=>{
   //}
   return {team:betterTeam(team),...stats}
 }
-const pathsNpredicates=_func.cached(attr_r=>{
-  const ruleCombos=R.uniq([['Standard'],...R.splitEvery(1,attr_r),attr_r])
-  return {
-    paths:mana=>ruleCombos.map(R.append(mana)),
-    predicate:R.reverse(ruleCombos).map(R.when(R.equals(['Standard']),R.always([]))).map(rules=>
-      t=>rules.map(R.construct(String)).map(_score.move2Std).every(f=>f(t)))
-  }
-})
-let battlesList = require('../data/battle_data.json');
-const B=function(battle){
-  let mana = battle.mana_cap,
-    myCards = {},
-    oppCards = {},
-    rules= getRules(battle.ruleset),
-    inactive= battle.inactive + (battle.ruleset.includes('Taking Sides') ? 'Gray' : ''),
-    opp= battle.opponent_player,
-    sortByWinRate=0;
-  const isPlayable=who=>{
-    const cards = who?myCards:R.mergeWith(R.max,myCards,oppCards)
-    return x=>{
-      const team = _team(x);
-      return _team.mana(team)<=mana&&
-        team.every(([i,l])=>cards[i]>=(l==1?0:l))&&
-        _team.isActive(inactive)(team)&&
-        rules.byTeam(team)
-    }
-  }
-  return {
-    get myCards(){return myCards},set myCards(_){myCards=_},
-    get oppCards(){return oppCards},set oppCards(_){oppCards=_},
-    get sortByWinRate(){return sortByWinRate},set sortByWinRate(_){sortByWinRate=_},
-    mana,rules,inactive,opp,battlesList,isPlayable,
-    nodeMatrix(minBattles=1729/* ?disputable*/){
-      const {paths,predicate}=pathsNpredicates(rules.attr);
-      let nmSize = _defGetter(0);
-      const nm = R.sortBy(x=>((a,b)=>x>mana?x/a-mana/a:mana/b-x/b)(2,1),R.range(12,100))
-        .map(paths).reduce((nm,paths,_,arr)=>{
-          if(rules.card?.includes('Little League')&&paths[0].at(-1)>28) return nm
-          paths.reduce((nm,path,i)=>_score.bCopyBy(
-            nm, R.pathOr({},path,battlesList), predicate[i], (...t)=>t.some(isPlayable(0))?nmSize[path]++:t.some(isPlayable(1))
-          ),nm)
-          if(R.reduce(R.add,0,R.values(nmSize))>(sortByWinRate?1:minBattles))arr.length=0;
-          return nm;
-        },{})
-      _dbug.table(nmSize);
-      return nm
-    },
-    unStarters(t){
-      let team = _team(t)
-      return team.reduce((count,[id])=>count+(myCards[id]>0),0)/team.length
-    },
-  }
-}
-module.exports = {_score,B}
+module.exports = {_score}
+//let e = _score.eigenRank; e({a:{c:2},b:{c:2},c:{d:2,b:1}})

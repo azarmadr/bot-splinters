@@ -1,6 +1,6 @@
 const R = require('ramda')
 const {readFile,writeFile} = require('jsonfile');
-const {log,_arr,_team,getRules,_score,_dbug} = require('./util');
+const {log,_arr,_team,move2Std,getRules,_dbug} = require('./util');
 const getJson=(player)=>Promise.race([
   require('async-get-json')(`https://game-api.splinterlands.com/battle/history?player=${player}`)
     .catch(()=>require('async-get-json')(`https://api2.splinterlands.com/battle/history?player=${player}`))
@@ -24,7 +24,7 @@ async function getBattles(player = '',bd,minRank=0,drs=''){
     const [t1,t2] = [team1,team2].map(t=>
       [t.summoner,...t.monsters].flatMap(m=>[m.card_detail_id,m.level]));
     if(!_arr.eq(t1,t2)&&![t1,t2].some(x=>_team(x).length<2)){
-      const attr_r= getRules(b.ruleset).attr.filter(rs=>![t1,t2].every(_score.move2Std(rs)))
+      const attr_r= getRules(b.ruleset).attr.filter(rs=>![t1,t2].every(move2Std(rs)))
       if(R.isEmpty(attr_r))attr_r.push('Standard')
       let obj = [...attr_r,Math.max(12,...[t1,t2].map(_team.mana))]
         .reduce((obj,path)=>obj[path]??={},battle_obj)

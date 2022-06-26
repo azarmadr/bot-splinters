@@ -21,6 +21,37 @@ const updateCards=__cards=>{
   return __cards;
 }
 
+// TODO use battle instead of team
+/* For Weak Magic the table should be as follows: t1 m 1100
+ *                                                   a 1010
+ *                                                t2 m 0x0x
+ *                                                   a 00xx */
+const move2Std=(rule='')=>t=>_team(t).every((c,i)=>
+  rule.match(/Armored Up|Back to Basics|Target Practice|Aim True|Earthquake|Weak Magic|Close Range/)&&i<1?true:
+  rule.match(/Melee Mayhem|Super Sneak|Equal Opportunity/)&&i<2?true:
+  rule=='Melee Mayhem'     ?_card.attack(c)==0:
+  rule=='Super Sneak'      ?(_card.attack(c)==0||_card.abilities(c).join().match(/Sneak/)):
+  rule=='Back to Basics'   ?_card.abilities(c).length==0:
+  rule=='Target Practice'  ?!(_card.ranged(c)||_card.magic(c))||_card.abilities(c).join().match(/Snipe/):
+  rule=='Equal Opportunity'?_card.abilities(c).join().match(/Opportunity|Snipe|Sneak/)||i<3&&_card.abilities(c).includes('Reach'):
+  rule=='Aim True'         ?!_card.attack(c)&&!_card.ranged(c)||_card.abilities(c).includes('True Strike'):
+  rule=='Earthquake'       ?_card.abilities(c).join().match(/Flying/):
+  rule=='Weak Magic'       ?_card.magic(c)==0://||_card.armor(c)==0): complicated rule.
+  rule=='Close Range'      ?_card.ranged(c)==0||_card.abilities(c).join().match(/Close Range/):
+  rule=='Unprotected'      ?_card.armor(c)<=0:
+  rule=='Fog of War'       ?!_card.abilities(c).join().match(/Snipe|Sneak/):
+  rule=='Healed Out'       ?!_card.abilities(c).join().match(/Triage|Tank Heal|Heal/):
+  rule=='Armored Up'       ?!_card.abilities(c).includes('Void Armor')&&(_card.magic(c)||!_card.attack(c)&&!_card.ranged(c)):
+  false
+)
+const pathsNpredicates=_func.cached(attr_r=>{
+  const ruleCombos=R.uniq([['Standard'],...R.splitEvery(1,attr_r),attr_r])
+  return {
+    paths:mana=>ruleCombos.map(R.append(mana)),
+    predicate:R.reverse(ruleCombos).map(R.when(R.equals(['Standard']),R.always([]))).map(rules=>
+      t=>rules.map(R.construct(String)).map(move2Std).every(f=>f(t)))
+  }
+})
 const cardRules=_func.cached(rule=>c=>
   rule.includes('Lost Magic')   ?_card.magic(c)==0     :rule.includes('Up Close & Personal')?_card.attack(c)>0 :
   rule.includes('Broken Arrows')?_card.ranged(c)==0    :rule.includes('Keep Your Distance') ?_card.attack(c)==0:
@@ -40,7 +71,7 @@ const getRules=ruleset=>{
     return rule},{attr:[],card:''})
   attr[0]??='Standard';attr.sort();
   return Object.assign(new String(ruleset),{
-    attr,card,byCard:cardRules(card),byTeam:teamRules(card)
+    attr,card,byCard:cardRules(card),byTeam:teamRules(card),pathsNpredicates:pathsNpredicates(attr)
   })
 };
 __cards.basic = __cards.filter(c=>c.editions.match(/7|4/)&&c.rarity<3).map(c=>c.id)
@@ -86,4 +117,4 @@ Object.assign(_team,{
   splinter:  inactive=> t=> color2Deck[_team.colorSec(t)]?? Object.entries(color2Deck).find(c=>!inactive.includes(c[0]))[1],
 })
 
-module.exports = {_card,getRules, _team};
+module.exports = {_card,getRules,move2Std, _team};

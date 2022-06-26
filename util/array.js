@@ -49,6 +49,7 @@ const _arr = {
       let value = num(i)/den;
       path? arr[i][path]=value: arr[i]=value;
     }
+    delete arr['@@functional/placeholder']
     return arr;
   }
   ,normalize:(arr,path,v)=>_arr.normalizeMut(arr.slice(0),path,v)

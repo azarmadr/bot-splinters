@@ -191,6 +191,8 @@ const cards2Obj=acc=>cards=>cards
   log('Opening a browser');
   let browser = await createBrowser(args.HEADLESS);
   let page = (await browser.pages())[1];
+  await page.goto('https://splinterlands.com/',{waitUntil: 'networkidle0'});
+  await page.evaluate(`new Promise(res=>res(SM.Logout()))`).catch(R.always(1));
 
   while(!args.CLOSE_AFTER_ERC||users.some(x=>!x.isStarter&&x.isRanked)){
     //await checkForUpdate();
@@ -203,7 +205,7 @@ const cards2Obj=acc=>cards=>cards
       SM._(page);
       await SM.login(user.login || user.account,user.password);
       await page.evaluate('SM.ShowBattleHistory()'); await sleep(1729);
-      await SM.cards(user.account)
+      //await SM.cards(user.account)
       await page.evaluate('Object.assign({},{Player:SM.Player,settings:SM.settings})').then(preMatch(user))
       if(args.CLAIM_REWARDS){
         if(user.claimSeasonReward)                         await page.evaluate('claim()');

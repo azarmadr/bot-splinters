@@ -3,4 +3,5 @@ module.exports = {
   ...require('./array'),
   ...require('./dbug'),
   ...require('./score'),
+  ...require('./battle'),
 }

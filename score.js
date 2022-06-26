@@ -1,8 +1,7 @@
 const R = require('ramda')
 const {log,_score,_team,_card,_arr,_func,_dbug} = require('./util');
 function sortByProperty(sortByWinRate){
-  return (...e)=>{
-    const[a,b]    =e.map(x=>Array.isArray(x)?x[1]:x);
+  return (a,b)=>{
     return (sortByWinRate&&(b._w*a.count-a._w*b.count||b.w-a.w||b._w-a._w))||b.score-a.score;
   }
 }
@@ -24,11 +23,10 @@ module.exports.playableTeams=B=>{
   const scores = new Proxy({},{get:(t,n)=>t[n]??={...defaultScores}});
 
   for(let s in nm)for(let t in nm[s]) setScores(scores,B,s,t,nm[s][t])
-  log({'#scores':Object.keys(scores).length})
   const teams = Object.entries(scores).map(([t,s])=>({
-    team:_team(t),...s,score:dotP({_w:1,_d:-0.81,_l:-1.27},s)/B.mana**3,adv:B.unStarters(t)
+    team:_team(t),...s,score:dotP({_w:1,_d:-0.81,_l:-1.27},s),adv:B.unStarters(t)
   }))
-  log({'#teams':teams.length})
+  _arr.normalizeMut(teams,'score',2)
 
   const cardscores = teams.reduce((cs,{team,score})=>team.reduce((cs,x,i,{length})=>
     (cs[x]??={score:0},cs[x][pos(i,length)]??=0,cs[x].score+=score,cs[x][pos(i,length)]+=score,cs)
@@ -46,7 +44,7 @@ module.exports.playableTeams=B=>{
   log('trimming', {filteredTeams_length},'to',teams.length)
   if(!B.sortByWinRate){
     _score.teamStats(nm,teams);
-    _arr.normalizeMut(teams,'ev', 2)
+    _arr.normalizeMut(teams,'ev',2)
   }
   B.mycards = Object.entries(B.myCards)
     .filter(c=>!B.inactive.includes(_card.color(c))&&B.rules.byCard(c))
@@ -61,8 +59,11 @@ module.exports.playableTeams=B=>{
     log({'sort by':'loss-win'})
     _dbug.table(R.sortBy(x=>x._l-x._w,pt).slice(0,5)
       .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
+    log({'sort by':'ev'})
+    _dbug.table(R.sortBy(b=>-b.ev,pt).slice(0,5)
+      .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
     log({'sort by':'aScore+ev'})
-    _dbug.table(R.sortBy(b=>0-b.aScore**2-b.ev**2/3,pt).slice(0,5)
+    _dbug.table(R.sortBy(b=>0-b.aScore**2-b.ev**2,pt).slice(0,5)
       .map(({team,...s})=>({team:team.map(c=>[_card.name(c),c[1]]).join(),...s})));
   }
   return pt
