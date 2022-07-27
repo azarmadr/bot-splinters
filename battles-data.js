@@ -13,7 +13,8 @@ var _bc={count:0,pc:0}//,'|Battles':0,'+Battles':0};
 
 async function getBattles(player = '',bd,minRank=0,drs=''){
   const battleHistory = await getJson(player)
-    .then(b=>b.filter(b=>minRank<Math.max(b.player_1_rating_final,b.player_2_rating_final)
+    .then(b=>b.filter(b=>
+      minRank<Math.max(b.player_1_rating_final,b.player_2_rating_final)
       &&!b.details.includes('"type":"Surrender"')
     ))
   _dbug.in1(_bc.pc++,player);
@@ -65,8 +66,8 @@ _battles.save=(bl,fn='')=>new Promise(res=>readFile(`./data/battle_data${fn}.jso
 }))
 
 const checkIfPresent=(obj,delay)=>x=>Date.now()-obj[x]<delay?0:(obj[x]=Date.now());
-const bS = checkIfPresent({},81e4);
-_battles.fromUsers=(players,{depth=2,minRank,drs,blackSet=bS,bObj={},fn='',cl=27}={})=>new Promise(res=>{
+const blackSet = checkIfPresent({},81e4);
+_battles.fromUsers=(players,{depth=2,minRank,drs,bObj={},fn='',cl=27}={})=>new Promise(res=>{
   const ul = [...new Set(Array.isArray(players)?players:players.split(','))].filter(blackSet);
   Promise.resolve(_arr.chunk(cl,ul).reduce(
     (memo,ul_chunk)=>memo.then(bd=>
@@ -75,7 +76,7 @@ _battles.fromUsers=(players,{depth=2,minRank,drs,blackSet=bS,bObj={},fn='',cl=27
   )).then(({battle_obj,nuSet})=>{
     _battles.merge(bObj,battle_obj);
     if(--depth>0&&nuSet.size)
-      return res(_battles.fromUsers([...nuSet].filter((_,i)=>i<243),{bObj,drs,depth,minRank,blackSet,fn,cl}))
+      return res(_battles.fromUsers([...nuSet].filter((_,i)=>i<243),{bObj,drs,depth,minRank,fn,cl}))
     else return res(_battles.save(battle_obj,fn))
   })
 });

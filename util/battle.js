@@ -2,7 +2,8 @@ const R = require('ramda')
 const {_team} = require('./card')
 const {_dbug} = require('./dbug')
 
-let battlesList = require('../data/battle_data.json');
+let battlesList;
+Promise.resolve(require('jsonfile').readFile('./data/battle_data.json')).then(x=>battlesList=x);
 module.exports.B=function(battle){
   let mana = battle.mana_cap,
     myCards = {},
@@ -11,8 +12,9 @@ module.exports.B=function(battle){
     inactive= battle.inactive + (battle.ruleset.includes('Taking Sides') ? 'Gray' : ''),
     opp= battle.opponent_player,
     sortByWinRate=0;
-  const isPlayable=who=>{
-    const cards = who?myCards:R.mergeWith(R.max,myCards,oppCards)
+  const isPlayable=_=>{
+    // const cards = who?myCards:R.mergeWith(R.max,myCards,oppCards)
+    const cards = myCards // until we have some opponent_player cards
     return x=>{
       const team = _team(x);
       return _team.mana(team)<=mana&&
@@ -26,7 +28,7 @@ module.exports.B=function(battle){
     get oppCards(){return oppCards},set oppCards(_){oppCards=_},
     get sortByWinRate(){return sortByWinRate},set sortByWinRate(_){sortByWinRate=_},
     mana,rules,inactive,opp,battlesList,isPlayable,
-    nodeMatrix(minWinningTeams=1729/* ?disputable*/){
+    nodeMatrix(io=0,minWinningTeams=1729/* ?disputable*/){
       minWinningTeams*=mana/9
       const {paths,predicate}=rules.pathsNpredicates;
       let nmSize = new Proxy({},{get:(o,n)=>o[n]??=0});
@@ -34,9 +36,10 @@ module.exports.B=function(battle){
         .map(paths).reduce((nm,paths,_,arr)=>{
           if(rules.card?.includes('Little League')&&paths[0].at(-1)>28) return nm
           paths.reduce((nm,path,i)=>require('./score')._score.bCopyBy(
-            nm, R.pathOr({},path,battlesList), predicate[i], (t,s)=>isPlayable(0)(t)?nmSize[path]++:isPlayable(1)(s)
+            nm, R.pathOr({},path,battlesList),io, (t,s)=>s===undefined?predicate[i]:
+            isPlayable(0)(t)?nmSize[path]++:isPlayable(1)(s)
           ),nm)
-          if(R.reduce(R.add,0,R.values(nmSize))>(sortByWinRate?1:minWinningTeams))arr.length=0;
+          if(R.reduce(R.add,0,R.values(nmSize))>(sortByWinRate?0.3:1)*minWinningTeams)arr.length=0;
           return nm;
         },{})
       _dbug.table(nmSize);

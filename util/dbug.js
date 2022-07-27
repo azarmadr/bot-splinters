@@ -50,7 +50,14 @@ _dbug.f = (f,cb) => (...args)=>{
   log('dbug',{..._,...(cb&&{cb:cb(_)})});
   return ret
 }
-_dbug.r = v=> log(v)??v
+_dbug.r=n=>v=>n--&&log(v)||v
+_dbug.t=n=>{
+  let arr=[],done=1;
+  return v=>{
+    if(n--)arr.push(v)
+    else if(done)done=console.table(arr)??0
+  }
+}
 _dbug.in1 =(...m)=>{
   rl.clearLine(process.stdout,0)
   rl.cursorTo(process.stdout,0);

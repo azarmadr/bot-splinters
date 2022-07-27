@@ -3,7 +3,6 @@ const {log,_dbug,_func} = require('./dbug');
 const {_card,_team} = require('./card');
 const {_arr} = require('./array');
 const _score = {};
-//const _defGetter=x=>new Proxy({},{get:(t,n)=>t.hasOwnProperty(n)?t[n]:x});
 const _defGetter=x=>new Proxy({},{get:(o,n)=>o[n]??=x});
 
 _score.rmDanglingLinks=nm=>{
@@ -30,18 +29,17 @@ _score.eigenRank=(nm,{tolerance=6,iters=200}={})=>{
   let nodeScore = _defGetter(1);
   // power iterations
   // TODO Oscillating values
-  for(let iter of Array(iters).fill(0).keys()){
+  for(let iter=0;iter<iters;iter++){
     const nxt = _defGetter(0);
     for(let s in nm)if(nodeScore[s])for(let t in nm[s])nxt[t]+=nm[s][t]*nodeScore[s];
-    if(Object.values(nxt).every(x=>!x))break;
+    //if(Object.values(nxt).every(x=>!x))break;
     _arr.normalizeMut(nxt);
     let diff = 0;
     for(let n in nxt)diff+=Math.abs(nxt[n]-nodeScore[n]);
 
     //_dbug.tt.iter = {iter,diff};
     if(diff*10**tolerance<1){log({'converged@':iter});break;}
-    for(let e in nodeScore)nodeScore[e]=+nxt[e].toFixed(tolerance);
-    //log(nodeScore)
+    for(let e in nodeScore)nodeScore[e]=nxt[e];
   } //delete _dbug.tt.iter;
 
   if(Object.keys(nodeScore)<9)log({nodeScore})
@@ -58,16 +56,21 @@ _score.forQuest=(teams,{type,value,color})=>{
     type == 'no_neutral' ? teams.findIndex(t=>t.team.every(c=>_card.color(c)!='Gray')):
     type == 'ability'    ? teams.findIndex(t=>t.team.some(c=>(_card.abilities(c)+'').includes(value))):
     null;
-  if(i>0&&i<9)teams.unshift(...teams.splice(i,1));
+  if(i>0&&i<3)teams.unshift(...teams.splice(i,1));
 }
-_score.bCopyBy=(o,battles,tPredicate=R.always(1),bPredicate=R.always(1),count={c:0,t:0})=>{
-  for(let s in battles)if(tPredicate(s))for(let t in battles[s])if(count.t++,tPredicate(t)&&bPredicate(t,s))
-    (count.c++,(o[s]??={})[t]=battles[s][t]);
+_score.bCopyBy=(o,battles,io=0,predicate=R.always(1),count)=>{
+  for(let s in battles)if(predicate(s))for(let t in battles[s])if(count&&count.t++,predicate(t)&&predicate(t,s)){
+    count&&count.c++
+    if(io){
+      ((o[s]??={})[t]??=[])[0]=battles[s][t]
+      ((o[t]??={})[s]??=[])[1]=battles[s][t]
+    }else (o[s]??={})[t]=battles[s][t]
+  }
   return o
 }
-_score.teamStats = (battles, teams,res2Score={w:3,d:1,l:0})=>{;
+_score.teamStats = (battles, teams/* ,res2Score={w:3,d:1,l:0} */)=>{;
   const bs = Object.fromEntries(teams.map((x,i)=>[x.team,i]));
-  const bOfTeams = _score.bCopyBy({},battles,R.has(R.__,bs))
+  const bOfTeams = _score.bCopyBy({},battles,0,R.has(R.__,bs))
   //{{_s
   Object.entries(bOfTeams)
     .flatMap(([s, v])=>Object.entries(v).flatMap(([t, r]) =>
@@ -87,7 +90,7 @@ _score.nm2inm=nm=>{
   for(let s in nm)for(let t of Object.keys(nm[s]))inm.add(t);
   return inm;
 }
-_score.cardAlias=ruleset=>c=>{ }
+// _score.cardAlias=ruleset=>c=>{ }
 const filterAbilities=(ruleset,c)=>ablt=>ruleset.split(',').every(rule =>
   rule=='Super Sneak'       ? !(_card.attack(c)&&ablt.match(/Sneak|Opportunity|Reach/)):
   rule=='Back to Basics'    ? false:
@@ -102,7 +105,7 @@ const filterAbilities=(ruleset,c)=>ablt=>ruleset.split(',').every(rule =>
   rule=='Holy Protection'   ? !ablt.match(/Divine Shield/): // unsure
   rule=='Spreading Fury'    ? !ablt.match(/Enrage/): true)
 const c2v=_func.cached((a,b)=>(b-a)**2*(a<b)); //comparison2value
-_score.statCmp=_func.cached((c,ruleset,sStats=null)=>oc=>{
+_score.statCmp=_func.cached((c,ruleset/* ,sStats=null */)=>oc=>{
   // sStats - abilities should also be filtered
   // some times attack and ranged or ..., will be similar, then sStats should play a hand
   const stats = ['speed','ranged','magic','attack','armor','health'].filter(s=>

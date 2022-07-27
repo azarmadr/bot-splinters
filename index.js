@@ -51,7 +51,6 @@ async function getBattles(player) {
   if(args.UPDATE_BATTLE_DATA) return battles.fromUsers(player,{cl})
   else {
     battles.fromUsers(player,{fn,cl});
-    return require('./data/battle_data.json');
   }
 }
 async function createBrowser(headless) {
@@ -64,8 +63,8 @@ async function createBrowser(headless) {
       ]),
     ]
   });
+  const [page] = await browser.pages();
   await browser.defaultBrowserContext().overridePermissions('https://splinterlands.com/',['notifications']);
-  const page = await browser.newPage();
   page.setDefaultNavigationTimeout(5e5);
   page.on('dialog', async dialog => { await dialog.accept(); });
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
@@ -75,7 +74,8 @@ async function createBrowser(headless) {
 const postBattle=user=>battle=>{
   user.won = battle.winner==user.account?1:battle.winner=='DRAW'?0:-1;
   log({getBattles:battle.player_1 != user.account?battle.player_1:battle.player_2});
-  getBattles(battle.player_1 != user.account?battle.player_1:battle.player_2).catch(log);
+  let pl= battle.player_1 != user.account?battle.player_1:battle.player_2
+  if(pl)getBattles(pl).catch(log);
   if(user.won>0){
     log({Result:'Won!!!'+Array(battle.current_streak).fill('_.~"(')});
     user.decWon = Number((user.decWon+Number.parseFloat(battle.reward_dec)).toFixed(3));
@@ -118,7 +118,7 @@ async function startBotPlayMatch(page,user) {
     .then(c=>Object.fromEntries(Object.entries(c).filter(x=>!B.inactive.includes(_card.color(x)))))
     .catch(e=>log(e,'Opp Cards Failed')??{}))
   B.sortByWinRate = user.isStarter||!user.isRanked;
-  console.table([{...B,myCards:Object.keys(B.myCards).length,oppCards:Object.keys(B.oppCards).length}])
+  console.table([{...R.filter(f=>!R.is(Function,f),B),myCards:Object.keys(B.myCards).length,oppCards:Object.keys(B.oppCards).length}])
   //if(Object.keys(oppCards).length)table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{ return{[_card.type(Id).slice(0,3)]:_card.name(Id),Id,Lvl,[_card.color(Id).slice(0,2)]:_card.abilities([Id,Lvl]).join()}}) .sort((a,b)=>('Mon'in a)-('Mon'in b)))
   //B.battles=await getBattles(B.opp).catch(e=>{log(e);return require('./data/battle_data.json')});
   const pt = playableTeams(B);
@@ -159,10 +159,10 @@ const preMatch=user=>({Player,settings})=>{
       type:quest.objective_type, ...quest.data,
     };
     //if(completed_items<total_items){ }
-    if(completed_items>=total_items){
-      user.claimQuestReward.push(Player.quest,quest);
-      //user.quest = 0;
-    }
+    // if(completed_items>=total_items){
+    //   user.claimQuestReward.push(Player.quest,quest);
+    //   //user.quest = 0;
+    // }
   }
   table([{Rating:Player.rating,ECRate:erc,t:(args.t-Date.now())/36e5,et:(user.et=(100-erc)/12/settings.dec.ecr_regen_rate),...(completed_items&&{Quest:name,completed_items,total_items})}]);
 }
@@ -191,7 +191,7 @@ const cards2Obj=acc=>cards=>cards
   log('Opening a browser');
   let browser = await createBrowser(args.HEADLESS);
   let page = (await browser.pages())[1];
-  await page.goto('https://splinterlands.com/',{waitUntil: 'networkidle0'});
+  await page.goto('https://splinterlands.com/'/* ,{waitUntil: 'networkidle0'} */);
   await page.evaluate(`new Promise(res=>res(SM.Logout()))`).catch(R.always(1));
 
   while(!args.CLOSE_AFTER_ERC||users.some(x=>!x.isStarter&&x.isRanked)){
@@ -205,7 +205,6 @@ const cards2Obj=acc=>cards=>cards
       SM._(page);
       await SM.login(user.login || user.account,user.password);
       await page.evaluate('SM.ShowBattleHistory()'); await sleep(1729);
-      //await SM.cards(user.account)
       await page.evaluate('Object.assign({},{Player:SM.Player,settings:SM.settings})').then(preMatch(user))
       if(args.CLAIM_REWARDS){
         if(user.claimSeasonReward)                         await page.evaluate('claim()');

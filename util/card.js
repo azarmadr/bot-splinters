@@ -52,17 +52,17 @@ const pathsNpredicates=_func.cached(attr_r=>{
       t=>rules.map(R.construct(String)).map(move2Std).every(f=>f(t)))
   }
 })
-const cardRules=_func.cached(rule=>c=>
-  rule.includes('Lost Magic')   ?_card.magic(c)==0     :rule.includes('Up Close & Personal')?_card.attack(c)>0 :
-  rule.includes('Broken Arrows')?_card.ranged(c)==0    :rule.includes('Keep Your Distance') ?_card.attack(c)==0:
-  rule.includes('Little League')?_card.mana(c)<5       :rule.includes('Rise of the Commons')?_card.rarity(c)<3 :
-  rule.includes('Even Stevens') ?_card.mana(c)%2==0    :rule.includes('Odd Ones Out')       ?_card.mana(c)%2   :
-  rule.includes('Taking Sides') ?_card.color(c)!='Gray':rule.includes('Lost Legendaries')   ?_card.rarity(c)<4 :
-  true)
-const teamRules=rule=>team=>team.slice(1).every(cardRules(rule))&&(
-  rule.match(/Little League|Lost Legendaries|Rise of the Commons/)?cardRules(rule)(team[0])
-    : rule.includes('Taking Sides')                               ?team.reduce((a,c)=>c[0]==19?a-1:a,2)
-    : true)
+const cardRules=_func.cached(rule=>
+  rule.includes('Lost Magic')   ?c=>_card.magic(c)==0     :rule.includes('Up Close & Personal')?c=>_card.attack(c)>0 :
+  rule.includes('Broken Arrows')?c=>_card.ranged(c)==0    :rule.includes('Keep Your Distance') ?c=>_card.attack(c)==0:
+  rule.includes('Little League')?c=>_card.mana(c)<5       :rule.includes('Rise of the Commons')?c=>_card.rarity(c)<3 :
+  rule.includes('Even Stevens') ?c=>_card.mana(c)%2==0    :rule.includes('Odd Ones Out')       ?c=>_card.mana(c)%2   :
+  rule.includes('Taking Sides') ?c=>_card.color(c)!='Gray':rule.includes('Lost Legendaries')   ?c=>_card.rarity(c)<4 :
+  R.T)
+const teamRules=rule=>
+  rule.match(/Little League|Lost Legendaries|Rise of the Commons/)?team=>team.every(cardRules(rule))
+    : rule.includes('Taking Sides')                               ?team=>team.slice(1).every(cardRules(rule))&&team.reduce((a,c)=>c[0]==19?a-1:a,2)
+    : team=>team.slice(1).every(cardRules(rule))
 const getRules=ruleset=>{
   //const primary="Back to BasicsSilenced SummonersAim TrueSuper SneakWeak MagicUnprotectedTarget PracticeFog of WarArmored UpEqual OpportunityMelee Mayhem"; const any="Healed OutEarthquakeReverse SpeedClose RangeHeavy HittersEqualizerNoxious FumesStampedeExplosive WeaponryHoly ProtectionSpreading Fury";
   const secondary="Keep Your DistanceLost LegendariesTaking SidesRise of the CommonsUp Close & PersonalBroken ArrowsLittle LeagueLost MagicEven StevensOdd Ones Out"
@@ -76,23 +76,25 @@ const getRules=ruleset=>{
 };
 __cards.basic = __cards.filter(c=>c.editions.match(/7|4/)&&c.rarity<3).map(c=>c.id)
 __cards.basicCards = Object.fromEntries(__cards.basic.map(c=>[c,1]))
-const _card = new Proxy(__cards,{ get: (cards, c)=>{
-  const attr = ['color','name','rarity','type','editions'];
-  const stats = ['ranged','magic','attack','speed','armor','health'];
+const attr = ['color','name','rarity','type','editions'];
+const stats = ['ranged','magic','attack','speed','armor','health'];
+const ___card = new Proxy(__cards,{ get: (cards, c)=>{
   return c in cards        ? cards[c]
     : Number.isInteger(+c) ? updateCards(__cards)[c]
-    : attr.includes(c)     ? i=>_attr(c,i[0]??i)
-    : stats.includes(c)    ? ([i,l]) => _stat(c,i,l)
-    : c == 'mana'          ? i=>_mana(i[0]??i)
-    : c == 'abilities'     ? ([i,l]) => _ablt(i)(l)
-    : c == 'isMon'         ? i => _attr('type',i[0]??i) == 'Monster'
-    : c == 'isSum'         ? i => _attr('type',i[0]??i) == 'Summoner'
     : null;
 }})
-var _ablt=_func.cached(i=>l=>_card[i-1].stats?.abilities?.slice(0,l)?.flat()||[])
-var _mana=_func.cached(i => [_card[i-1].stats.mana].flat()[0]);
-var _attr=_func.cached((c,i)=>_card[i-1][c])
-var _stat=_func.cached((c,i,l)=>_card[i-1].stats[c]?.[l-1]??_card[i-1].stats[c])
+var _ablt=_func.cached(i=>l=>___card[i-1].stats?.abilities?.slice(0,l)?.flat()||[])
+var _mana=_func.cached(i => [___card[(i[0]??i)-1].stats.mana].flat()[0]);
+var _attr=c=>_func.cached(i=>___card[(i[0]??i)-1][c])
+var _stat=c=>_func.cached(([i,l])=>___card[i-1].stats[c]?.[Math.min(0,l-1)]??___card[i-1].stats[c])
+const _card = {
+  mana: _mana,
+  abilities: ([i,l]) => _ablt(i)(l),
+  isMon: i => _attr('type') (i[0]??i) == 'Monster',
+  isSum: i => _attr('type') (i[0]??i) == 'Summoner',
+  ...attr.reduce((o,a)=>({...o,[a]:_attr(a)}),{}),
+  ...stats.reduce((o,s)=>({...o,[s]:_stat(s)}),{})
+}
 /* const cardBox = c => new Proxy(c,{get:(o,p)=>o[p]??=
  * p.includes('basic')         ? null        :
  * Number.isInteger(+c)        ? null        :
