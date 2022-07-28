@@ -3,7 +3,11 @@ const {_team} = require('./card')
 const {_dbug} = require('./dbug')
 
 let battlesList;
-Promise.resolve(require('jsonfile').readFile('./data/battle_data.json')).then(x=>battlesList=x);
+Promise.resolve(require('jsonfile').readFile('./data/battle_data.json')).then(x=>battlesList=x).catch(e=>{
+  let topBronzePlayers = require('sync-fetch')("https://api.splinterlands.io/players/leaderboard_with_player?leaderboard=0",{
+      headers: { Accept: 'application/vnd.citationstyles.csl+json' }}).json().leaderboard;
+  return require('../battles-data').fromUsers(topBronzePlayers.map(x=>x.player),{depth:2})
+});
 module.exports.B=function(battle){
   let mana = battle.mana_cap,
     myCards = {},

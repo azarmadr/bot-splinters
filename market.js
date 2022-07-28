@@ -19,7 +19,7 @@ const rentDuration=ends=>parseInt((Date.parse(ends)-Date.now())/24/36e5+1.5)+'';
 const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delegated_to);
 (async () => {
   // const browserFetcher = puppeteer.createBrowserFetcher();
-  // const {executablePath} = await browserFetcher.download('1011831');
+  // const {executablePath} = await browserFetcher.download('1022525');
   // const executablePath = 'E:\\dl\\.pptr\\win64-1011831\\chrome-win\\chrome.exe'
   // const executablePath = 'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
   // log({executablePath})
@@ -28,6 +28,9 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
     // executablePath,
     args: [
       ...(args.PPTR_USER_DATA_DIR ? [`--user-data-dir=${args.PPTR_USER_DATA_DIR[0]}_market`]:[]),
+      ...(args.CHROME_NO_SANDBOX ? ['--no-sandbox'] : [
+        '--disable-web-security', '--disable-features=IsolateOrigins', ' --disable-site-isolation-trials'
+      ]),
     ],
   });
   log('started')

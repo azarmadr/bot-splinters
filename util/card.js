@@ -2,14 +2,22 @@ const R = require('ramda');
 const {_arr} = require('./array')
 const sf = require("sync-fetch");
 const {writeFileSync} = require('jsonfile');
-const {log,_func,_dbug} = require('./dbug');
-const __cards = function(url,ifNull){//immediately returning function
+const {log,_func} = require('./dbug');
+const __cards = function(){//immediately returning function
   try{
-    return require(url)
+    return require("../data/cards.json")
   }catch(e){
-    log(e);return ifNull
+    //log(e)
+    require('fs').mkdir(require('path').join(__dirname,'../data'),e=>{
+      if(e)throw e;
+      console.log('Created `data` directory')
+    });
+    const newCards = sf("https://api.splinterlands.io/cards/get_details",{
+      headers: { Accept: 'application/vnd.citationstyles.csl+json' }}).json();
+    writeFileSync('./data/cards.json',newCards);
+    return newCards
   }
-}("../data/cards.json",[])
+}()
 
 
 const updateCards=__cards=>{

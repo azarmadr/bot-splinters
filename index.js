@@ -1,10 +1,17 @@
 // Parsing .env
 const R = require('ramda');
 const args = require('minimist')(process.argv.slice(2));
+const {writeFileSync} = require('jsonfile');
 const l2s=s=>s.split('_').map(x=>x[0]).join('').toLowerCase();
+try{
 Object.entries(require('dotenv').config().parsed).map(([e,v])=>args[e]??=v.includes(',')
   ?(args[l2s(e)]??v).split(',') :args[l2s(e)]??=JSON.parse(v)
 );
+}catch(e){
+  console.error(e);
+  throw `NO '.env' file present
+  Please create a new '.env' file following the '.env-example'`;
+}
 if(!['ACCOUNT','PASSWORD'].every(e=>args[e]))
   throw console.error('Missing ACCOUNT/PASSWORD,the REQUIRED parameter(s) in .env' +
     '\nsee `cat .env-example` for help',args);
@@ -176,7 +183,7 @@ const cards2Obj=acc=>cards=>cards
   .reduce((agg,x)=>R.mergeWith(R.max,agg,{[x.card_detail_id]:x.uid.startsWith('start')?0:x.level}),{})
 ;(async () => {
   const tableList =['account','erc','et','won','cp','dec','rating','netWon','decWon','w','l','d',/*'w_p','l_p','d_p'*/], toDay = new Date().toDateString();
-  const userData=require('./data/user_data.json');
+  const userData=(function(){try{return require('./data/user_data.json');}catch(e){return {}}})()
   let users = args.ACCOUNT.map((account,i)=>{
     const u = (userData[toDay]??={})?.[account];
     return{
@@ -190,7 +197,7 @@ const cards2Obj=acc=>cards=>cards
   if('t'in args)args.t = args.t*60*60000+Date.now();
   log('Opening a browser');
   let browser = await createBrowser(args.HEADLESS);
-  let page = (await browser.pages())[1];
+  let [page]  = await browser.pages();
   await page.goto('https://splinterlands.com/'/* ,{waitUntil: 'networkidle0'} */);
   await page.evaluate(`new Promise(res=>res(SM.Logout()))`).catch(R.always(1));
 
@@ -199,7 +206,7 @@ const cards2Obj=acc=>cards=>cards
     for (const user of users.filter(u=>!args.SKIP_PRACTICE||u.isRanked)) {
       if(browser.process().killed){
         browser = await createBrowser(args.HEADLESS);
-        page = (await browser.pages())[1];
+        [page] = await browser.pages();
       }
       await page.goto('https://splinterlands.com/',{waitUntil: 'networkidle0'});
       SM._(page);
@@ -219,7 +226,7 @@ const cards2Obj=acc=>cards=>cards
       })
       await page.evaluate('SM.Logout()');
       tableList.map((x,i)=>i>3&&((userData[toDay][user.account]??={})[x]=user[x]))
-      require('jsonfile').writeFileSync('./data/user_data.json',userData);
+      writeFileSync('./data/user_data.json',userData);
     }
     table(users.map(u=>Object.fromEntries(tableList.map(x=>[x,u[x]]))));
     if(!args.KEEP_BROWSER_OPEN)browser.close();
