@@ -4,9 +4,11 @@ const args = require('minimist')(process.argv.slice(2));
 const {writeFileSync} = require('jsonfile');
 const l2s=s=>s.split('_').map(x=>x[0]).join('').toLowerCase();
 try{
-Object.entries(require('dotenv').config().parsed).map(([e,v])=>args[e]??=v.includes(',')
-  ?(args[l2s(e)]??v).split(',') :args[l2s(e)]??=JSON.parse(v)
-);
+  Object.entries(require('dotenv').config().parsed)
+    .map(([e,v])=>args[e]??=v.includes(',')
+      ?(args[l2s(e)]??v).split(',')
+      :args[l2s(e)]??=JSON.parse(v)
+  );
 }catch(e){
   console.error(e);
   throw `NO '.env' file present
@@ -16,16 +18,21 @@ if(!['ACCOUNT','PASSWORD'].every(e=>args[e]))
   throw console.error('Missing ACCOUNT/PASSWORD,the REQUIRED parameter(s) in .env' +
     '\nsee `cat .env-example` for help',args);
 
+globalThis.practiceOn=0
+
+const {C,isLocked,rmLock, log,_score:{forQuest}, T, _arr,F:{retryFor}, sleep,_dbug:{table}} = require('./util');
+
+log`init`
 const puppeteer = require('puppeteer');
-const SM = require('./splinterApi');
 const {playableTeams} = require('./score');
-const battles = require('./battles-data');
-const {_card, log,_score:{forQuest}, _team, _arr,_func:{retryFor}, sleep,_dbug:{table}} = require('./util');
+const battles = require('./getBattles');
+const fs = require('fs');
+const {login} = require('./splinterApi')
 
 // Logging function with save to a file
 var _file='log.txt';
 const util = require('util');
-const logFile = require('fs').createWriteStream(_file,{flags:'w'});
+const logFile = fs.createWriteStream(_file,{flags:'w'});
 const formatEd =(...x)=> util.formatWithOptions({colors:true},...x)
 if(1||args.LOG) console.log = function () {
   process.stdout.write(formatEd.apply(null, arguments) + '\n');
@@ -34,9 +41,11 @@ if(1||args.LOG) console.log = function () {
 
 let _go=1;
 const sleepingTime = 6e4 * (args.SESSION_INTERVAL ?? 27);
+log`init1`
 
 async function checkForUpdate() {
-  await require('async-get-json')('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
+  await fetch('https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json')
+    .then(x=>x.json())
     .then(async v=>{
       const gitVersion = v.version.replace(/(\.0+)+$/,'').split('.');
       const version = require('./package.json').version.replace(/(\.0+)+$/,'').split('.');
@@ -68,6 +77,7 @@ async function createBrowser(headless) {
       ...(args.CHROME_NO_SANDBOX ? ['--no-sandbox'] : [
         '--disable-web-security', '--disable-features=IsolateOrigins', ' --disable-site-isolation-trials'
       ]),
+      '--mute-audio', '--disable-dev-shm-usage'
     ]
   });
   const [page] = await browser.pages();
@@ -75,7 +85,8 @@ async function createBrowser(headless) {
   page.setDefaultNavigationTimeout(5e5);
   page.on('dialog', async dialog => { await dialog.accept(); });
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36');
-  await page.setViewport({ width: 1800, height: 1200, deviceScaleFactor: 1, });
+  // await page.setViewport({ width: 1800, height: 1200, deviceScaleFactor: 1, });
+  await page.setViewport({ width: 720, height: 1080, /* deviceScaleFactor: 1, */ });
   return browser;
 }
 const postBattle=user=>battle=>{
@@ -95,7 +106,7 @@ async function teamSelection(teamToPlay,B,page,notifyUser){
   if(!B.rules.includes('Taking Sides')){
     const __medusa = Monsters.find(m=>m[0]==17);__medusa&&(__medusa[0]=194)
   }
-  table([...teamToPlay.team.map(([Id,Lvl])=>({[_card.type(Id)]:_card.name(Id),Id,Lvl}))]);
+  table([...teamToPlay.team.map(([Id,Lvl])=>({[C.type(Id)]:C.name(Id),Id,Lvl}))]);
   table({Stats});
   if(notifyUser)await page.evaluate(`var n=new Notification('Battle Ready');
       n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
@@ -104,35 +115,28 @@ async function teamSelection(teamToPlay,B,page,notifyUser){
   await retryFor(3,3000,!_go,async()=>page.$eval(`[card_detail_id="${Summoner[0]}"] img`,e=>e.click())
     .then(()=>page.waitForSelector('.item--summoner.item--selected',{timeout:1e3})
   ))
-  if (_card.color(Summoner) === 'Gold') {
-    const splinter = _team.splinter(B.inactive)(teamToPlay.team); log({splinter});
+  if (C.color(Summoner) === 'Gold') {
+    const splinter = T.splinter(B.inactive)(teamToPlay.team); log({splinter});
     await retryFor(3,3000,!_go,async()=>page.$eval(`[data-original-title="${splinter}"] label`,e=>e.click()))
   }
   for(const[mon]of Monsters){
-    //log({[`Playing ${_card.name(mon)}`]:mon})
+    //log({[`Playing ${C.name(mon)}`]:mon})
     await retryFor(3,3000,_go,async()=>page.$eval(`[card_detail_id="${mon}"] img`,e=>e.click()))
   }
   if(notifyUser)await sleep(Math.min(60,Math.abs(args.PAUSE_BEFORE_SUBMIT))*999);
   await retryFor(3,300,_go,async()=>page.$eval('.btn-green',e=>e.click()))
   log('Team submitted, Waiting for opponent');
 }
-async function startBotPlayMatch(page,user) {
-  const B = await SM.battle(user.isRanked?'Ranked':'Practice')
-  B.myCards = await SM.cards(user.account).then(cards2Obj(user.account))
-    .then(c=>Object.fromEntries(Object.entries(c).filter(x=>!B.inactive.includes(_card.color(x)))))
-    .catch(e => log(e,'cards collection api didnt respond. Did you use username? avoid email!')??{});
-  B.oppCards = B.opp=='???' ? {}:(await SM.cards(B.opp).then(cards2Obj(B.opp))
-    .then(c=>Object.fromEntries(Object.entries(c).filter(x=>!B.inactive.includes(_card.color(x)))))
-    .catch(e=>log(e,'Opp Cards Failed')??{}))
+async function startBotPlayMatch(B,page,user) {
   B.sortByWinRate = user.isStarter||!user.isRanked;
   console.table([{...R.filter(f=>!R.is(Function,f),B),myCards:Object.keys(B.myCards).length,oppCards:Object.keys(B.oppCards).length}])
-  //if(Object.keys(oppCards).length)table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{ return{[_card.type(Id).slice(0,3)]:_card.name(Id),Id,Lvl,[_card.color(Id).slice(0,2)]:_card.abilities([Id,Lvl]).join()}}) .sort((a,b)=>('Mon'in a)-('Mon'in b)))
+  //if(Object.keys(oppCards).length)table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{ return{[C.type(Id).slice(0,3)]:C.name(Id),Id,Lvl,[C.color(Id).slice(0,2)]:C.abilities([Id,Lvl]).join()}}) .sort((a,b)=>('Mon'in a)-('Mon'in b)))
   //B.battles=await getBattles(B.opp).catch(e=>{log(e);return require('./data/battle_data.json')});
   const pt = playableTeams(B);
   forQuest(pt,user.quest);
   const [teamToPlay] = pt;
   // team Selection
-  await teamSelection(teamToPlay,B,page,!args.HEADLESS&&user.isRanked&&!user.isStarter); // Eof teamSelection
+  await teamSelection(teamToPlay,B,page,!args.HEADLESS&&user.isRanked&&!user.isStarter);
   await Promise.any([
     page.waitForSelector('#btnRumble', { timeout: 16e4 })
     .then(()=>page.evaluate(`startFightLoop();localStorage.setItem('sl:battle_speed', 6)`))
@@ -148,14 +152,22 @@ const preMatch=user=>({Player,settings})=>{
   user.dec = Player.balances.find(x=>x.token=='DEC')?.balance
   const erc = calculateECR(Player,settings);
   user.erc = erc;
-  user.rating = Player.rating;
+  user.wRating = Player.rating;
+  user.mRating = Player.modern_rating;
+  let roll = 1//Math.random()>0.27;
+  user.rating = roll?user.mRating:user.wRating;
   user.isStarter = !Player.starter_pack_purchase;
   user.cp = Player.collection_power;
+  if(!user.isStarter){
+    user.sp = Player.current_season_player?.rshares
+    user.qp = Player.quest?.rshares
+  }
   user.claimSeasonReward =
     args.CLAIM_SEASON_REWARD && Player?.season_reward.reward_packs>0&&Player.starter_pack_purchase;
-  user.isRanked = user.isStarter||erc>81&&user.rating<400||erc>args.ERC_THRESHOLD||
+  user.isRanked = user.isStarter||erc>75&&user.rating<400||erc>args.ERC_THRESHOLD||
     args.t-Date.now()>(99.81-erc)*3e5/settings.dec.ecr_regen_rate
 
+  user.battle = user.isRanked?`${roll?'Modern ':''}Ranked`:'Practice'
   //if quest done claim reward
   user.claimQuestReward = [];
   user.quest = 0;
@@ -173,6 +185,12 @@ const preMatch=user=>({Player,settings})=>{
   }
   table([{Rating:Player.rating,ECRate:erc,t:(args.t-Date.now())/36e5,et:(user.et=(100-erc)/12/settings.dec.ecr_regen_rate),...(completed_items&&{Quest:name,completed_items,total_items})}]);
 }
+const outstanding_match =u=>Promise.race([
+  fetch(`https://api.splinterlands.io/players/outstanding_match?username=${u}`).then(x=>x.json()),
+  new Promise(res=>setTimeout(res,27e2,1))
+])
+  .then(x=>(log(u,x),x?sleep(27e3).then(R.always(x)):x))
+
 const cards2Obj=acc=>cards=>cards
   .flatMap(card=>card.owned)
   .filter(owned=>
@@ -182,7 +200,7 @@ const cards2Obj=acc=>cards=>cards
   )
   .reduce((agg,x)=>R.mergeWith(R.max,agg,{[x.card_detail_id]:x.uid.startsWith('start')?0:x.level}),{})
 ;(async () => {
-  const tableList =['account','erc','et','won','cp','dec','rating','netWon','decWon','w','l','d',/*'w_p','l_p','d_p'*/], toDay = new Date().toDateString();
+  const tableList =['account','erc','et','won','cp','dec','wRating',`mRating`,'sp','qp','netWon','decWon','w','l','d'], toDay = new Date().toDateString();
   const userData=(function(){try{return require('./data/user_data.json');}catch(e){return {}}})()
   let users = args.ACCOUNT.map((account,i)=>{
     const u = (userData[toDay]??={})?.[account];
@@ -203,27 +221,37 @@ const cards2Obj=acc=>cards=>cards
 
   while(!args.CLOSE_AFTER_ERC||users.some(x=>!x.isStarter&&x.isRanked)){
     //await checkForUpdate();
-    for (const user of users.filter(u=>!args.SKIP_PRACTICE||u.isRanked)) {
+    let aUsers = users.filter(u=>!args.SKIP_PRACTICE||u.isRanked);
+    for (let user;user = aUsers.shift();) {
+      if(isLocked`.bot.playing.${user.account}`){
+        aUsers.push(user)
+        await sleep(1e3)
+        continue
+      }
       if(browser.process().killed){
         browser = await createBrowser(args.HEADLESS);
         [page] = await browser.pages();
       }
-      await page.goto('https://splinterlands.com/',{waitUntil: 'networkidle0'});
-      SM._(page);
-      await SM.login(user.login || user.account,user.password);
-      await page.evaluate('SM.ShowBattleHistory()'); await sleep(1729);
-      await page.evaluate('Object.assign({},{Player:SM.Player,settings:SM.settings})').then(preMatch(user))
+
+      const nSM = await login(page,user,preMatch);
       if(args.CLAIM_REWARDS){
         if(user.claimSeasonReward)                         await page.evaluate('claim()');
         if(user.claimQuestReward?.filter(x=>x)?.length==2)
-          await SM.questClaim(...user.claimQuestReward).then(()=>sleep(4e3))
+          await nSM.questClaim(...user.claimQuestReward).then(()=>sleep(4e3))
       }
-      if(!args.SKIP_PRACTICE||user.isRanked)await startBotPlayMatch(page,user).then(()=>console.log({
-        '      ':' '+Array(9).fill('    ').join(' ')+' ','         ':'        '})).catch(async e=>{
-        log(e,'failed to submit team, so waiting for user to input manually and close the session')
-        await sleep(81e3);
-        throw e;//can we continue here without throwing error
-      })
+      if(!args.SKIP_PRACTICE||user.isRanked){
+        const B = await nSM.battle(user.battle)
+        B.myCards = await nSM.cards(user.account).then(cards2Obj(user.account))
+          .catch(e => log(e,'cards collection api didnt respond. Did you use username? avoid email!')??{});
+        // B.oppCards = B.opp=='???' ? {}:(await nSM.cards(B.opp).then(cards2Obj(B.opp)) .catch(e=>log(e,'Opp Cards Failed')??{}))
+        await startBotPlayMatch(B,page,user).then(()=>console.log({
+          '      ':' '+Array(9).fill('    ').join(' ')+' ','         ':'        '})).catch(async e=>{
+            log(e,'failed to submit team, so waiting for user to input manually and close the session')
+            await sleep(81e3);
+            throw e;//can we continue here without throwing error
+          })
+      }
+      rmLock`.bot.playing.${user.account}`
       await page.evaluate('SM.Logout()');
       tableList.map((x,i)=>i>3&&((userData[toDay][user.account]??={})[x]=user[x]))
       writeFileSync('./data/user_data.json',userData);
@@ -237,4 +265,5 @@ const cards2Obj=acc=>cards=>cards
     await sleep(sleepingTime);
   }
   await browser.close();
+  globalThis.END_GetBattles=1;
 })()

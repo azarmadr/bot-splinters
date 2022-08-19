@@ -1,7 +1,7 @@
 /** Motive for the release tag 2.2:
  * Converting array of battles to objects of pattern {t1:{t2:result}} */
 const {readFileSync,writeFileSync} = require('jsonfile');
-const {_arr,_dbug,_team,_card,log}=require('./util');
+const {_arr,_dbug,T,C,log}=require('./util');
 const fileName = './data/battle_data_rb.json';
 const nb = require(fileName);
 const {merge} = require("./battles-data");
@@ -17,11 +17,11 @@ const mm_=(rs,mana,crs)=>{
     rs.join().match(/Back to Basics/)?'Back to Basics':null
   ];
   if(ca){
-    for(let s in crs)for(let t in crs[s])if([s,t].some(x=>_team(x).some(([c,l])=>c in ca &&
-      Object.keys(ca[c]).find(x=>_card.color(x)==_card.color(c) && l<= ca[c][x])
+    for(let s in crs)for(let t in crs[s])if([s,t].some(x=>T(x).some(([c,l])=>c in ca &&
+      Object.keys(ca[c]).find(x=>C.color(x)==C.color(c) && l<= ca[c][x])
     ))){
-      const [sn,tn] = [s,t].map(_team).map(x=>x.map(([i,l])=>[(i in ca&&++c[i]) ?
-        Object.keys(ca[i]).find(x=>_card.color(x)==_card.color(i) && l<= ca[i][x]):i,l]))
+      const [sn,tn] = [s,t].map(T).map(x=>x.map(([i,l])=>[(i in ca&&++c[i]) ?
+        Object.keys(ca[i]).find(x=>C.color(x)==C.color(i) && l<= ca[i][x]):i,l]))
         .map(x=>''+x);
       _dbug.$1s.a = {sn,tn,s,t};
       c.s+=merge(crs,{[sn]:{[tn]:crs[s][t]}}).c
@@ -35,9 +35,9 @@ const mm_=(rs,mana,crs)=>{
 const _RefractorBattlesToMana=(rs,mana,crs)=>{
   let c={c:0,a:0,e:0};
   for(let s in crs){
-    if(_team(s).length==1)(delete crs[s],c.a++);
+    if(T(s).length==1)(delete crs[s],c.a++);
     else for(let t in crs[s]){
-      let nmana = Math.max(_team.mana(s),_team.mana(t),12);
+      let nmana = Math.max(T.mana(s),T.mana(t),12);
       if(nmana!=mana){
         c.a++;
         c.c+=merge(rs.reduce((a,rule)=>a[rule],nb)[nmana]??={},{[s]:{[t]:crs[s][t]}}).c;

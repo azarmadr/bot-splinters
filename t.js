@@ -2,11 +2,11 @@ const {log,_dbug,} = require('./util');
 const args = require("minimist")(process.argv.slice(2));
 const {readFileSync,writeFileSync} = require('jsonfile');
 
-const drs = args.drs ?? "";
+const drs = args.drs ?? ""; // TODO
 const player = args.n ?? "";
 const depth = args.d ?? 2;
 const fn = args.f ?? "";
-const {fromUsers,merge} = require("./battles-data");
+const {fromUsers} = require("./getBattles");
 const minRank = args.mr ?? 0;
 
 //log({drs,player,depth,fn,minRank,args});
@@ -48,7 +48,7 @@ const mergeNempty =bd=>o=>{
 
 if ("b" in args){
   log({drs,player,depth,fn,minRank});
-  Promise.resolve(fromUsers(player, { depth, drs, fn, minRank })).then(
+  Promise.resolve(fromUsers(player, { depth, fn, minRank })).then(
     () => {}
   );
 }else if ("m" in args) {

@@ -1,5 +1,5 @@
 const R = require('ramda')
-const _dbug = {},_func={},_elem={};
+const _dbug = {},F={},_elem={};
 
 const rl = require("readline");
 try{
@@ -31,17 +31,19 @@ try{
 }catch(e){console.log(e)}
 _dbug.timer =class{
   constructor(){this.t=Date.now()}
-  get d(){log(this._d/1e3);}
   get _d(){
     const t = Date.now()-this.t;
     this.t=Date.now();
-    return t
+    return (`${t>6e4?`${Math.floor(t/6e4)}:`:''}${Math.floor(t/1e3%60)}`)
   }
 }
 _dbug.isEObj=o=>o&&Object.keys(obj).length === 0&&Object.getPrototypeOf(obj) === Object.prototype;
 const _logTimer = new _dbug.timer();
-const log=(...m)=>console.log(_logTimer._d,(new Error()).stack.split("\n").find((c,i)=>
-  !c.includes('_dbug')&&i==2||!c.includes('tt')&&i==3||i==4).match(/[^:\\/]+:\d+/)?.[0],...m);
+const log=(...m)=>console.log(
+  _logTimer._d,
+  (new Error()).stack.split("\n").find((c,i)=>
+    !c.includes('_dbug')&&i==2||!c.includes('tt')&&i==3||i==4).match(/[^:\\/]+:\d+/)?.[0],
+  ...m);
 const dbug=(...m)=>process.env.displayDebug||log(...m)
 
 _dbug.f = (f,cb) => (...args)=>{
@@ -61,7 +63,8 @@ _dbug.t=n=>{
 _dbug.in1 =(...m)=>{
   rl.clearLine(process.stdout,0)
   rl.cursorTo(process.stdout,0);
-  process.stdout.write(`tt: ${m}`);
+  console.log(`tt: ${m}`);
+  rl.moveCursor(process.stdout,0,-1);
 }
 _dbug.table = m => {
   const toFixed = o => {
@@ -78,26 +81,27 @@ _dbug.$1s = new Proxy({},{
   set:(obj,prop,v)=>obj[prop]??=1+log(v),
   get:(obj,prop)  =>f=>(...args)=>obj[prop]??=f(...args)
 });
-_func.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
+F.retryFor=(n,to,continueAfterAllRetries=0,func,err='')=>{
   if(!--n){
     log({'Failed after multiple retries':n});
-    if(continueAfterAllRetries)return Promise.resolve(err);
-    else return Promise.reject(err);
+    return Promise[continueAfterAllRetries?'resolve':'reject'](err)
   }
   return func().catch(async err=>{
     log({'nth retry':n})
     await sleep(to).then(()=>
-      _func.retryFor(n,to,continueAfterAllRetries,func,err))
+      F.retryFor(n,to,continueAfterAllRetries,func,err))
   })
 }
 //const pathOrSet=>(v,path,arr)=>arr
-_func.cached=(fn, map = {})=>R.type(fn)=='Function'?
-  (...arg)=>arg.reduce((map,a)=>map[a]??={},map).__??=_func.cached(fn(...arg))
-  //(...arg)=>R.init(arg).reduce((map,a)=>map[a]??={},map)[R.last(arg)]??=_func.cached(fn(...arg))
+F.cached=(fn, map = {})=>R.type(fn)=='Function'?
+  (...arg)=>arg.reduce((map,a)=>map[a]??={},map).__??=F.cached(fn(...arg))
+  //(...arg)=>R.init(arg).reduce((map,a)=>map[a]??={},map)[R.last(arg)]??=F.cached(fn(...arg))
   :fn
 _elem.click = async function(page, selector, timeout = 20000, delayBeforeClicking = 0) {
     await page.waitForSelector(selector, { timeout })
-      .then(e=>sleep(delayBeforeClicking).then(()=>e.click()))
+      .then(_=>sleep(delayBeforeClicking)
+        .then(_=>page.$eval(selector,e=>e.click()))
+      )
 }
 _elem.getText = async function(page, selector, timeout=20000) {
   const element = await page.waitForSelector(selector,  { timeout });
@@ -110,4 +114,4 @@ _elem.getTextByXpath = async function(page, selector, timeout=20000) {
   return text;
 }
 
-module.exports = {log,sleep, _dbug, _func, _elem,dbug,}
+module.exports = {log,sleep, _dbug, F, _elem,dbug,}

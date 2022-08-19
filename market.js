@@ -8,8 +8,7 @@ if(!['ACCOUNT','PASSWORD'].every(e=>args[e]))
     '\nsee `cat .env-example` for help',args);
 
 const R = require('ramda');
-const { log, _card, _dbug, _arr,_func, _elem, sleep } = require("./util");
-const SM = require("./splinterApi");
+const { log, C, _dbug, _arr,F, _elem, sleep } = require("./util");
 const puppeteer = require("puppeteer");
 const headless = 0;
 
@@ -40,23 +39,24 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36"
   );
-  await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1 });
+  // await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1 });
+  await page.setViewport({ width: 720, height: 1080, /* deviceScaleFactor: 1, */ });
   let users = args.ACCOUNT.map((account, i) => ({
     account,password:args.PASSWORD[i],login:args?.EMAIL[i],active_key:args.ACTIVE_KEY[i],
   }))
     .filter(x => args.u ? args.u?.split(',')?.includes(x.account) : !args.SKIP_USERS?.includes(x.account));
-  SM._(page);
+  const nSM = require("./splinterApi")(page);
   await page.goto('https://splinterlands.com/',{waitUntil: 'networkidle0'});
   log({ "#users": users.length });
   const {leagues,season:{ends}} = await page.evaluate(`new Promise(r=>r({...SM.settings}))`);
-  const leaguesRating=_func.cached(r=>leagues.reduce(([cp0,cp1],{min_rating, min_power})=>
+  const leaguesRating=F.cached(r=>leagues.reduce(([cp0,cp1],{min_rating, min_power})=>
     min_rating>r ? [cp0,cp1] : (_dbug.tt.cp = [cp1,min_power]),[0,0])[args.l?1:0])
   for (let { login, account, password, active_key } of users) {
-    await SM.login(login || account, password);
+    await nSM.login(login || account, password);
     do{
       const { collection_power, starter_pack_purchase, balances, rating} =
         await page.evaluate(`new Promise(r=>r({...SM.Player}))`);
-      const card_ids = await SM.cards(account).then(c => c.flatMap(cb(account)).map(x=>x.card_detail_id));
+      const card_ids = await nSM.cards(account).then(c => c.flatMap(cb(account)).map(x=>x.card_detail_id));
       let cpu =Math.max(1e3,args.c??Math.min(15e3,leaguesRating(rating)));
       delete _dbug.tt.cp;
       log({cpu,collection_power});
@@ -84,13 +84,13 @@ const cb=acc=>x=>x.owned.filter(x=>x.delegated_to==acc||x.player==acc&&!x.delega
           if([id, gold, edition] in waitList) return [];
           let c = calculateCP({ xp: 1, alpha_xp: 0, card_detail_id: id, gold, edition });
           let lp = parseFloat(x.innerText.match(/\d+.\d+/));
-          return((gold||!card_ids.includes(id))&&!(g&&gold)&&c<cp)?[
+          return(!card_ids.includes(id)&&!(g&&gold)&&c<cp)?[
             [c,lp,(0.0001+lp)/SM.settings.dec_price,id,gold,edition]
           ] : [];
         }).reduce((minx,x)=>[x,...minx].sort((a,b)=>b[0]/b[1]-a[0]/a[1]).slice(0,1),[]),
         cp,args.i?[]:card_ids,args.g,waitList
       );
-      console.table(minx.map(x=>[...x,_card.name(x[3])]));
+      console.table(minx.map(x=>[...x,C.name(x[3])]));
       minx.forEach(x=>waitList[[x[3],x[4],x[5]]]=Date.now());
       require('readline').moveCursor(process.stdout,0,-13);
       try{
