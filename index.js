@@ -2,12 +2,18 @@
 const R = require('ramda');
 const args = require('minimist')(process.argv.slice(2));
 const {writeFileSync} = require('jsonfile');
-const l2s=s=>s.split('_').map(x=>x[0]).join('').toLowerCase();
+const l2s=s=>{
+	let res = s.split('_').map(x=>x[0]).join('').toLowerCase();
+	// console.log(s, res);
+	return res;
+}
+// console.table(args)
 try{
   Object.entries(require('dotenv').config().parsed)
-    .map(([e,v])=>args[e]??=v.includes(',')
-      ?(args[l2s(e)]??v).split(',')
-      :args[l2s(e)]??=JSON.parse(v)
+    .map(([e,v])=>
+	    args[e]??=v.includes(',')
+	    ? (args[l2s(e)]??v).split(',')
+	    :args[l2s(e)]??=v&&JSON.parse(v)
   );
 }catch(e){
   console.error(e);
@@ -73,7 +79,7 @@ async function createBrowser(headless) {
   const browser = await puppeteer.launch({
     headless,
     args: [
-      ...(args.PPTR_USER_DATA_DIR ? [`--user-data-dir=${args.PPTR_USER_DATA_DIR[0]}`]:[]),
+      ...(args.PPTR_USER_DATA_DIR ? [`--user-data-dir=${args.PPTR_USER_DATA_DIR}`]:[]),
       ...(args.CHROME_NO_SANDBOX ? ['--no-sandbox'] : [
         '--disable-web-security', '--disable-features=IsolateOrigins', ' --disable-site-isolation-trials'
       ]),
@@ -207,7 +213,7 @@ const cards2Obj=acc=>cards=>cards
     return{
       account,
       password:args.PASSWORD[i],
-      login:args?.EMAIL[i],
+      login:args?.EMAIL?.[i],
       w:u?.w??0,l:u?.l??0,d:u?.d??0,w_p:0,l_p:0,d_p:0,won:0,decWon:u?.decWon??0,netWon:u?.netWon??0,erc:100,
       rating:u?.rating??0,dec:u?.dec??0,isStarter:0,isRanked:1,claimQuestReward:[],claimSeasonReward:0,
     }

@@ -62,7 +62,7 @@ _score.bCopyBy=(o,battles,io=0,predicate=R.always(1),count)=>{
   for(let s in battles)if(predicate(s))for(let t in battles[s])if(count&&count.t++,predicate(t)&&predicate(t,s)){
     count&&count.c++
     if(io){
-      ((o[s]??={})[t]??=[])[0]=battles[s][t]
+      ((o[s]??={})[t]??=[])[0]=battles[s][t];
       ((o[t]??={})[s]??=[])[1]=battles[s][t]
     }else (o[s]??={})[t]=battles[s][t]
   }
