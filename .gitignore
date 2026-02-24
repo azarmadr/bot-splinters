@@ -1,0 +1,5 @@
+node_modules
+.env
+data
+.bot.playing*
+log.txt

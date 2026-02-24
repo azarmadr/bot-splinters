@@ -5,29 +5,25 @@ const sf = x=>require("sync-fetch")(String.raw(x),{headers: { Accept: 'applicati
 const {writeFileSync} = require('jsonfile');
 const {ruleEnum} = require('./constants')
 const {log,F} = require('./dbug');
-const __cards = function(){//immediately returning function
+const getFromAPI = (type, uri) => {//immediately returning function
   try{
-    return require("../data/cards.json")
+    return require(`../data/${type}.json`)
   }catch(e){
     //log(e)
     require('fs').mkdir(require('path').join(__dirname,'../data'),e=>{
       if(e)throw e;
       console.log('Created `data` directory')
     });
-    const newCards = sf`https://api.splinterlands.io/cards/get_details`
-    writeFileSync('./data/cards.json',newCards);
+    const newCards = sf`https://api.splinterlands.io/${uri}`
+    writeFileSync(`./data/${type}.json`,newCards);
     return newCards
   }
-}()
-const SMsettings = function(){
-  let settings = sf`https://api.splinterlands.io/settings`
-  writeFileSync('./data/settings.json',settings)
-  return settings
-}()
+}
+const __cards = getFromAPI('cards', 'cards/get_details')
+const SMsettings = getFromAPI('settings', 'settings')
 const updateCards=__cards=>{
   log('Getting new cards');
-  const newCards = sf("https://api.splinterlands.io/cards/get_details",{
-    headers: { Accept: 'application/vnd.citationstyles.csl+json' }}).json();
+  const newCards = sf("https://api.splinterlands.io/cards/get_details");
   writeFileSync('./data/cards.json',newCards);
   for(i in newCards)__cards[i] = newCards[i];
   return __cards;
