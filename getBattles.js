@@ -76,7 +76,7 @@ async function getBattles(
             const { winner, team1, team2 } = JSON.parse(b.details);
             nuSet.add(team1.player);
             nuSet.add(team2.player);
-            let teams = [team1, team2].map((t) =>
+            const teams = [team1, team2].map((t) =>
                 [t.summoner, ...t.monsters].map((m) => [
                     m.card_detail_id,
                     m.level,
@@ -95,8 +95,8 @@ async function getBattles(
                     teams.reverse();
                     res *= -1;
                 }
-                let [m1, m2] = teams.map(T.mana);
-                let [c1, c2] = teams.map(T.colors).map((colors) => {
+                const [m1, m2] = teams.map(T.mana);
+                const [c1, c2] = teams.map(T.colors).map((colors) => {
                     let res = ['Red', 'Blue', 'Green', 'Black', 'White'].reduce(
                         (a, x, i) => (colors.includes(x) ? i : a),
                         5,
@@ -105,7 +105,7 @@ async function getBattles(
                     res += colors.includes('Gold') ? 12 : 0;
                     return res;
                 });
-                let k = res == 1 ? 'w' : res == -1 ? 'l' : 'd';
+                const k = res == 1 ? 'w' : res == -1 ? 'l' : 'd';
                 BC.lastInsertRowid = rStmt[k].run({
                     team1: teams[0].toString(),
                     team2: teams[1].toString(),

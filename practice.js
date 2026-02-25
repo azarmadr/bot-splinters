@@ -61,7 +61,7 @@ if (1 || args.LOG)
         );
     };
 
-let _go = 1;
+const _go = 1;
 
 if (args.HEADLESS) {
     args.SKIP_REPLAY = 1;
@@ -124,7 +124,7 @@ async function createBrowser(headless, id) {
 const postBattle = (user) => (battle) => {
     user.won =
         battle.winner == user.account ? 1 : battle.winner == 'DRAW' ? 0 : -1;
-    let pl =
+    const pl =
         battle.player_1 != user.account ? battle.player_1 : battle.player_2;
     if (pl && !practiceOn) battles.fromUsers(pl).catch(log);
     user.count++;
@@ -220,7 +220,7 @@ const cards2Obj = (acc) => (cards) =>
         );
 
 const tableList = ['account', 'netWon', 'count', 'w', 'l', 'd'];
-let users = args.ACCOUNT.map((account, i) => ({
+const users = args.ACCOUNT.map((account, i) => ({
     account,
     password: args.PASSWORD[i],
     login: args?.EMAIL[i],
@@ -274,15 +274,15 @@ const countBattles = db.prepare(`
 `);
 const findNewBattle = (pt, pt0, rules) => {
     let count = 0;
-    let bRule = Ru.battleRule(rules);
-    for (let s of pt) {
-        let team1 = s.team + '';
-        for (let t of pt0) {
-            let team2 = t.team + '',
+    const bRule = Ru.battleRule(rules);
+    for (const s of pt) {
+        const team1 = s.team + '';
+        for (const t of pt0) {
+            const team2 = t.team + '',
                 rules = bRule([s.team, t.team]);
             if (team1 != team2) {
                 in1(count++);
-                let { x } = countBattles.get({ team1, team2, rules });
+                const { x } = countBattles.get({ team1, team2, rules });
                 log({ team1, team2, rules, x });
                 if (x == 0) return [s, t];
             }
@@ -293,7 +293,7 @@ const findNewBattle = (pt, pt0, rules) => {
 };
 
 (async () => {
-    let [sBrowser, tBrowser] = await Promise.all([
+    const [sBrowser, tBrowser] = await Promise.all([
         createBrowser(args.HEADLESS, 's'),
         createBrowser(args.HEADLESS, 't'),
     ]);
@@ -315,7 +315,7 @@ const findNewBattle = (pt, pt0, rules) => {
         });
 
         const sSM = await login(sPage, user, preMatch);
-        for (let opp of users) {
+        for (const opp of users) {
             await sleep(1e2);
             if (isLocked`.bot.playing.${opp.account}`) continue;
 
@@ -368,14 +368,14 @@ const findNewBattle = (pt, pt0, rules) => {
             B.myCards = user.cards;
             B.oppCards = opp.cards;
             const pt = playableTeams(B);
-            let B0 = B.clone;
+            const B0 = B.clone;
             B0.oppCards = user.cards;
             B0.myCards = opp.cards;
             if (opp.isStarter) B0.sortByWinRate = 1;
             const pt0 = playableTeams(B0);
             log({ pt: pt.length, pt0: pt0.length });
 
-            let [t1, t2] = findNewBattle(pt, pt0, B.rules.attr.join`|`);
+            const [t1, t2] = findNewBattle(pt, pt0, B.rules.attr.join`|`);
             await [
                 [sPage, t1, B],
                 [tPage, t2, B0],

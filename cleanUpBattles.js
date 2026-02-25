@@ -8,10 +8,10 @@ const { merge } = require('./battles-data');
 const R = require('ramda');
 const card_aliases = require('./data/card_aliases.json');
 log(card_aliases);
-let ac = new Proxy({}, { get: (o, k) => (o[k] ??= 0) });
+const ac = new Proxy({}, { get: (o, k) => (o[k] ??= 0) });
 const mm = () => {};
 const mm_ = (rs, mana, crs) => {
-    let c = new Proxy({}, { get: (o, k) => (o[k] ??= 0) });
+    const c = new Proxy({}, { get: (o, k) => (o[k] ??= 0) });
     const ca =
         card_aliases[
             rs
@@ -25,8 +25,8 @@ const mm_ = (rs, mana, crs) => {
                   : null
         ];
     if (ca) {
-        for (let s in crs)
-            for (let t in crs[s])
+        for (const s in crs)
+            for (const t in crs[s])
                 if (
                     [s, t].some((x) =>
                         T(x).some(
@@ -65,12 +65,12 @@ const mm_ = (rs, mana, crs) => {
     Object.keys(c).forEach((k) => (ac[k] += c[k]));
 };
 const _RefractorBattlesToMana = (rs, mana, crs) => {
-    let c = { c: 0, a: 0, e: 0 };
-    for (let s in crs) {
+    const c = { c: 0, a: 0, e: 0 };
+    for (const s in crs) {
         if (T(s).length == 1) delete crs[s], c.a++;
         else
-            for (let t in crs[s]) {
-                let nmana = Math.max(T.mana(s), T.mana(t), 12);
+            for (const t in crs[s]) {
+                const nmana = Math.max(T.mana(s), T.mana(t), 12);
                 if (nmana != mana) {
                     c.a++;
                     c.c += merge(

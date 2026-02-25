@@ -3,10 +3,10 @@ const _dbug = {},
     F = {},
     _elem = {};
 
-const rl = require('readline');
+var _wake;
+const rl = require('node:readline');
 try {
     rl.emitKeypressEvents(process.stdin);
-    var _wake;
     const rlInterface = rl.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -15,7 +15,7 @@ try {
     process.stdin.on('keypress', (_, k) => {
         _wake = 1;
         rlInterface.pause();
-        rl.moveCursor(process.stdout, 0, k && k.name == 'return' ? -1 : 0);
+        rl.moveCursor(process.stdout, 0, k && k.name === 'return' ? -1 : 0);
     });
 
     function sleep(ms, msg = '') {
@@ -80,7 +80,7 @@ _dbug.f =
     (f, cb) =>
     (...args) => {
         const ret = f(...args);
-        let _ = { args: args.slice(0, f.length), ret };
+        const _ = { args: args.slice(0, f.length), ret };
         log('dbug', { ..._, ...(cb && { cb: cb(_) }) });
         return ret;
     };
@@ -119,7 +119,7 @@ _dbug.tt = new Proxy(
     {},
     {
         set: (obj, prop, v) =>
-            obj.hasOwnProperty(prop) ? obj[prop].push(v) : (obj[prop] = [v]),
+            Object.hasOwn(obj, prop) ? obj[prop].push(v) : (obj[prop] = [v]),
         deleteProperty: (obj, prop) =>
             prop in obj &&
             obj[prop].length &&
@@ -158,12 +158,12 @@ F.cached = (fn, map = {}) =>
               ))
         : //(...arg)=>R.init(arg).reduce((map,a)=>map[a]??={},map)[R.last(arg)]??=F.cached(fn(...arg))
           fn;
-_elem.click = async function (
+_elem.click = async (
     page,
     selector,
     timeout = 20000,
     delayBeforeClicking = 0,
-) {
+) => {
     await page
         .waitForSelector(selector, { timeout })
         .then((_) =>
@@ -172,12 +172,12 @@ _elem.click = async function (
             ),
         );
 };
-_elem.getText = async function (page, selector, timeout = 20000) {
+_elem.getText = async (page, selector, timeout = 20000) => {
     const element = await page.waitForSelector(selector, { timeout });
     const text = await element.evaluate((el) => el.textContent);
     return text;
 };
-_elem.getTextByXpath = async function (page, selector, timeout = 20000) {
+_elem.getTextByXpath = async (page, selector, timeout = 20000) => {
     const element = await page.waitForXPath(selector, { timeout });
     const text = await element.evaluate((el) => el.textContent);
     return text;

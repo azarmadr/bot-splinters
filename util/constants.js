@@ -1,6 +1,6 @@
 const R = require('ramda');
 const enumify = (ENUM_VALS, hash = R.identity) => {
-    let Enum = R.pipe(
+    const Enum = R.pipe(
         R.invertObj,
         R.map(R.add`0`),
         R.map(hash),

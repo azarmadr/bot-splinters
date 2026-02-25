@@ -56,7 +56,7 @@ module.exports = function BattleObj(battle) {
   `);
     // log(query.get({mana:23}))
     const isPlayable = (by) => {
-        let cards = [myCards, oppCards][(by ??= 0)]; // until we have some opponent_player cards
+        const cards = [myCards, oppCards][(by ??= 0)]; // until we have some opponent_player cards
         return (x) => T(x).every(([i, l]) => cards[i] >= (l == 1 ? by : l));
     };
     return {
@@ -99,17 +99,17 @@ module.exports = function BattleObj(battle) {
                 (rules.attr.length > 1 ? 9 : 1) /* ?disputable*/,
         ) {
             log({ minWinningTeams });
-            let nmSize = new Proxy({}, { get: (o, n) => (o[n] ??= 0) });
+            const nmSize = new Proxy({}, { get: (o, n) => (o[n] ??= 0) });
             // x=>((a,b)=>x>mana?x/a-mana/a:mana/b-x/b)(2,1),
-            let timeLimit = Date.now() + (practiceOn ? 27e3 : 81e3);
+            const timeLimit = Date.now() + (practiceOn ? 27e3 : 81e3);
             const nm = RA.rangeStep(-1, mana, 8).reduce((nm, Mana, _, arr) => {
                 if (timeLimit < Date.now() || (mana > 31 && Mana > 31))
                     return nm;
-                let battles = query.all({ mana: Math.floor(Mana) });
-                for (let { w, l, d, team1, team2 } of battles) {
+                const battles = query.all({ mana: Math.floor(Mana) });
+                for (const { w, l, d, team1, team2 } of battles) {
                     if (w || d) nmSize[Mana] += +isPlayable(0)(team1);
                     if (l || d) nmSize[Mana] += +isPlayable(0)(team2);
-                    let s = w ? team2 : team1,
+                    const s = w ? team2 : team1,
                         t = w ? team1 : team2;
                     if (w == l) {
                         add2nm(nm, io, s, t, 2);
@@ -137,7 +137,7 @@ module.exports = function BattleObj(battle) {
             return nm;
         },
         unStarters(t) {
-            let team = T(t);
+            const team = T(t);
             return (
                 team.reduce((count, [id]) => count + (myCards[id] > 0), 0) /
                 team.length

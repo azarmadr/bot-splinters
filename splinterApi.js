@@ -23,7 +23,7 @@ module.exports = (page) => ({
                 .catch(log);
         await page.evaluate('SM.HideDialog();SM.UpdatePlayerInfo()');
     },
-    questClaim: async function (q, _q) {
+    questClaim: async (q, _q) => {
         log({ 'Claiming quest box': q.name });
         await page
             .evaluate(([q, _q]) => QuestClaimReward(q, _q), [q, _q])
@@ -36,7 +36,7 @@ module.exports = (page) => ({
                     page.evaluate('SM.HideLoading()'),
             );
     },
-    battle: async function (type = 'Ranked', opp = '', settings = {}) {
+    battle: async (type = 'Ranked', opp = '', settings = {}) => {
         log(`Finding ${type} match`);
         let outstanding_match;
         // const outstanding_match = await page.evaluate(`SM.Player?.outstanding_match`);
@@ -64,7 +64,7 @@ module.exports = (page) => ({
         // log(cb)
         return B(cb);
     },
-    cards: async function (player) {
+    cards: async (player) => {
         player = player ? `'${player}'` : 'SM.Player.name';
         log({ 'Obtaining Cards': player });
         return await page.evaluate(

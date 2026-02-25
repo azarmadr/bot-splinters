@@ -1,16 +1,16 @@
 const R = require('ramda');
 const { log, _score, T, C, _arr, F, _dbug } = require('./util');
 const dotP = (x, y) => Object.keys(x).reduce((sc, k) => sc + x[k] * y[k], 0);
-let defaultScores = { w: 0, _w: 0, l: 0, _l: 0, d: 0, _d: 0, count: 0 };
+const defaultScores = { w: 0, _w: 0, l: 0, _l: 0, d: 0, _d: 0, count: 0 };
 const pos = F.cached((i, l) => (i > l / 2 ? i - l : i));
 const setScores = (scores, B) => {
     const nm = B.nodeMatrix();
-    for (let s in nm)
-        for (let t in nm[s]) {
-            let p = nm[s][t];
-            let teams = [s, t].map(T);
-            let [sMana, tMana] = teams.map(T.mana);
-            let m =
+    for (const s in nm)
+        for (const t in nm[s]) {
+            const p = nm[s][t];
+            const teams = [s, t].map(T);
+            const [sMana, tMana] = teams.map(T.mana);
+            const m =
                 ((sMana / B.mana) *
                     teams.reduce(
                         (s, x) =>

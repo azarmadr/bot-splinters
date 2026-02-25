@@ -1,8 +1,8 @@
 const R = require('ramda');
 const __IIFE_RM_EMPTY_OBJ = (o, p = o, count) => {
-    for (let [k, v] of Object.entries(o)) {
+    for (const [k, v] of Object.entries(o)) {
         if (R.isEmpty(v)) count.e++, delete o[k];
-        else if (R.type(v) == 'Object') __IIFE_RM_EMPTY_OBJ(v, p, count);
+        else if (R.type(v) === 'Object') __IIFE_RM_EMPTY_OBJ(v, p, count);
     }
     if (o != p && R.isEmpty(o)) __IIFE_RM_EMPTY_OBJ(p, p, count);
 };
@@ -64,15 +64,15 @@ const _arr = {
             min = Number.MAX_VALUE,
             max = Number.MIN_VALUE;
         if (opt < 2) {
-            for (let i in arr) total += p(i) ?? 0;
+            for (const i in arr) total += p(i) ?? 0;
             if (!total) return arr;
         } else {
-            for (let i in arr) {
+            for (const i in arr) {
                 min = Math.min(p(i) ?? 0, min);
                 max = Math.max(p(i) ?? 0, max);
             }
         }
-        let { num, den } = {
+        const { num, den } = {
             0: {
                 num: (i) => p(i) ?? 0,
                 den: total,
@@ -87,13 +87,13 @@ const _arr = {
             },
         }[opt];
         if (path) {
-            for (let i in arr) {
-                let value = num(i) / den;
+            for (const i in arr) {
+                const value = num(i) / den;
                 arr[i][path] = value;
             }
         } else {
-            for (let i in arr) {
-                let value = num(i) / den;
+            for (const i in arr) {
+                const value = num(i) / den;
                 arr[i] = value;
             }
         }

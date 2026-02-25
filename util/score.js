@@ -10,13 +10,13 @@ _score.rmDanglingLinks = (nm) => {
         dlScore = _defGetter(0);
     do {
         _tail.k = [];
-        let inm = _score.nm2inm(nm);
+        const inm = _score.nm2inm(nm);
         //_dbug.tt.hrc = {level:_tail.l,nodes:Object.keys(nm).length,iNodes:inm.size};
-        for (let s in nm)
+        for (const s in nm)
             if (!inm.has(s)) {
                 _tail.k.push(s);
                 const up = dlScore[s] / Object.keys(nm[s]).length || 0;
-                for (let t in nm[s])
+                for (const t in nm[s])
                     dlScore[t] += (_tail.l + 1) / (_tail.l + 3) + up;
                 delete dlScore[s];
                 delete nm[s];
@@ -31,25 +31,25 @@ _score.rmDanglingLinks = (nm) => {
     return dlScore;
 };
 _score.eigenRank = (nm, { tolerance = 6, iters = 200 } = {}) => {
-    let nodeScore = _defGetter(1);
+    const nodeScore = _defGetter(1);
     // power iterations
     // TODO Oscillating values
     for (let iter = 0; iter < iters; iter++) {
         const nxt = _defGetter(0);
-        for (let s in nm)
+        for (const s in nm)
             if (nodeScore[s])
-                for (let t in nm[s]) nxt[t] += nm[s][t] * nodeScore[s];
+                for (const t in nm[s]) nxt[t] += nm[s][t] * nodeScore[s];
         //if(Object.values(nxt).every(x=>!x))break;
         _arr.normalizeMut(nxt);
         let diff = 0;
-        for (let n in nxt) diff += Math.abs(nxt[n] - nodeScore[n]);
+        for (const n in nxt) diff += Math.abs(nxt[n] - nodeScore[n]);
 
         //_dbug.tt.iter = {iter,diff};
         if (diff * 10 ** tolerance < 1) {
             log({ 'converged@': iter });
             break;
         }
-        for (let e in nodeScore) nodeScore[e] = nxt[e];
+        for (const e in nodeScore) nodeScore[e] = nxt[e];
     } //delete _dbug.tt.iter;
 
     if (Object.keys(nodeScore) < 9) log({ nodeScore });
@@ -63,30 +63,42 @@ _score.eigenRank = (nm, { tolerance = 6, iters = 200 } = {}) => {
 _score.forQuest = (teams, { type, value, color } = {}) => {
     log({ 'Playing for Quest': value ? { [value]: type } : type });
     var i =
-        type == 'splinter'
+        type === 'splinter'
             ? teams.findIndex((t) => C.color(t.team[0]) === color)
-            : type == 'no_neutral'
+            : type === 'no_neutral'
               ? teams.findIndex((t) =>
-                    t.team.every((c) => C.color(c) != 'Gray'),
+                    t.team.every((c) => C.color(c) !== 'Gray'),
                 )
-              : type == 'ability'
+              : type === 'ability'
                 ? teams.findIndex((t) =>
                       t.team.some((c) => (C.abilities(c) + '').includes(value)),
                   )
                 : null;
     if (i > 0 && i < 3) teams.unshift(...teams.splice(i, 1));
 };
-_score.bCopyBy = (o, battles, io = 0, predicate = R.always(1), count) => {
-    for (let s in battles)
-        if (predicate(s))
-            for (let t in battles[s])
-                if ((count && count.t++, predicate(t) && predicate(t, s))) {
-                    count && count.c++;
-                    if (io) {
-                        ((o[s] ??= {})[t] ??= [])[0] = battles[s][t];
-                        ((o[t] ??= {})[s] ??= [])[1] = battles[s][t];
-                    } else (o[s] ??= {})[t] = battles[s][t];
-                }
+_score.bCopyBy = (
+    o,
+    battles,
+    biDirectional = 0,
+    predicate = R.always(1),
+    count,
+) => {
+    for (const s in battles) {
+        if (!predicate(s)) continue;
+        for (const t in battles[s]) {
+            count && count.t++;
+            if (!predicate(t) || !predicate(t, s)) continue;
+            count && count.c++;
+            o[s] ??= {};
+            if (biDirectional) {
+                o[t] ??= {};
+                o[s][t] ??= [];
+                o[t][s] ??= [];
+                o[s][t][0] = battles[s][t];
+                o[t][s][1] = battles[s][t];
+            } else o[s][t] = battles[s][t];
+        }
+    }
     return o;
 };
 _score.teamStats = (battles, teams /* ,res2Score={w:3,d:1,l:0} */) => {
@@ -110,39 +122,39 @@ _score.teamStats = (battles, teams /* ,res2Score={w:3,d:1,l:0} */) => {
 };
 _score.nm2inm = (nm) => {
     const inm = new Set();
-    for (let s in nm) for (let t of Object.keys(nm[s])) inm.add(t);
+    for (const s in nm) for (const t of Object.keys(nm[s])) inm.add(t);
     return inm;
 };
 // _score.cardAlias=ruleset=>c=>{ }
 const filterAbilities = (ruleset, c) => (ablt) =>
     ruleset.split(',').every((rule) =>
-        rule == 'Super Sneak'
+        rule === 'Super Sneak'
             ? !(C.attack(c) && ablt.match(/Sneak|Opportunity|Reach/))
-            : rule == 'Back to Basics'
+            : rule === 'Back to Basics'
               ? false
-              : rule == 'Fog of War'
+              : rule === 'Fog of War'
                 ? !ablt.match(/Sneak|Snipe/)
-                : rule == 'Equal Opportunity'
+                : rule === 'Equal Opportunity'
                   ? !ablt.match(/Opportunity|Reach/)
-                  : rule == 'Target Practice'
+                  : rule === 'Target Practice'
                     ? !ablt.match(/Snipe/)
                     : //Opportunity is also being over ridden here but only for ranged & magic
-                      rule == 'Melee Mayhem'
+                      rule === 'Melee Mayhem'
                       ? !ablt.match(/Reach/)
-                      : rule == 'Aim True'
+                      : rule === 'Aim True'
                         ? !ablt.match(/Flying|Dodge/)
-                        : rule == 'Unprotected'
+                        : rule === 'Unprotected'
                           ? !ablt.match(
                                 /Protect|Repair|Rust|Shatter|Void Armor|Piercing/,
                             )
-                          : rule == 'Healed Out'
+                          : rule === 'Healed Out'
                             ? !ablt.match(/Triage|Affliction|Heal/)
-                            : rule == 'Heavy Hitters'
+                            : rule === 'Heavy Hitters'
                               ? !ablt.match(/Knock Out/)
-                              : rule == 'Holy Protection'
+                              : rule === 'Holy Protection'
                                 ? !ablt.match(/Divine Shield/)
                                 : // unsure
-                                  rule == 'Spreading Fury'
+                                  rule === 'Spreading Fury'
                                   ? !ablt.match(/Enrage/)
                                   : true,
     );
@@ -224,7 +236,7 @@ _score.betterTeam = (B) => (t) => {
         [...t],
     );
     if (nTeam.length < 7 && B.mana > T.mana(nTeam)) {
-        let c = filteredCards(nTeam)().reduce(
+        const c = filteredCards(nTeam)().reduce(
             (bc, c) => (cps(bc, 'score') < cps(c, 'score') ? c : bc),
             null,
         );

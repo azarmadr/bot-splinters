@@ -72,7 +72,7 @@ const C = {
     ...attr.reduce((o, a) => ({ ...o, [a]: _attr(a) }), {}),
     ...stats.reduce((o, s) => ({ ...o, [s]: _stat(s) }), {}),
     stats: ([i]) => {
-        let { mana, ...rem } = __cards[i - 1];
+        const { mana, ...rem } = __cards[i - 1];
         return rem;
     },
     isModern: F.cached(
@@ -219,7 +219,7 @@ const getRules = (ruleset) => {
     //const primary="Back to Basics,Silenced Summoners,Aim True,Super Sneak,Weak Magic,Unprotected,Target Practice,Fog of War,Armored Up,Equal Opportunity,Melee Mayhem"; const any="Healed Out,Earthquake,Reverse Speed,Close Range,Heavy Hitters,Equalizer,Noxious Fumes,Stampede,Explosive Weaponry,Holy Protection,Spreading Fury";
     const secondary =
         'Keep Your Distance,Lost Legendaries,Rise of the Commons,Up Close & Personal,Broken Arrows,Little League,Lost Magic,Even Stevens,Odd Ones Out';
-    let { attr, card } = ruleset.split`|`.reduce(
+    const { attr, card } = ruleset.split`|`.reduce(
         (rule, cr) => {
             if (cr == 'Taking Sides') return rule;
             secondary.includes(cr) ? (rule.card = cr) : rule.attr.push(cr);

@@ -67,7 +67,7 @@ const cb = (acc) => (x) =>
         width: 720,
         height: 1080 /* deviceScaleFactor: 1, */,
     });
-    let users = args.ACCOUNT.map((account, i) => ({
+    const users = args.ACCOUNT.map((account, i) => ({
         account,
         password: args.PASSWORD[i],
         login: args?.EMAIL[i],
@@ -96,7 +96,7 @@ const cb = (acc) => (x) =>
                 [0, 0],
             )[args.l ? 1 : 0],
     );
-    for (let { login, account, password, active_key } of users) {
+    for (const { login, account, password, active_key } of users) {
         await nSM.login(login || account, password);
         do {
             const {
@@ -110,7 +110,7 @@ const cb = (acc) => (x) =>
                 .then((c) =>
                     c.flatMap(cb(account)).map((x) => x.card_detail_id),
                 );
-            let cpu = Math.max(
+            const cpu = Math.max(
                 1e3,
                 args.c ?? Math.min(15e3, leaguesRating(rating)),
             );
@@ -144,7 +144,7 @@ const cb = (acc) => (x) =>
                 (a, cp, card_ids, g, waitList) =>
                     a
                         .flatMap((x) => {
-                            let [id, gold, edition] = [
+                            const [id, gold, edition] = [
                                 ...x.onclick.toString().matchAll(/\((\d.*)\)/g),
                             ][0][1]
                                 .split(',')
@@ -152,14 +152,14 @@ const cb = (acc) => (x) =>
                                     i > 2 ? 0 : JSON.parse(x.trim()),
                                 );
                             if ([id, gold, edition] in waitList) return [];
-                            let c = calculateCP({
+                            const c = calculateCP({
                                 xp: 1,
                                 alpha_xp: 0,
                                 card_detail_id: id,
                                 gold,
                                 edition,
                             });
-                            let lp = parseFloat(x.innerText.match(/\d+.\d+/));
+                            const lp = parseFloat(x.innerText.match(/\d+.\d+/));
                             return !card_ids.includes(id) &&
                                 !(g && gold) &&
                                 c < cp
@@ -191,7 +191,7 @@ const cb = (acc) => (x) =>
             minx.forEach((x) => (waitList[[x[3], x[4], x[5]]] = Date.now()));
             require('readline').moveCursor(process.stdout, 0, -13);
             try {
-                let [_, lpDoll, lpDec, ...cardDetails] = minx[0];
+                const [_, lpDoll, lpDec, ...cardDetails] = minx[0];
                 if (cardDetails) {
                     await page.evaluate(
                         `SM.ShowCardDetails(${cardDetails.join()},'rentals')`,

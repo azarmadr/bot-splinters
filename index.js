@@ -3,7 +3,7 @@ const R = require('ramda');
 const args = require('minimist')(process.argv.slice(2));
 const { writeFileSync } = require('jsonfile');
 const l2s = (s) => {
-    let res = s
+    const res = s
         .split('_')
         .map((x) => x[0])
         .join('')
@@ -67,7 +67,7 @@ if (1 || args.LOG)
         );
     };
 
-let _go = 1;
+const _go = 1;
 const sleepingTime = 6e4 * (args.SESSION_INTERVAL ?? 27);
 log`init1`;
 
@@ -86,7 +86,7 @@ async function checkForUpdate() {
                     input: process.stdin,
                     output: process.stdout,
                 });
-                let answer = await rl.question(
+                const answer = await rl.question(
                     gitVersion.join('.') +
                         version.join('.') +
                         'Newer version exists!!!\nDo you want to continue? (y/N)\n',
@@ -150,7 +150,7 @@ const postBattle = (user) => (battle) => {
         getBattles:
             battle.player_1 != user.account ? battle.player_1 : battle.player_2,
     });
-    let pl =
+    const pl =
         battle.player_1 != user.account ? battle.player_1 : battle.player_2;
     if (pl) getBattles(pl).catch(log);
     if (user.won > 0) {
@@ -291,7 +291,7 @@ const preMatch =
         user.erc = erc;
         user.wRating = Player.rating;
         user.mRating = Player.modern_rating;
-        let roll = 1; //Math.random()>0.27;
+        const roll = 1; //Math.random()>0.27;
         user.rating = roll ? user.mRating : user.wRating;
         user.isStarter = !Player.starter_pack_purchase;
         user.cp = Player.collection_power;
@@ -393,14 +393,14 @@ const cards2Obj = (acc) => (cards) =>
             'd',
         ],
         toDay = new Date().toDateString();
-    const userData = (function () {
+    const userData = (() => {
         try {
             return require('./data/user_data.json');
         } catch (e) {
             return {};
         }
     })();
-    let users = args.ACCOUNT.map((account, i) => {
+    const users = args.ACCOUNT.map((account, i) => {
         const u = (userData[toDay] ??= {})?.[account];
         return {
             account,
@@ -444,7 +444,7 @@ const cards2Obj = (acc) => (cards) =>
         users.some((x) => !x.isStarter && x.isRanked)
     ) {
         //await checkForUpdate();
-        let aUsers = users.filter((u) => !args.SKIP_PRACTICE || u.isRanked);
+        const aUsers = users.filter((u) => !args.SKIP_PRACTICE || u.isRanked);
         for (let user; (user = aUsers.shift()); ) {
             if (isLocked`.bot.playing.${user.account}`) {
                 aUsers.push(user);
