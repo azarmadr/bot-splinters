@@ -59,7 +59,7 @@ var _ablt = F.cached(
         ___card[i - 1].stats?.abilities?.slice(0, Math.max(1, l))?.flat() || [],
 );
 var _mana = F.cached((i) => {
-    let x = [___card[(i[0] ?? i) - 1].stats.mana].flat()[0];
+    const x = [___card[(i[0] ?? i) - 1].stats.mana].flat()[0];
     if (x === undefined) {
         console.log('here', ___card[(i[0] ?? i) - 1]);
         throw new Error('herh');
@@ -108,9 +108,9 @@ const C = {
         return C.hasAbility;
     },
     attackType: (c) =>
-        ['a', 'm', 'r'].flatMap((x) =>
+        `${['a', 'm', 'r'].flatMap((x) =>
             C[x](c) ? [{ a: 'Melee', r: 'Ranged', m: 'Magic' }[x]] : [],
-        ) + '',
+        )}`,
 };
 
 const nAtORyAb = (attack, ability) =>

@@ -54,14 +54,14 @@ const _mm_ = (rs, mana, crs) => {
                                 l,
                             ]),
                         )
-                        .map((x) => '' + x);
+                        .map((x) => `${x}`);
                     _dbug.$1s.a = { sn, tn, s, t };
                     c.s += merge(crs, { [sn]: { [tn]: crs[s][t] } }).c;
                     c.c += delete crs[s][t];
                 }
     }
     if (_dbug.tt.n?.at(-1)?.rs !== rs.toString()) delete _dbug.tt.n;
-    if (c.c) _dbug.tt.n = { rs: rs + '', mana, ...c };
+    if (c.c) _dbug.tt.n = { rs: `${rs}`, mana, ...c };
     Object.keys(c).forEach((k) => {
         ac[k] += c[k];
     });
@@ -90,9 +90,9 @@ const _RefractorBattlesToMana = (rs, mana, crs) => {
     }
     if (_dbug.tt.n?.at(-1)?.rs !== rs.toString()) {
         delete _dbug.tt.n;
-        log(rs + '', mana);
+        log(`${rs}`, mana);
     }
-    if (c.a) _dbug.tt.n = { ...c, rs: rs + '', mana };
+    if (c.a) _dbug.tt.n = { ...c, rs: `${rs}`, mana };
     Object.keys(c).forEach((k) => {
         ac[k] += c[k];
     });

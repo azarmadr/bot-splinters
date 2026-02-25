@@ -32,7 +32,7 @@ const headless = 0;
 const waitList = {};
 
 const rentDuration = (ends) =>
-    parseInt((Date.parse(ends) - Date.now()) / 24 / 36e5 + 1.5, 10) + '';
+    `${parseInt((Date.parse(ends) - Date.now()) / 24 / 36e5 + 1.5, 10)}`;
 const cb = (acc) => (x) =>
     x.owned.filter(
         (x) => x.delegated_to === acc || (x.player === acc && !x.delegated_to),

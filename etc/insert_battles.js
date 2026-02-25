@@ -4,7 +4,7 @@ const res = require('../data/battles-processed.json').filter(
 );
 for (const b of res) {
     if (!b.team1 || !b.team2) continue;
-    if (b.winner == 2) b.winner = -1;
+    if (b.winner === 2) b.winner = -1;
     b.teams = [b.team1, b.team2].map((x) => x.map((x) => [x.id, x.level]));
 }
 

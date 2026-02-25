@@ -147,7 +147,7 @@ const postBattle = (user) => (battle) => {
     //     battle.player_1 !== user.account ? battle.player_1 : battle.player_2;
     // if (pl) getBattles(pl).catch(log);
     if (user.won > 0) {
-        log({ Result: 'Won!!!' + Array(battle.current_streak).fill('_.~"(') });
+        log({ Result: `Won!!!${Array(battle.current_streak).fill('_.~"(')}` });
         user.decWon = Number(
             (user.decWon + Number.parseFloat(battle.reward_dec)).toFixed(3),
         );
@@ -507,8 +507,7 @@ const cards2Obj = (acc) => (cards) =>
                 await startBotPlayMatch(B, page, user)
                     .then(() =>
                         console.log({
-                            '      ':
-                                ' ' + Array(9).fill('    ').join(' ') + ' ',
+                            '      ': ` ${Array(9).fill('    ').join(' ')} `,
                             '         ': '        ',
                         }),
                     )

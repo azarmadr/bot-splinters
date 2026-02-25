@@ -71,7 +71,7 @@ _score.forQuest = (teams, { type, value, color } = {}) => {
                 )
               : type === 'ability'
                 ? teams.findIndex((t) =>
-                      t.team.some((c) => (C.abilities(c) + '').includes(value)),
+                      t.team.some((c) => `${C.abilities(c)}`.includes(value)),
                   )
                 : null;
     if (i > 0 && i < 3) teams.unshift(...teams.splice(i, 1));
@@ -197,7 +197,7 @@ _score.statCmp = F.cached((c, ruleset /* ,sStats=null */) => (oc) => {
                   speed);
 });
 const teamColorPass = F.cached(
-    (t) => (c) => ('Gray' + T.colors(t)).includes(C.color(c)),
+    (t) => (c) => `Gray${T.colors(t)}`.includes(C.color(c)),
 );
 const cardPosScore = (mycards) => (c, pos) =>
     c == null
@@ -265,7 +265,7 @@ _score.wBetterCards =
             if (!R.equals(bs, team[0])) {
                 log(bs, team[0], !_arr.eq(bs, team[0]));
                 log({
-                    [`-${C.name(team[0])}`]: '+' + C.name(bs),
+                    [`-${C.name(team[0])}`]: `+${C.name(bs)}`,
                     'Smnr@Team': idx,
                 });
                 team[0] = bs;

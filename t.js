@@ -40,7 +40,7 @@ const mergeNempty = (bd) => (o) => {
         const res = count.reduce(
             (a, { rs, rs1, mana, c }) => {
                 const m = Math.floor(mana / 3) * 3;
-                const x = rs + (rs1 ? '|' + rs1 : '');
+                const x = rs + (rs1 ? `|${rs1}` : '');
                 if (a[x]) {
                     a[x].c += c;
                     a[x][m] = c;

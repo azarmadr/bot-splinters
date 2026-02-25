@@ -117,8 +117,7 @@ const postBattle = (user) => (battle) => {
     user.count++;
     if (user.won > 0) {
         log({
-            [user.account]:
-                'Won!!!' + Array(battle.current_streak).fill('_.~"('),
+            [user.account]: `Won!!!${Array(battle.current_streak).fill('_.~"(')}`,
         });
         user.w++;
     } else user.won < 0 ? user.l++ : user.d++;
@@ -263,9 +262,9 @@ const findNewBattle = (pt, pt0, rules) => {
     let count = 0;
     const bRule = Ru.battleRule(rules);
     for (const s of pt) {
-        const team1 = s.team + '';
+        const team1 = `${s.team}`;
         for (const t of pt0) {
-            const team2 = t.team + '',
+            const team2 = `${t.team}`,
                 rules = bRule([s.team, t.team]);
             if (team1 !== team2) {
                 in1(count++);

@@ -102,14 +102,10 @@ async function getBattles(
     _dbug.in1(BC.pc++, BC.lastInsertRowid, player);
     B.insertBattles(
         battleHistory.filterMap((b_old) => {
-            let b = b_old;
+            const b = b_old;
             const { winner, team1, team2 } = JSON.parse(b.details);
             nuSet.add(team1.player);
             nuSet.add(team2.player);
-            if (_arr.eq(...teams) || teams.some((x) => T(x).length < 2))
-                return [];
-            if (drs({ rules: b.ruleset, mana: b.mana_cap, teams }))
-                _dbugBattles.push(b);
             const teams = [team1, team2].map((t) =>
                 [t.summoner, ...t.monsters].map((m) => [
                     m.card_detail_id,
@@ -117,6 +113,10 @@ async function getBattles(
                 ]),
             );
 
+            if (_arr.eq(...teams) || teams.some((x) => T(x).length < 2))
+                return [];
+            if (drs({ rules: b.ruleset, mana: b.mana_cap, teams }))
+                _dbugBattles.push(b);
             b.teams = teams;
             b.winner =
                 winner === team1.player ? 1 : winner === team2.player ? -1 : 0;
