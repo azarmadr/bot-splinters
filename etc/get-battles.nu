@@ -9,9 +9,7 @@ def proc-if-team [] {
   | select id level uid
 }
 def proc-details [] {
-  from json
-  | if $in.type? == Surrender or $in.winner == DRAW {return {}} else {}
-  | update cells -c ('{final_,}team{1,2}' | str expand) {proc-if-team}
+  update cells -c ('{final_,}team{1,2}' | str expand) {proc-if-team}
   | update rounds {flatten -a}
   | update pre_battle {insert num 0}
   | update rounds {|i|
@@ -24,16 +22,15 @@ def proc-details [] {
   }
   | select -o ...('{rounds,{final_,}team{1,2}}' | str expand)
 }
-let AUTH = open data/auth.json
 
 def proc-battles [] {
-  where not is_surrender | reject is_surrender
-  | move --first created_date ruleset settings winner
-  | update created_date {into datetime}
+  where not is_surrender and winner != DRAW and match_type != Campaign
+  | update details {from json}
+  | move --first ruleset settings winner
   | update details {proc-details}
   | update settings {from json}
   | update winner {|i| if $in == DRAW {0} else if $in == $i.player_1 {1} else 2}
-  | select details match_type created_date ruleset settings winner ...(
+  | select details match_type ruleset settings winner ...(
     '{battle_queue_id}_{1,2}' | str expand)
   | flatten details
 # | describe | str replace -r '[,]' "$0\n" -a
@@ -41,6 +38,7 @@ def proc-battles [] {
 
 def update-battles [] {
   $in ++ (open data/battles-processed.json)
+  | where battle_queue_id_1 !~ 'prologue|tutorial'
   | uniq-by battle_queue_id_1 battle_queue_id_2
   # | do {select -o home away perks | compact -e home | table -e | print; $in}
   | save data/battles-processed1.json
@@ -53,15 +51,52 @@ def "cleanup battles files" [] {
   rm data/battles.*json -f
 }
 
-def main [] {
-  cleanup battles files
-  open data/battles-processed.json
-  | where format? in [foundation]
+def get-battles [u] {
+  $u | inspect
+  let b = http $'https://api.splinterlands.io/battle/history?player=($u)' -H (open data/auth.json)
+  | $in.battles
+
+  $b | proc-battles | update-battles
+  node etc/insert_battles.js
+
+  $b
   | select created_date player_1 player_2
   | rename d p1 p2
   | update d {into datetime}
   | sort-by d
-  | reduce -f {} {|r a| $r | get p1 p2 | reduce -f $a {|p| upsert $p $r.d}}
-  | transpose -d | rename p d | sort-by d | get p
-  | wrap name | grid | print ''
+  | reduce -f {} {|r a| $r | get p1 p2 | reduce -f $a {|p|
+    upsert $p $r.d
+  }}
+  | transpose -d | rename p d | sort-by d
+}
+
+def handle-join-remnants [] {
+    upsert d {|r| [$r.d? $r.d_?] | compact -e | math max} | reject d_
+    | sort-by d
+}
+def main [] {
+  # cleanup battles files
+  node etc/insert_battles.js
+
+  let user_f = 'data/user.nuon'
+  let default_users = rg ACCOUNT= .env | lines | split row -r '[=,]' | skip | wrap p
+  | insert d {0 | into datetime}
+  if not ($user_f | path exists) { $default_users | save data/user.nuon }
+  mut c = 0
+  loop {
+    let users = open $user_f
+    | where p != '???' and p !~ ' '
+    | handle-join-remnants
+
+    let users = $users | join $default_users p -o
+    | handle-join-remnants
+
+    let next = get-battles ($users | first).p
+    $next | join $users p -o | save -f $user_f
+
+    $users | rename name | grid | print
+    $c += 1
+    if $c > 8 {break}
+    gum spin -- sleep 1m
+  }
 }
