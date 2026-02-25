@@ -2,27 +2,10 @@ var page;
 const { log, sleep, _elem } = require('./util');
 const B = require('./battle');
 const { modulo } = require('ramda');
+const puppeteer = require('puppeteer');
+const timeout = 5000;
 
 module.exports = (page) => ({
-    login: async function Login(acc, pwd) {
-        log({ Logging: acc });
-        if (acc.indexOf('@') > 0)
-            await page
-                .evaluate(`new Promise((res,rej)=>
-      SM.EmailLogin('${acc}','${pwd}').then(r=>(r&&r.success)?res(r):rej(r.error))
-    )`)
-                .catch(log);
-        else
-            await page
-                .evaluate(`new Promise((res,rej)=>
-      SM.Login('${acc}','${pwd}',r=>setTimeout(() => { 
-        if (r && r.success) {
-          SM.OnLogin().then(_=>res(r.success))
-        } else rej(r.error)
-      }, 0)))`)
-                .catch(log);
-        await page.evaluate('SM.HideDialog();SM.UpdatePlayerInfo()');
-    },
     questClaim: async (q, _q) => {
         log({ 'Claiming quest box': q.name });
         await page
@@ -36,32 +19,46 @@ module.exports = (page) => ({
                     page.evaluate('SM.HideLoading()'),
             );
     },
-    battle: async (type = 'Ranked', opp = '', settings = {}) => {
+    battle: async (type = 'Ranked', opp = '', user) => {
         log(`Finding ${type} match`);
-        let outstanding_match;
-        // const outstanding_match = await page.evaluate(`SM.Player?.outstanding_match`);
-        // log({outstanding_match},`{SM.ShowBattleHistory(); SM.FindMatch('${type}'${
-        //   type=='Challenge'?`,'${opp}',${JSON.stringify(settings)}`:''
-        // });}`)
-        await page.evaluate(
-            outstanding_match
-                ? `SM.OutstandingMatch(SM.Player.outstanding_match)`
-                : `SM.FindMatch('${type}'${
-                      type == 'Challenge'
-                          ? `,'${opp}',${JSON.stringify(settings)}`
-                          : ''
-                  })`,
-        );
-        const cb = await page.evaluate(`new Promise(async(res,rej)=>{
-      while(SM.in_battle){ if(SM._currentBattle)break; await sleep(1729); }
-      if(SM.in_battle)res(SM._currentBattle);
-      else rej(null);
-    })`);
+        if (0) {
+            await page.evaluate(
+                `SM.FindMatch('${type}'${
+                    type == 'Challenge'
+                        ? `,'${opp}',${JSON.stringify(settings)}`
+                        : ''
+                })`,
+            );
+            const cb = await page.evaluate(`new Promise(async(res,rej)=>{
+	      while(SM.in_battle){ if(SM._currentBattle)break; await sleep(1729); }
+	      if(SM.in_battle)res(SM._currentBattle);
+	      else rej(null);
+	    })`);
+            await page.evaluate(
+                'SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)',
+            );
+            // log(cb)
+        }
+        await page.goto('https://splinterlands.com/battle-history');
+        // await page.waitForSelector('aria/chomper');
+        // await page.waitForSelector('aria/chomper', { hidden: true });
+        await sleep(7290);
+        await page.evaluate(`
+	    [...document.querySelectorAll('button')].filter(x=>x.innerText === 'BATTLE')[0].click()
+	`);
+
+        await page.waitForNavigation();
         await sleep(729);
-        await page.evaluate(
-            'SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)',
+        const cb = await page.evaluate(
+            `fetch("https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
+	    .then(x=>x.json())`,
         );
-        // log(cb)
+        try {
+            console.table(B(cb));
+        } catch (e) {
+            console.error(e);
+        }
+        await sleep(729);
         return B(cb);
     },
     cards: async (player) => {
@@ -73,20 +70,35 @@ module.exports = (page) => ({
     },
 });
 module.exports.login = async function login(page, user, preMatch) {
-    await page.goto('https://splinterlands.com/');
-};
-module.exports.login_dep = async function login(page, user, preMatch) {
-    await page.goto('https://splinterlands.com/');
-    const SM = module.exports(page);
-    await SM.login(user.login || user.account, user.password);
-    user.isStarter ??
-        (await page
-            .evaluate(
-                'Object.assign({},{settings:SM.settings,Player:SM.Player})',
-            )
-            .then(preMatch(user)));
+    log('logging');
+    await page.goto('https://splinterlands.com/login/email');
+    await sleep(5e3);
+    await puppeteer.Locator.race([
+        page.locator('::-p-aria(email)'),
+        page.locator('form > div:nth-of-type(1) input'),
+        page.locator(':scope >>> form > div:nth-of-type(1) input'),
+    ])
+        .setTimeout(timeout * 1e3)
+        .fill(user.login || user.account);
+    await puppeteer.Locator.race([
+        page.locator('::-p-aria(password)'),
+        page.locator('form > div:nth-of-type(2) input'),
+        page.locator(':scope >>> form > div:nth-of-type(2) input'),
+    ])
+        .setTimeout(timeout)
+        .fill(user.password);
+    await puppeteer.Locator.race([
+        page.locator('div.c-btWakK button.c-drMScW'),
+        page.locator(
+            '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/button[2])',
+        ),
+        page.locator(':scope >>> div.c-btWakK button.c-drMScW'),
+    ])
+        .setTimeout(timeout)
+        .click();
     await page.evaluate(
         `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
     );
-    return SM;
+    await sleep(5e3);
+    return module.exports(page);
 };

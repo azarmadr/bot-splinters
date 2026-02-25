@@ -51,7 +51,7 @@ const puppeteer = require('puppeteer');
 const { playableTeams } = require('./score');
 const battles = require('./getBattles');
 const fs = require('fs');
-// const { login } = require('./splinterApi');
+const { login } = require('./splinterApi');
 
 // Logging function with save to a file
 var _file = 'log.txt';
@@ -138,8 +138,8 @@ async function createBrowser(headless) {
     );
     // await page.setViewport({ width: 1800, height: 1200, deviceScaleFactor: 1, });
     await page.setViewport({
-        width: 720,
-        height: 1080 /* deviceScaleFactor: 1, */,
+        width: 920,
+        height: 903,
     });
     return l_browser;
 }
@@ -385,52 +385,6 @@ async function logout(page) {
         });
 }
 
-async function login(page, user, preMatch) {
-    log('logging');
-    const timeout = 5000;
-    await puppeteer.Locator.race([
-        page.locator('::-p-aria(LOG IN)'),
-        page.locator("[data-testid='page']"),
-        page.locator('::-p-xpath(//*[@data-testid=\\"page\\"])'),
-        page.locator(":scope >>> [data-testid='page']"),
-        page.locator('::-p-text(Log In)'),
-    ])
-        .setTimeout(timeout)
-        .click();
-    await sleep(5e3);
-    await puppeteer.Locator.race([
-        page.locator('::-p-aria(email)'),
-        page.locator('form > div:nth-of-type(1) input'),
-        page.locator(
-            '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/div[1]/div/input)',
-        ),
-        page.locator(':scope >>> form > div:nth-of-type(1) input'),
-    ])
-        .setTimeout(timeout * 1e3)
-        .fill(user.login || user.account);
-    await puppeteer.Locator.race([
-        page.locator('::-p-aria(password)'),
-        page.locator('form > div:nth-of-type(2) input'),
-        page.locator(
-            '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/div[2]/div[1]/input)',
-        ),
-        page.locator(':scope >>> form > div:nth-of-type(2) input'),
-        page.locator('::-p-text(battlePersistent:playbackSpeed)'),
-    ])
-        .setTimeout(timeout)
-        .fill(user.password);
-    await puppeteer.Locator.race([
-        page.locator('div.c-btWakK button.c-drMScW'),
-        page.locator(
-            '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/button[2])',
-        ),
-        page.locator(':scope >>> div.c-btWakK button.c-drMScW'),
-    ])
-        .setTimeout(timeout)
-        .click();
-    await sleep(5e3);
-}
-
 const cards2Obj = (acc) => (cards) =>
     cards
         .flatMap((card) => card.owned)
@@ -510,7 +464,7 @@ const cards2Obj = (acc) => (cards) =>
     let [page] = await browser.pages();
     await page.goto('https://splinterlands.com/');
 
-    await logout(page).catch((err) => console.log('err'));
+    await logout(page).catch((err) => console.error('err'));
 
     while (
         !args.CLOSE_AFTER_ERC ||
@@ -529,17 +483,18 @@ const cards2Obj = (acc) => (cards) =>
                 [page] = await browser.pages();
             }
 
-            await login(page, user, preMatch);
-            await sleep(8e8);
-            if (args.CLAIM_REWARDS) {
-                if (user.claimSeasonReward) await page.evaluate('claim()');
+            const nSM = await login(page, user, preMatch);
+            if (0 && args.CLAIM_REWARDS) {
+                // TODO not that important
+                // if (user.claimSeasonReward) await page.evaluate('claim()');
                 if (user.claimQuestReward?.filter((x) => x)?.length == 2)
                     await nSM
                         .questClaim(...user.claimQuestReward)
                         .then(() => sleep(4e3));
             }
             if (!args.SKIP_PRACTICE || user.isRanked) {
-                const B = await nSM.battle(user.battle);
+                const B = await nSM.battle(user.battle, '', user);
+                await sleep(8e5);
                 B.myCards = await nSM
                     .cards(user.account)
                     .then(cards2Obj(user.account))
@@ -551,6 +506,7 @@ const cards2Obj = (acc) => (cards) =>
                             ) ?? {},
                     );
                 // B.oppCards = B.opp=='???' ? {}:(await nSM.cards(B.opp).then(cards2Obj(B.opp)) .catch(e=>log(e,'Opp Cards Failed')??{}))
+
                 await startBotPlayMatch(B, page, user)
                     .then(() =>
                         console.log({
