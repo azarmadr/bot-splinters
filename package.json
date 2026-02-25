@@ -1,47 +1,47 @@
 {
-  "name": "bot-splinters",
-  "version": "4.0.0",
-  "description": "updating battles stats so that now battles are stored under the mana of the highest team mana in the data file. hence the 99 manacap will be removed in the file.\nrun `_cleanUpBattle.js`\n update your battleData after updating",
-  "main": "index.js",
-  "scripts": {
-    "test": "jest"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/azarmadr/bot-splinters.git"
-  },
-  "keywords": [
-    "bot"
-  ],
-  "author": "madr",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/azarmadr/bot-splinters/issues"
-  },
-  "homepage": "https://github.com/azarmadr/bot-splinters#readme",
-  "dependencies": {
-    "array-keyed-map": "^2.1.3",
-    "better-sqlite3": "^12.6.2",
-    "dotenv": "^17.3.1",
-    "jsonfile": "^6.2.0",
-    "minimist": "^1.2.8",
-    "node-gyp": "^12.2.0",
-    "puppeteer": "^24.37.5",
-    "ramda": "^0.32.0",
-    "ramda-adjunct": "^6.0.0",
-    "sync-fetch": "^0.6.0"
-  },
-  "devDependencies": {
-    "asciichart": "^1.5.25",
-    "cytoscape": "^3.33.1",
-    "eslint": "^10.0.2",
-    "eslint-plugin-fp": "^2.3.0",
-    "jest": "^30.2.0",
-    "parcel": "^2.16.4"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3"
-    ]
-  }
+    "name": "bot-splinters",
+    "version": "4.0.0",
+    "description": "updating battles stats so that now battles are stored under the mana of the highest team mana in the data file. hence the 99 manacap will be removed in the file.\nrun `_cleanUpBattle.js`\n update your battleData after updating",
+    "main": "index.js",
+    "scripts": {
+        "test": "jest"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/azarmadr/bot-splinters.git"
+    },
+    "keywords": [
+        "bot"
+    ],
+    "author": "madr",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/azarmadr/bot-splinters/issues"
+    },
+    "homepage": "https://github.com/azarmadr/bot-splinters#readme",
+    "dependencies": {
+        "array-keyed-map": "^2.1.3",
+        "better-sqlite3": "^12.6.2",
+        "dotenv": "^17.3.1",
+        "jsonfile": "^6.2.0",
+        "minimist": "^1.2.8",
+        "node-gyp": "^12.2.0",
+        "puppeteer": "^24.37.5",
+        "ramda": "^0.32.0",
+        "ramda-adjunct": "^6.0.0",
+        "sync-fetch": "^0.6.0"
+    },
+    "devDependencies": {
+        "asciichart": "^1.5.25",
+        "cytoscape": "^3.33.1",
+        "eslint": "^10.0.2",
+        "eslint-plugin-fp": "^2.3.0",
+        "jest": "^30.2.0",
+        "parcel": "^2.16.4"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "better-sqlite3"
+        ]
+    }
 }

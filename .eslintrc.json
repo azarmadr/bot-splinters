@@ -4,18 +4,13 @@
         "commonjs": true,
         "es2021": true
     },
-    "plugins": [
-      "fp"
-    ],
+    "plugins": ["fp"],
     "extends": "eslint:recommended",
     "extends__": "plugin:fp/recommended",
     "parserOptions": {
         "ecmaVersion": 13
     },
     "rules": {
-        "semi": [
-            "error",
-            "never"
-        ]
+        "semi": ["error", "never"]
     }
 }
