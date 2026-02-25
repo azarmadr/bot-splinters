@@ -13,12 +13,12 @@ const l2s = (s) => {
 };
 // console.table(args)
 try {
-    Object.entries(require('dotenv').config().parsed).map(
-        ([e, v]) =>
-            (args[e] ??= v.includes(',')
-                ? (args[l2s(e)] ?? v).split(',')
-                : (args[l2s(e)] ??= v && JSON.parse(v))),
-    );
+    Object.entries(require('dotenv').config().parsed).forEach(([e, v]) => {
+        args[l2s(e)] ??= v && JSON.parse(v);
+        args[e] ??= v.includes(',')
+            ? (args[l2s(e)] ?? v).split(',')
+            : args[l2s(e)];
+    });
 } catch (e) {
     console.error(e);
     throw `NO '.env' file present
@@ -50,12 +50,12 @@ log`init`;
 const puppeteer = require('puppeteer');
 const { playableTeams } = require('./score');
 const battles = require('./getBattles');
-const fs = require('fs');
+const fs = require('node:fs');
 const { login } = require('./splinterApi');
 
 // Logging function with save to a file
 var _file = 'log.txt';
-const util = require('util');
+const util = require('node:util');
 const logFile = fs.createWriteStream(_file, { flags: 'w' });
 const formatEd = (...x) => util.formatWithOptions({ colors: true }, ...x);
 if (1 || args.LOG)
@@ -82,7 +82,7 @@ async function checkForUpdate() {
                 .version.replace(/(\.0+)+$/, '')
                 .split('.');
             if (_arr.checkVer(gitVersion, version)) {
-                const rl = require('readline/promises').createInterface({
+                const rl = require('node:readline/promises').createInterface({
                     input: process.stdin,
                     output: process.stdout,
                 });
@@ -140,18 +140,19 @@ async function createBrowser(headless) {
     await page.setViewport({
         width: 920,
         height: 903,
+        deviceScaleFactor: 0.81,
     });
     return l_browser;
 }
 const postBattle = (user) => (battle) => {
     user.won =
-        battle.winner == user.account ? 1 : battle.winner == 'DRAW' ? 0 : -1;
+        battle.winner === user.account ? 1 : battle.winner === 'DRAW' ? 0 : -1;
     log({
         getBattles:
-            battle.player_1 != user.account ? battle.player_1 : battle.player_2,
+            battle.player_1 !== user.account ? battle.player_1 : battle.player_2,
     });
     const pl =
-        battle.player_1 != user.account ? battle.player_1 : battle.player_2;
+        battle.player_1 !== user.account ? battle.player_1 : battle.player_2;
     if (pl) getBattles(pl).catch(log);
     if (user.won > 0) {
         log({ Result: 'Won!!!' + Array(battle.current_streak).fill('_.~"(') });
@@ -175,8 +176,8 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
         ...Stats
     } = teamToPlay;
     if (!B.rules.includes('Taking Sides')) {
-        const __medusa = Monsters.find((m) => m[0] == 17);
-        __medusa && (__medusa[0] = 194);
+        const __medusa = Monsters.find((m) => m[0] === 17);
+        if(__medusa ) (__medusa[0] = 194);
     }
     table([
         ...teamToPlay.team.map(([Id, Lvl]) => ({
@@ -279,14 +280,14 @@ async function startBotPlayMatch(B, page, user) {
 const calculateECR = ({ capture_rate, last_reward_time }, { dec }) =>
     Math.min(
         10000,
-        (parseInt(capture_rate) || 10000) +
+        (parseInt(capture_rate, 10) || 10000) +
             ((Date.now() - new Date(last_reward_time)) / 3000) *
                 dec.ecr_regen_rate,
     ) / 100;
 const preMatch =
     (user) =>
     ({ Player, settings }) => {
-        user.dec = Player.balances.find((x) => x.token == 'DEC')?.balance;
+        user.dec = Player.balances.find((x) => x.token === 'DEC')?.balance;
         const erc = calculateECR(Player, settings);
         user.erc = erc;
         user.wRating = Player.rating;
@@ -316,9 +317,10 @@ const preMatch =
         //if quest done claim reward
         user.claimQuestReward = [];
         user.quest = 0;
+	let name, completed_items, total_items;
         if (Player.quest && !Player.quest.claim_trx_id) {
-            var { name, completed_items, total_items } = Player.quest;
-            const quest = settings.daily_quests.find((x) => x.name == name);
+            let { name, completed_items, total_items } = Player.quest;
+            const quest = settings.daily_quests.find((x) => x.name === name);
             if (
                 (Number(args.q) || 3) * Math.random() < 1 &&
                 args.QUEST_PRIORITY

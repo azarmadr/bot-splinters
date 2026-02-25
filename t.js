@@ -2,6 +2,7 @@ const { log, _dbug } = require('./util');
 const args = require('minimist')(process.argv.slice(2));
 const { readFileSync, writeFileSync } = require('jsonfile');
 
+globalThis.practiceOn = 0;
 const drs = args.drs ?? ''; // TODO
 const player = args.n ?? '';
 const depth = args.d ?? 2;
@@ -56,7 +57,10 @@ const mergeNempty = (bd) => (o) => {
         console.table(
             Object.keys(res)
                 .sort((a, b) => res[a].c - res[b].c)
-                .reduce((a, k) => ((a[k] = res[k]), a), {}),
+                .reduce((a, k) => {
+                    a[k] = res[k];
+                    return a;
+                }, {}),
         );
         if (args.r) writeFileSync(o, ob);
         writeFileSync(`./data/battle_data${fn}.json`, bd);
@@ -67,7 +71,7 @@ if ('b' in args) {
     log({ drs, player, depth, fn, minRank });
     Promise.resolve(fromUsers(player, { depth, fn, minRank })).then(() => {});
 } else if ('m' in args) {
-    var bd;
+    let bd;
     try {
         bd = readFileSync(`./data/battle_data${fn}.json`);
     } catch (e) {

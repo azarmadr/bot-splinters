@@ -21,8 +21,8 @@ const setScores = (scores, B) => {
             teams.forEach((x, i) => {
                 if (B.isPlayable(0)(x)) {
                     scores[i ? t : s].count += p / 4;
-                    scores[i ? t : s][p == 1 ? 'd' : i ? 'w' : 'l'] += p / 4;
-                    scores[i ? t : s][p == 1 ? '_d' : i ? '_w' : '_l'] +=
+                    scores[i ? t : s][p === 1 ? 'd' : i ? 'w' : 'l'] += p / 4;
+                    scores[i ? t : s][p === 1 ? '_d' : i ? '_w' : '_l'] +=
                         ((m * p) / 4) * (i ? 1 : sMana / tMana);
                     scores[i ? t : s].oppMark |= teams.some(B.isPlayable(1));
                 }
@@ -48,16 +48,13 @@ module.exports.playableTeams = (B) => {
 
     const cardscores = teams.reduce(
         (cs, { team, score }) =>
-            team.reduce(
-                (cs, x, i, { length }) => (
-                    (cs[x] ??= { score: 0 }),
-                    (cs[x][pos(i, length)] ??= 0),
-                    (cs[x].score += score),
-                    (cs[x][pos(i, length)] += score),
-                    cs
-                ),
-                cs,
-            ),
+            team.reduce((cs, x, i, { length }) => {
+                cs[x] ??= { score: 0 };
+                cs[x][pos(i, length)] ??= 0;
+                cs[x].score += score;
+                cs[x][pos(i, length)] += score;
+                return cs;
+            }, cs),
         {},
     );
     var filteredTeams_length = teams.length;
@@ -77,8 +74,10 @@ module.exports.playableTeams = (B) => {
         R.filter(
             (
                 (a) =>
-                ({ adv }) =>
-                    R.has(adv, a) ? a[adv]-- : (a[adv] = 27 + 27 * adv)
+                ({ adv }) => {
+                    a[adv] = R.has(adv, a) ? a[adv] - 1 : 27 + 27 * adv;
+                    return a[adv];
+                }
             )({}),
         ),
     )(teams);
@@ -140,38 +139,35 @@ module.exports.playableTeams = (B) => {
                     })),
             );
             log({ 'sort by': 'loss-win' });
+            pt = R.sortBy((x) => x._l - x._w, pt);
             _dbug.table(
-                (pt = R.sortBy((x) => x._l - x._w, pt))
-                    .slice(0, 5)
-                    .map(({ team, ...s }) => ({
-                        team: team.map((c) => [C.name(c), c[1]]).join(),
-                        ...s,
-                    })),
+                pt.slice(0, 5).map(({ team, ...s }) => ({
+                    team: team.map((c) => [C.name(c), c[1]]).join(),
+                    ...s,
+                })),
             );
             log({ 'sort by': 'ev' });
+            pt = R.sortBy((b) => -b.ev, pt);
             _dbug.table(
-                (pt = R.sortBy((b) => -b.ev, pt))
-                    .slice(0, 5)
-                    .map(({ team, ...s }) => ({
-                        team: team.map((c) => [C.name(c), c[1]]).join(),
-                        ...s,
-                    })),
+                pt.slice(0, 5).map(({ team, ...s }) => ({
+                    team: team.map((c) => [C.name(c), c[1]]).join(),
+                    ...s,
+                })),
             );
             log({ 'sort by': 'aScore+ev' });
+            pt = R.sortWith(
+                [
+                    (x) => x.aScore ** 2 + x.ev ** 2 * 1.27,
+                    (x) => x.score,
+                    (x) => x.ev,
+                ].map((fn) => R.descend(fn)),
+                pt,
+            );
             _dbug.table(
-                (pt = R.sortWith(
-                    [
-                        (x) => x.aScore ** 2 + x.ev ** 2 * 1.27,
-                        (x) => x.score,
-                        (x) => x.ev,
-                    ].map((fn) => R.descend(fn)),
-                    pt,
-                ))
-                    .slice(0, 5)
-                    .map(({ team, ...s }) => ({
-                        team: team.map((c) => [C.name(c), c[1]]).join(),
-                        ...s,
-                    })),
+                pt.slice(0, 5).map(({ team, ...s }) => ({
+                    team: team.map((c) => [C.name(c), c[1]]).join(),
+                    ...s,
+                })),
             );
         }
     }

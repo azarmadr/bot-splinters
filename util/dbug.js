@@ -107,7 +107,7 @@ _dbug.in1 = (...m) => {
 _dbug.table = (m) => {
     const toFixed = (o) => {
         for (k in o)
-            isNaN(o[k])
+            Number.isNaN(+o[k])
                 ? typeof o[k] == 'object' && toFixed(o[k])
                 : (o[k] = Number(Number(o[k]).toFixed(3)));
     };

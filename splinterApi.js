@@ -1,7 +1,5 @@
-var page;
 const { log, sleep, _elem } = require('./util');
 const B = require('./battle');
-const { modulo } = require('ramda');
 const puppeteer = require('puppeteer');
 const timeout = 5000;
 
@@ -19,35 +17,17 @@ module.exports = (page) => ({
                     page.evaluate('SM.HideLoading()'),
             );
     },
-    battle: async (type = 'Ranked', opp = '', user) => {
+    battle: async (type = 'Ranked', _opp = '', user) => {
         log(`Finding ${type} match`);
-        if (0) {
-            await page.evaluate(
-                `SM.FindMatch('${type}'${
-                    type == 'Challenge'
-                        ? `,'${opp}',${JSON.stringify(settings)}`
-                        : ''
-                })`,
-            );
-            const cb = await page.evaluate(`new Promise(async(res,rej)=>{
-	      while(SM.in_battle){ if(SM._currentBattle)break; await sleep(1729); }
-	      if(SM.in_battle)res(SM._currentBattle);
-	      else rej(null);
-	    })`);
-            await page.evaluate(
-                'SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)',
-            );
-            // log(cb)
-        }
         await page.goto('https://splinterlands.com/battle-history');
         // await page.waitForSelector('aria/chomper');
         // await page.waitForSelector('aria/chomper', { hidden: true });
         await sleep(7290);
-        await page.evaluate(`
-	    [...document.querySelectorAll('button')].filter(x=>x.innerText === 'BATTLE')[0].click()
-	`);
-
-        await page.waitForNavigation();
+        await Promise.all([
+            page.evaluate(`[...document.querySelectorAll('button')].filter(x=>x.innerText === 'BATTLE')[0].click()
+	    `),
+            page.waitForNavigation(),
+        ]);
         await sleep(729);
         const cb = await page.evaluate(
             `fetch("https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
@@ -57,6 +37,7 @@ module.exports = (page) => ({
             console.table(B(cb));
         } catch (e) {
             console.error(e);
+            await sleep(8e5);
         }
         await sleep(729);
         return B(cb);
@@ -69,7 +50,7 @@ module.exports = (page) => ({
         );
     },
 });
-module.exports.login = async function login(page, user, preMatch) {
+module.exports.login = async function login(page, user, _preMatch) {
     log('logging');
     await page.goto('https://splinterlands.com/login/email');
     await sleep(5e3);

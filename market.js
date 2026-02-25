@@ -5,12 +5,18 @@ const l2s = (s) =>
         .map((x) => x[0])
         .join('')
         .toLowerCase();
-Object.entries(require('dotenv').config().parsed).map(
-    ([e, v]) =>
-        (args[e] ??= v.includes(',')
+try {
+    Object.entries(require('dotenv').config().parsed).forEach(([e, v]) => {
+        args[l2s(e)] ??= v && JSON.parse(v);
+        args[e] ??= v.includes(',')
             ? (args[l2s(e)] ?? v).split(',')
-            : (args[l2s(e)] ??= JSON.parse(v))),
-);
+            : args[l2s(e)];
+    });
+} catch (e) {
+    console.error(e);
+    throw `NO '.env' file present
+  Please create a new '.env' file following the '.env-example'`;
+}
 if (!['ACCOUNT', 'PASSWORD'].every((e) => args[e]))
     throw console.error(
         'Missing ACCOUNT/PASSWORD,the REQUIRED parameter(s) in .env' +
@@ -26,10 +32,10 @@ const headless = 0;
 const waitList = {};
 
 const rentDuration = (ends) =>
-    parseInt((Date.parse(ends) - Date.now()) / 24 / 36e5 + 1.5) + '';
+    parseInt((Date.parse(ends) - Date.now()) / 24 / 36e5 + 1.5, 10) + '';
 const cb = (acc) => (x) =>
     x.owned.filter(
-        (x) => x.delegated_to == acc || (x.player == acc && !x.delegated_to),
+        (x) => x.delegated_to === acc || (x.player === acc && !x.delegated_to),
     );
 (async () => {
     // const browserFetcher = puppeteer.createBrowserFetcher();
@@ -89,16 +95,16 @@ const cb = (acc) => (x) =>
     const leaguesRating = F.cached(
         (r) =>
             leagues.reduce(
-                ([cp0, cp1], { min_rating, min_power }) =>
-                    min_rating > r
-                        ? [cp0, cp1]
-                        : (_dbug.tt.cp = [cp1, min_power]),
+                ([cp0, cp1], { min_rating, min_power }) => {
+                    if (min_rating <= r) _dbug.tt.cp = [cp1, min_power];
+                    return min_rating > r ? [cp0, cp1] : _dbug.tt.cp;
+                },
                 [0, 0],
             )[args.l ? 1 : 0],
     );
     for (const { login, account, password, active_key } of users) {
         await nSM.login(login || account, password);
-        do {
+        while (true) {
             const {
                 collection_power,
                 starter_pack_purchase,
@@ -135,9 +141,9 @@ const cb = (acc) => (x) =>
                 `.filter-section-foil .filter-option-button:nth-child(2) > label`,
             );
 
-            Object.keys(waitList).forEach(
-                (k) => Date.now() - 81e4 > waitList[k] && delete waitList[k],
-            );
+            Object.keys(waitList).forEach((k) => {
+                Date.now() - 81e4 > waitList[k] && delete waitList[k];
+            });
 
             const minx = await page.$$eval(
                 '.card.card_market',
@@ -177,7 +183,8 @@ const cb = (acc) => (x) =>
                         })
                         .reduce(
                             (minx, x) =>
-                                [x, ...minx]
+                                minx
+                                    .unshift(x)
                                     .sort((a, b) => b[0] / b[1] - a[0] / a[1])
                                     .slice(0, 1),
                             [],
@@ -188,8 +195,10 @@ const cb = (acc) => (x) =>
                 waitList,
             );
             console.table(minx.map((x) => [...x, C.name(x[3])]));
-            minx.forEach((x) => (waitList[[x[3], x[4], x[5]]] = Date.now()));
-            require('readline').moveCursor(process.stdout, 0, -13);
+            minx.forEach((x) => {
+                waitList[[x[3], x[4], x[5]]] = Date.now();
+            });
+            require('node:readline').moveCursor(process.stdout, 0, -13);
             try {
                 const [_, lpDoll, lpDec, ...cardDetails] = minx[0];
                 if (cardDetails) {
@@ -235,7 +244,7 @@ const cb = (acc) => (x) =>
                                 page.type('#txt_rent_days', rentDuration(ends)),
                             );
                         await _elem.click(page, '#btn_rent_popup_rent');
-                        if (account != 'azarmadr3')
+                        if (account !== 'azarmadr3')
                             await page
                                 .waitForSelector('#active_key', {
                                     timeout: 4e3,
@@ -265,7 +274,7 @@ const cb = (acc) => (x) =>
             }
             await sleep(3e2);
             delete _dbug.tt.userSummary;
-        } while (true);
+        }
         await page.evaluate('SM.Logout()');
     }
     browser.close();

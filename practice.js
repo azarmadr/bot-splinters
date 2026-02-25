@@ -8,12 +8,12 @@ const l2s = (s) =>
         .join('')
         .toLowerCase();
 try {
-    Object.entries(require('dotenv').config().parsed).map(
-        ([e, v]) =>
-            (args[e] ??= v.includes(',')
-                ? (args[l2s(e)] ?? v).split(',')
-                : (args[l2s(e)] ??= JSON.parse(v))),
-    );
+    Object.entries(require('dotenv').config().parsed).forEach(([e, v]) => {
+        args[l2s(e)] ??= v && JSON.parse(v);
+        args[e] ??= v.includes(',')
+            ? (args[l2s(e)] ?? v).split(',')
+            : args[l2s(e)];
+    });
 } catch (e) {
     console.error(e);
     throw `NO '.env' file present
@@ -44,20 +44,19 @@ const {
     sleep,
     _dbug: { in1, table },
 } = require('./util');
-const fs = require('fs');
+const fs = require('node:fs');
 const { login } = require('./splinterApi');
 
 // Logging function with save to a file
 var _file = 'logPractice.txt';
-const util = require('util');
+const util = require('node:util');
 const logFile = fs.createWriteStream(_file, { flags: 'w' });
 const formatEd = (...x) => util.formatWithOptions({ colors: true }, ...x);
-if (1 || args.LOG)
-    console.log = function () {
-        process.stdout.write(formatEd.apply(null, arguments) + '\n');
+if (args.LOG)
+    console.log = function (...args) {
+        process.stdout.write(formatEd.apply(null, args) + '\n');
         logFile.write(
-            util.format.apply(null, arguments).replace(/\033\[[0-9;]*m/g, '') +
-                '\n',
+            util.format.apply(null, args).replace(/\033\[[0-9;]*m/g, '') + '\n',
         );
     };
 
@@ -123,9 +122,9 @@ async function createBrowser(headless, id) {
 }
 const postBattle = (user) => (battle) => {
     user.won =
-        battle.winner == user.account ? 1 : battle.winner == 'DRAW' ? 0 : -1;
+        battle.winner === user.account ? 1 : battle.winner === 'DRAW' ? 0 : -1;
     const pl =
-        battle.player_1 != user.account ? battle.player_1 : battle.player_2;
+        battle.player_1 !== user.account ? battle.player_1 : battle.player_2;
     if (pl && !practiceOn) battles.fromUsers(pl).catch(log);
     user.count++;
     if (user.won > 0) {
@@ -144,8 +143,8 @@ async function startBotPlayMatch(page, teamToPlay, B) {
         ...Stats
     } = teamToPlay;
     if (!B.rules.includes('Taking Sides')) {
-        const __medusa = Monsters.find((m) => m[0] == 17);
-        __medusa && (__medusa[0] = 194);
+        const __medusa = Monsters.find((m) => m[0] === 17);
+        if (__medusa) __medusa[0] = 194;
     }
     table([
         ...teamToPlay.team.map(([Id]) => ({
@@ -240,7 +239,7 @@ if ('t' in args) args.t = args.t * 60 * 60000 + Date.now();
 
 // async function sBattle(user)
 
-const logNret = (x) => log(x) ?? x;
+const _logNret = (x) => log(x) ?? x;
 const outstanding_match = (u) =>
     Promise.race([
         fetch(
@@ -280,11 +279,11 @@ const findNewBattle = (pt, pt0, rules) => {
         for (const t of pt0) {
             const team2 = t.team + '',
                 rules = bRule([s.team, t.team]);
-            if (team1 != team2) {
+            if (team1 !== team2) {
                 in1(count++);
                 const { x } = countBattles.get({ team1, team2, rules });
                 log({ team1, team2, rules, x });
-                if (x == 0) return [s, t];
+                if (x === 0) return [s, t];
             }
         }
     }
