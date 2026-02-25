@@ -23,6 +23,10 @@ try {
         process.stdout.write('\x1B[?25l');
         [...Array(27).keys()].forEach(() => process.stdout.write('\u2591'));
         rl.cursorTo(process.stdout, 0);
+        const obj = {};
+        Error.captureStackTrace(obj, sleep);
+        const caller = obj.stack.replace('Error', '`sleep()` Called From');
+        console.log(caller);
         return [...Array(27).keys()].reduce(
             (memo, e) =>
                 memo.then(async () => {

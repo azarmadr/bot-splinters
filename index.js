@@ -108,7 +108,7 @@ async function getBattles(player) {
     }
 }
 async function createBrowser(headless) {
-    const browser = await puppeteer.launch({
+    const l_browser = await puppeteer.launch({
         headless,
         args: [
             ...(args.PPTR_USER_DATA_DIR
@@ -125,8 +125,8 @@ async function createBrowser(headless) {
             '--disable-dev-shm-usage',
         ],
     });
-    const [page] = await browser.pages();
-    await browser
+    const [page] = await l_browser.pages();
+    await l_browser
         .defaultBrowserContext()
         .overridePermissions('https://splinterlands.com/', ['notifications']);
     page.setDefaultNavigationTimeout(5e5);
@@ -141,7 +141,7 @@ async function createBrowser(headless) {
         width: 720,
         height: 1080 /* deviceScaleFactor: 1, */,
     });
-    return browser;
+    return l_browser;
 }
 const postBattle = (user) => (battle) => {
     user.won =
