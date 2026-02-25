@@ -19,26 +19,18 @@ const getJson = (player) =>
             setTimeout(() => rej(new Error('timeout')), 17290),
         ),
     ]).catch(() => []);
-const _battles = {},
+const B = {},
     _dbugBattles = [];
 //const __medusa=(m,t)=>(T.colorSec(t)=='Blue'&&m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
 
 const db = require('better-sqlite3')('./data/battles.db', { timeout: 81e3 });
 db.prepare(`CREATE TABLE IF NOT EXISTS battles (
-  team1 TEXT,
-  team2 TEXT,
-  rules TEXT,
-  r INTEGER,
-  m1 INTEGER,
-  m2 INTEGER,
-  c1 INTEGER,
-  c2 INTEGER,
-  w INTEGER,
-  l INTEGER,
-  d INTEGER,
+  team1 TEXT, team2 TEXT, rules TEXT, r INTEGER,
+  m1 INTEGER, m2 INTEGER, c1 INTEGER, c2 INTEGER,
+  w INTEGER, l INTEGER, d INTEGER,
   CONSTRAINT uid PRIMARY KEY(team1,team2,rules)
 )`).run();
-const rStmt = ['w', 'l', 'd'].reduce((a, k) => {
+const write_statement = ['w', 'l', 'd'].reduce((a, k) => {
     a[k] = db.prepare(`
     INSERT INTO battles (team1, team2, rules, r, m1, m2, ${k}, c1, c2)
     VALUES (:team1, :team2, :rules, :r, :m1, :m2, :${k}, :c1, :c2)
@@ -49,8 +41,39 @@ const rStmt = ['w', 'l', 'd'].reduce((a, k) => {
 }, {});
 
 const dbCount = db.prepare(`SELECT COUNT(*) AS c FROM battles`);
-var BC = { count: dbCount.get().c, pc: 0 };
+const BC = { count: dbCount.get().c, pc: 0 };
 
+B.insertBattles = db.transaction((battles) => {
+    for (const b of battles) {
+        let { winner, teams } = b;
+        if (teams[1] > teams[0]) {
+            teams.reverse();
+            winner *= -1;
+        }
+        const [m1, m2] = teams.map(T.mana);
+        const [c1, c2] = teams.map(T.colors).map((colors) => {
+            let teamColor = ['Red', 'Blue', 'Green', 'Black', 'White'].reduce(
+                (a, x, i) => (colors.includes(x) ? i : a),
+                5,
+            );
+            teamColor += colors.includes('Gray') ? 6 : 0;
+            teamColor += colors.includes('Gold') ? 12 : 0;
+            return teamColor;
+        });
+        const k = winner === 1 ? 'w' : winner === -1 ? 'l' : 'd';
+        BC.lastInsertRowid = write_statement[k].run({
+            team1: teams[0].toString(),
+            team2: teams[1].toString(),
+            rules: Ru.battleRule(b.ruleset)(teams),
+            r: Ru.num(teams),
+            m1,
+            m2,
+            c1,
+            c2,
+            [k]: 1,
+        }).lastInsertRowid;
+    }
+});
 async function getBattles(
     player = '',
     nuSet = new Set(),
@@ -71,55 +94,29 @@ async function getBattles(
         )
         .catch((e) => log(e) ?? []);
     _dbug.in1(BC.pc++, BC.lastInsertRowid, player);
-    db.transaction((_) =>
-        battleHistory.forEach((b) => {
+    B.insertBattles(
+        battleHistory.filterMap((b_old) => {
+            let b = b_old;
             const { winner, team1, team2 } = JSON.parse(b.details);
             nuSet.add(team1.player);
             nuSet.add(team2.player);
+            if (_arr.eq(...teams) || teams.some((x) => T(x).length < 2))
+                return [];
+            if (drs({ rules: b.ruleset, mana: b.mana_cap, teams }))
+                _dbugBattles.push(b);
             const teams = [team1, team2].map((t) =>
                 [t.summoner, ...t.monsters].map((m) => [
                     m.card_detail_id,
                     m.level,
                 ]),
             );
-            if (!_arr.eq(...teams) && !teams.some((x) => T(x).length < 2)) {
-                if (drs({ rules: b.ruleset, mana: b.mana_cap, teams }))
-                    _dbugBattles.push(b);
-                let res =
-                    winner === team1.player
-                        ? 1
-                        : winner === team2.player
-                          ? -1
-                          : 0;
-                if (teams[1] > teams[0]) {
-                    teams.reverse();
-                    res *= -1;
-                }
-                const [m1, m2] = teams.map(T.mana);
-                const [c1, c2] = teams.map(T.colors).map((colors) => {
-                    let res = ['Red', 'Blue', 'Green', 'Black', 'White'].reduce(
-                        (a, x, i) => (colors.includes(x) ? i : a),
-                        5,
-                    );
-                    res += colors.includes('Gray') ? 6 : 0;
-                    res += colors.includes('Gold') ? 12 : 0;
-                    return res;
-                });
-                const k = res === 1 ? 'w' : res === -1 ? 'l' : 'd';
-                BC.lastInsertRowid = rStmt[k].run({
-                    team1: teams[0].toString(),
-                    team2: teams[1].toString(),
-                    rules: Ru.battleRule(b.ruleset)(teams),
-                    r: Ru.num(teams),
-                    m1,
-                    m2,
-                    c1,
-                    c2,
-                    [k]: 1,
-                }).lastInsertRowid;
-            }
+
+            b.teams = teams;
+            b.winner =
+                winner === team1.player ? 1 : winner === team2.player ? -1 : 0;
+            return [b];
         }),
-    )();
+    );
     return nuSet;
 }
 
@@ -129,7 +126,7 @@ const checkIfPresent = (obj, delay) => (x) => {
     return 1;
 };
 const blackSet = checkIfPresent({}, practiceOn ? 27e3 : 81e4);
-_battles.fromUsers = (players, { depth = 2, rFilter, drs, cl = 27 } = {}) =>
+B.fromUsers = (players, { depth = 2, rFilter, drs, cl = 27 } = {}) =>
     new Promise((res) => {
         const ul = [
             ...new Set(Array.isArray(players) ? players : players.split(',')),
@@ -163,7 +160,7 @@ _battles.fromUsers = (players, { depth = 2, rFilter, drs, cl = 27 } = {}) =>
                     !globalThis.END_GetBattles
                 )
                     return res(
-                        _battles.fromUsers([...nuSet], {
+                        B.fromUsers([...nuSet], {
                             drs,
                             depth,
                             rFilter,
@@ -180,15 +177,19 @@ _battles.fromUsers = (players, { depth = 2, rFilter, drs, cl = 27 } = {}) =>
                 }
             });
     });
-module.exports = _battles;
+module.exports = B;
 
-if (db.prepare('SELECT COUNT(*) AS x FROM battles').get().x < 1e5) {
+const BUILD_DB_DATA = false;
+if (
+    BUILD_DB_DATA &&
+    db.prepare('SELECT COUNT(*) AS x FROM battles').get().x < 1e5
+) {
     fetch(
         'https://api.splinterlands.io/players/leaderboard_with_player?leaderboard=0',
     )
         .then((x) => x.json())
         .then((x) =>
-            _battles.fromUsers(
+            B.fromUsers(
                 x.leaderboard.map((x) => x.player),
                 { depth: 2 },
             ),
