@@ -1,7 +1,7 @@
 const R = require('ramda');
 const { writeFileSync } = require('jsonfile');
 const { log, _dbug, sleep } = require('./util/dbug');
-const { T, Ru } = require('./util/card');
+const { C, T, Ru } = require('./util/card');
 const { _arr } = require('./util/array');
 const getJson = (player) =>
     Promise.race([
@@ -46,11 +46,17 @@ const BC = { count: dbCount.get().c, pc: 0 };
 B.insertBattles = db.transaction((battles) => {
     for (const b of battles) {
         let { winner, teams } = b;
+        if (!teams) console.trace(teams);
         if (teams[1] > teams[0]) {
             teams.reverse();
             winner *= -1;
         }
         const [m1, m2] = teams.map(T.mana);
+        if (!m1 || !m2) {
+            console.log(b, m1, m2);
+            if (!m1) console.log(b.team1, teams[0].map(C.mana));
+            throw new Error('Mana cannot be 0');
+        }
         const [c1, c2] = teams.map(T.colors).map((colors) => {
             let teamColor = ['Red', 'Blue', 'Green', 'Black', 'White'].reduce(
                 (a, x, i) => (colors.includes(x) ? i : a),
@@ -125,6 +131,7 @@ const checkIfPresent = (obj, delay) => (x) => {
     obj[x] = Date.now();
     return 1;
 };
+const practiceOn = false;
 const blackSet = checkIfPresent({}, practiceOn ? 27e3 : 81e4);
 B.fromUsers = (players, { depth = 2, rFilter, drs, cl = 27 } = {}) =>
     new Promise((res) => {

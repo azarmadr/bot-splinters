@@ -8,9 +8,10 @@ const sf = (x) =>
 const { writeFileSync } = require('jsonfile');
 const { ruleEnum } = require('./constants');
 const { log, F } = require('./dbug');
-const getFromAPI = (type, uri) => {
+const getFromAPI = (type, uri, force = 0) => {
     //immediately returning function
     try {
+        if (force) throw new Error('Dummy');
         return require(`../data/${type}.json`);
     } catch (_e) {
         //log(e)
@@ -26,13 +27,16 @@ const getFromAPI = (type, uri) => {
         return newCards;
     }
 };
-const __cards = getFromAPI('cards', 'cards/get_details');
+const re_map_cards = (cards) => {
+    const newCards = [];
+    for (card of cards) newCards[card.id] = card;
+    return newCards;
+};
+const __cards = re_map_cards(getFromAPI('cards', 'cards/get_details'));
 const SMsettings = getFromAPI('settings', 'settings');
 const updateCards = (__cards) => {
     log('Getting new cards');
-    const newCards = sf('https://api.splinterlands.io/cards/get_details');
-    writeFileSync('./data/cards.json', newCards);
-    for (i in newCards) __cards[i] = newCards[i];
+    __cards = re_map_cards(getFromAPI('cards', 'cards/get_details', 1));
     return __cards;
 };
 
@@ -54,7 +58,14 @@ var _ablt = F.cached(
     (i) => (l) =>
         ___card[i - 1].stats?.abilities?.slice(0, Math.max(1, l))?.flat() || [],
 );
-var _mana = F.cached((i) => [___card[(i[0] ?? i) - 1].stats.mana].flat()[0]);
+var _mana = F.cached((i) => {
+    let x = [___card[(i[0] ?? i) - 1].stats.mana].flat()[0];
+    if (x === undefined) {
+        console.log('here', ___card[(i[0] ?? i) - 1]);
+        throw new Error('herh');
+    }
+    return x;
+});
 var _attr = (c) => F.cached((i) => ___card[(i[0] ?? i) - 1][c]);
 var _stat = (c) =>
     F.cached(

@@ -14,7 +14,7 @@ const l2s = (s) => {
 // console.table(args)
 try {
     Object.entries(require('dotenv').config().parsed).forEach(([e, v]) => {
-        args[l2s(e)] ??= v && JSON.parse(v);
+        if (!v.includes(',')) args[l2s(e)] ??= v && JSON.parse(v);
         args[e] ??= v.includes(',')
             ? (args[l2s(e)] ?? v).split(',')
             : args[l2s(e)];
@@ -49,7 +49,7 @@ const {
 log`init`;
 const puppeteer = require('puppeteer');
 const { playableTeams } = require('./score');
-const battles = require('./getBattles');
+// const battles = require('./getBattles');
 const { login } = require('./splinterApi');
 
 // Logging function with save to a file
@@ -90,7 +90,7 @@ async function _checkForUpdate() {
         });
 }
 const fn = args.UPDATE_BATTLE_DATA ? '' : '_new';
-async function getBattles(player) {
+async function _getBattles(player) {
     const cl = 55;
     if (args.UPDATE_BATTLE_DATA) return battles.fromUsers(player, { cl });
     else {
@@ -137,15 +137,15 @@ async function createBrowser(headless) {
 const postBattle = (user) => (battle) => {
     user.won =
         battle.winner === user.account ? 1 : battle.winner === 'DRAW' ? 0 : -1;
-    log({
-        getBattles:
-            battle.player_1 !== user.account
-                ? battle.player_1
-                : battle.player_2,
-    });
-    const pl =
-        battle.player_1 !== user.account ? battle.player_1 : battle.player_2;
-    if (pl) getBattles(pl).catch(log);
+    // log({
+    //     getBattles:
+    //         battle.player_1 !== user.account
+    //             ? battle.player_1
+    //             : battle.player_2,
+    // });
+    // const pl =
+    //     battle.player_1 !== user.account ? battle.player_1 : battle.player_2;
+    // if (pl) getBattles(pl).catch(log);
     if (user.won > 0) {
         log({ Result: 'Won!!!' + Array(battle.current_streak).fill('_.~"(') });
         user.decWon = Number(
