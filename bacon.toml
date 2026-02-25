@@ -7,7 +7,8 @@
 # You may check the current default at
 #   https://github.com/Canop/bacon/blob/main/defaults/default-bacon.toml
 
-default_job = "biome"
+default_job = "test1"
+# default_job = "biome"
 env.CARGO_TERM_COLOR = "always"
 
 [jobs.biome]
@@ -20,6 +21,11 @@ command = [
 need_stdout = true
 analyzer = "biome"
 watch = ["."]
+
+[jobs.test1]
+command = [
+    "node", "etc/test-rule.js"
+]
 
 [jobs.check]
 command = ["cargo", "check"]

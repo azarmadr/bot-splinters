@@ -53,6 +53,7 @@ const { playableTeams } = require('./score');
 const { login } = require('./splinterApi');
 
 // Logging function with save to a file
+args.LOG = 1;
 if (args.LOG) {
     console.log = require('./util/common.js').logger();
 }
@@ -179,11 +180,13 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
         })),
     ]);
     table({ Stats });
-    if (notifyUser)
-        await page.evaluate(`var n=new Notification('Battle Ready');
-      n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
+    // if (notifyUser)
+    //   await page.evaluate(`var n=new Notification('Battle Ready');
+    // n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
     await page
-        .waitForSelector(`[card_detail_id="${Summoner[0]}"]`, { timeout: 1001 })
+        .waitForSelector(`[data-card_detail_id="${Summoner[0]}"]`, {
+            timeout: 1001,
+        })
         .catch(() =>
             page
                 .reload()
@@ -234,8 +237,26 @@ async function startBotPlayMatch(B, page, user) {
             oppCards: Object.keys(B.oppCards).length,
         },
     ]);
-    //if(Object.keys(oppCards).length)table(__oppDeck=Object.entries(oppCards).map(([Id,Lvl])=>{ return{[C.type(Id).slice(0,3)]:C.name(Id),Id,Lvl,[C.color(Id).slice(0,2)]:C.abilities([Id,Lvl]).join()}}) .sort((a,b)=>('Mon'in a)-('Mon'in b)))
-    //B.battles=await getBattles(B.opp).catch(e=>{log(e);return require('./data/battle_data.json')});
+    // if (Object.keys(oppCards).length)
+    //     table(
+    //         (__oppDeck = Object.entries(oppCards)
+    //             .map(([Id, Lvl]) => {
+    //                 return {
+    //                     [C.type(Id).slice(0, 3)]: C.name(Id),
+    //                     Id,
+    //                     Lvl,
+    //                     [C.color(Id).slice(0, 2)]: C.abilities([
+    //                         Id,
+    //                         Lvl,
+    //                     ]).join(),
+    //                 };
+    //             })
+    //             .sort((a, b) => ('Mon' in a) - ('Mon' in b))),
+    //     );
+    // B.battles = await getBattles(B.opp).catch((e) => {
+    //     log(e);
+    //     return require('./data/battle_data.json');
+    // });
     const pt = playableTeams(B);
     forQuest(pt, user.quest);
     const [teamToPlay] = pt;
@@ -245,7 +266,7 @@ async function startBotPlayMatch(B, page, user) {
         B,
         page,
         !args.HEADLESS && user.isRanked && !user.isStarter,
-    );
+    ).catch(log);
     await Promise.any([
         page
             .waitForSelector('#btnRumble', { timeout: 16e4 })
