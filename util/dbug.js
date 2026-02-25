@@ -5,47 +5,48 @@ const _dbug = {},
 
 var _wake;
 const rl = require('node:readline');
-try {
-    rl.emitKeypressEvents(process.stdin);
-    const rlInterface = rl.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-    });
+rl.emitKeypressEvents(process.stdin);
+const rlInterface = rl.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+});
+rlInterface.pause();
+process.stdin.on('keypress', (_, k) => {
+    _wake = 1;
     rlInterface.pause();
-    process.stdin.on('keypress', (_, k) => {
-        _wake = 1;
-        rlInterface.pause();
-        rl.moveCursor(process.stdout, 0, k && k.name === 'return' ? -1 : 0);
-    });
+    rl.moveCursor(process.stdout, 0, k && k.name === 'return' ? -1 : 0);
+});
 
-    function sleep(ms, msg = '') {
-        rlInterface.resume();
-        process.stdout.write('\x1B[?25l');
-        [...Array(27).keys()].forEach(() => process.stdout.write('\u2591'));
-        rl.cursorTo(process.stdout, 0);
-        const obj = {};
-        Error.captureStackTrace(obj, sleep);
-        const caller = obj.stack.replace('Error', '`sleep()` Called From');
-        console.log(caller);
-        return [...Array(27).keys()].reduce(
-            (memo, e) =>
-                memo.then(async () => {
-                    process.stdout.write('\u2588');
-                    if (e == 26) {
-                        rl.clearLine(process.stdout, 0) &&
-                            rl.cursorTo(process.stdout, 0);
-                        if (msg) console.log(msg);
-                        _wake = 0;
-                        rlInterface.pause();
-                    }
-                    if (_wake && e < 27) return;
-                    return new Promise((resolve) =>
-                        setTimeout(resolve, ms / 27),
-                    );
-                }),
-            Promise.resolve(),
-        );
-    }
+function sleep(ms, msg = '') {
+    rlInterface.resume();
+    process.stdout.write('\x1B[?25l');
+    [...Array(27).keys()].forEach(() => process.stdout.write('\u2591'));
+    rl.cursorTo(process.stdout, 0);
+    const obj = {};
+    Error.captureStackTrace(obj, sleep);
+    const caller = obj.stack.replace('Error', '`sleep()` Called From');
+    console.log(caller);
+    return [...Array(27).keys()].reduce(
+        (memo, e) =>
+            memo.then(async () => {
+                process.stdout.write('\u2588');
+                if (e == 26) {
+                    rl.clearLine(process.stdout, 0) &&
+                        rl.cursorTo(process.stdout, 0);
+                    if (msg) console.log(msg);
+                    _wake = 0;
+                    rlInterface.pause();
+                }
+                if (_wake && e < 27) return;
+                return new Promise((resolve) => setTimeout(resolve, ms / 27));
+            }),
+        Promise.resolve(),
+    );
+}
+
+// TODO the above code from `const rl` was under try-catch
+// figure out if it still needs to be so
+try {
 } catch (e) {
     console.log(e);
 }
@@ -118,6 +119,7 @@ _dbug.table = (m) => {
     } catch (e) {
         console.warn(e);
     }
+    false;
 };
 _dbug.tt = new Proxy(
     {},
@@ -127,7 +129,7 @@ _dbug.tt = new Proxy(
         deleteProperty: (obj, prop) =>
             prop in obj &&
             obj[prop].length &&
-            (_dbug.table(obj[prop]), delete obj[prop]),
+            (_dbug.table(obj[prop]) || delete obj[prop]),
     },
 );
 _dbug.$1s = new Proxy(

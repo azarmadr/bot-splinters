@@ -12,12 +12,15 @@ const getFromAPI = (type, uri) => {
     //immediately returning function
     try {
         return require(`../data/${type}.json`);
-    } catch (e) {
+    } catch (_e) {
         //log(e)
-        require('fs').mkdir(require('path').join(__dirname, '../data'), (e) => {
-            if (e) throw e;
-            console.log('Created `data` directory');
-        });
+        require('node:fs').mkdir(
+            require('node:path').join(__dirname, '../data'),
+            (e) => {
+                if (e) throw e;
+                console.log('Created `data` directory');
+            },
+        );
         const newCards = sf`https://api.splinterlands.io/${uri}`;
         writeFileSync(`./data/${type}.json`, newCards);
         return newCards;
@@ -67,10 +70,10 @@ const C = {
         (regex) =>
         ([i, l]) =>
             _ablt(i)(l).join().match(regex),
-    isMon: (i) => _attr`type`(i) == 'Monster',
-    isSum: (i) => _attr`type`(i) == 'Summoner',
-    ...attr.reduce((o, a) => ({ ...o, [a]: _attr(a) }), {}),
-    ...stats.reduce((o, s) => ({ ...o, [s]: _stat(s) }), {}),
+    isMon: (i) => _attr`type`(i) === 'Monster',
+    isSum: (i) => _attr`type`(i) === 'Summoner',
+    ...attr.reduce((o, a) => Object.assign(o, { [a]: _attr(a) }), {}),
+    ...stats.reduce((o, s) => Object.assign(o, { [s]: _stat(s) }), {}),
     stats: ([i]) => {
         const { mana, ...rem } = __cards[i - 1];
         return rem;
@@ -203,16 +206,16 @@ const Ru = {
             .attr.filter((r) => !Ru.pred[r](teams))
             .join() || 'Standard',
     cardPred: {
-        'Lost Magic': (c) => C.isSum(c) || C.m(c) == 0,
+        'Lost Magic': (c) => C.isSum(c) || C.m(c) === 0,
         'Up Close & Personal': (c) => C.isSum(c) || C.a(c) > 0,
-        'Broken Arrows': (c) => C.isSum(c) || C.r(c) == 0,
-        'Keep Your Distance': (c) => C.isSum(c) || C.a(c) == 0,
+        'Broken Arrows': (c) => C.isSum(c) || C.r(c) === 0,
+        'Keep Your Distance': (c) => C.isSum(c) || C.a(c) === 0,
         'Rise of the Commons': (c) => C.isSum(c) || C.rarity(c) < 3,
-        'Even Stevens': (c) => C.isSum(c) || C.mana(c) % 2 == 0,
+        'Even Stevens': (c) => C.isSum(c) || C.mana(c) % 2 === 0,
         'Odd Ones Out': (c) => C.isSum(c) || C.mana(c) % 2,
         'Lost Legendaries': (c) => C.isSum(c) || C.rarity(c) < 4,
         'Little League': (c) => C.mana(c) < 5,
-        ['']: R.T,
+        '': R.T,
     },
 };
 const getRules = (ruleset) => {
@@ -221,8 +224,9 @@ const getRules = (ruleset) => {
         'Keep Your Distance,Lost Legendaries,Rise of the Commons,Up Close & Personal,Broken Arrows,Little League,Lost Magic,Even Stevens,Odd Ones Out';
     const { attr, card } = ruleset.split`|`.reduce(
         (rule, cr) => {
-            if (cr == 'Taking Sides') return rule;
-            secondary.includes(cr) ? (rule.card = cr) : rule.attr.push(cr);
+            if (cr === 'Taking Sides') return rule;
+            if (secondary.includes(cr)) rule.card = cr;
+            else rule.attr.push(cr);
             return rule;
         },
         { attr: [], card: '' },

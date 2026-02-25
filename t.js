@@ -14,9 +14,11 @@ const minRank = args.mr ?? 0;
 const mergeNempty = (bd) => (o) => {
     const ob = require(o),
         count = [];
-    Object.entries(ob).forEach(([rs, rs_]) =>
+    Object.entries(ob).forEach(([rs, rs_]) => {
         Object.entries(rs_).forEach(([rs1, crs]) => {
-            const obj = ((bd[rs] ??= {})[rs1] ??= {});
+            bd[rs] ??= {};
+            bd[rs][rs1] ??= {};
+            const obj = bd[rs][rs1];
             if (rs1.match(/\d+/)) {
                 const mana = rs1;
                 //log({mana,rs});
@@ -25,20 +27,22 @@ const mergeNempty = (bd) => (o) => {
                 ob[rs][rs1] = {};
             } else {
                 Object.entries(crs).forEach(([mana, crs1]) => {
-                    const { c } = merge((obj[mana] ??= {}), crs1);
+                    obj[mana] ??= {};
+                    const { c } = merge(obj[mana], crs1);
                     if (c) count.push({ rs, rs1, mana, c });
                     ob[rs][rs1][mana] = {};
                 });
             }
-        }),
-    );
+        });
+    });
     if (count.length) {
         const res = count.reduce(
             (a, { rs, rs1, mana, c }) => {
                 const m = Math.floor(mana / 3) * 3;
                 const x = rs + (rs1 ? '|' + rs1 : '');
                 if (a[x]) {
-                    (a[x].c += c), (a[x][m] = c);
+                    a[x].c += c;
+                    a[x][m] = c;
                 } else {
                     a[x] = { c, [m]: c };
                 }
