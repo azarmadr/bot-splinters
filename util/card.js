@@ -117,11 +117,55 @@ const nAtORyAb = (attack, ability) =>
     R.anyPass([R.not, (c) => !C[attack](c), C.has(ability)]);
 const Ru = {
     e: ruleEnum,
+    cardPred: {
+        'Lost Magic': (c) => C.isSum(c) || C.m(c) === 0,
+        'Up Close & Personal': (c) => C.isSum(c) || C.a(c) > 0,
+        'Wands Out': (c) => C.isSum(c) || C.m(c) > 0,
+        'Broken Arrows': (c) => C.isSum(c) || C.r(c) === 0,
+        'Keep Your Distance': (c) => C.isSum(c) || C.a(c) === 0,
+        'Rise of the Commons': (c) => C.isSum(c) || C.rarity(c) < 3,
+        'Even Stevens': (c) => C.isSum(c) || C.mana(c) % 2 === 0,
+        'Odd Ones Out': (c) => C.isSum(c) || C.mana(c) % 2,
+        'Lost Legendaries': (c) => C.isSum(c) || C.rarity(c) < 4,
+        'Little League': (c) => C.mana(c) < 5,
+        'Heavy Metal': (c) => C.isSum(c) || C.armor(c) > 0,
+        Beefcakes: (c) => C.isSum(c) || C.health(c) >= 5,
+        'Might Makes Right': (c) =>
+            C.isSum(c) || C.m(c) > 2 || C.a(c) > 2 || C.r(c) > 2,
+        'Need for Speed': (c) => C.isSum(c) || C.speed(c) >= 3,
+        'Shades of Gray': (c) => C.isSum(c) || C.color(c) === 'Gray',
+        'Taking Sides': (c) => C.isSum(c) || C.color(c) !== 'Gray',
+    },
     pred: {
         Standard: R.F,
         'Back to Basics': R.all((t) =>
             R.all(R.pipe(C.abilities, R.equals([])))(R.drop(1, t)),
         ),
+        'Born Again': R.F,
+        'Up to Eleven': R.F,
+        'Now You See Me...': R.F,
+        'Tis but Scratches': R.F,
+        'Blood and Sunder': R.F,
+        Counterspell: R.F,
+        'Thick Skinned': R.F,
+        'Collateral Damage': R.F,
+        '': R.F,
+        'Fire & Regret': R.F,
+        'Are You Not Entertained?': R.F,
+        Maneuvers: R.F,
+        'Blood Moon': R.F,
+        'Brute Force': R.F,
+        'Arcane Dampening': R.F,
+        'Deflection Field': R.F,
+        'No Pain, No Gain': R.F,
+        'Shapeshift Happens': R.F,
+        'Global Warming': R.F,
+        'Going the Distance': R.F,
+        Aimless: R.F,
+        Ferocity: R.F,
+        'Briar Patch': R.F,
+        'What Doesn’t Kill You': R.F,
+
         'Silenced Summoners': R.all((t) =>
             R.anyPass([R.not, R.isEmpty])(R.values(R.head(t))),
         ),
@@ -214,29 +258,20 @@ const Ru = {
     ),
     battleRule: (rs) => (teams) =>
         getRules(rs)
-            .attr.filter((r) => !Ru.pred[r](teams))
+            .attr.filter((r) => {
+                if (!(r in Ru.pred)) throw new Error(`'${r}' not found`);
+                return !Ru.pred[r](teams);
+            })
             .join() || 'Standard',
-    cardPred: {
-        'Lost Magic': (c) => C.isSum(c) || C.m(c) === 0,
-        'Up Close & Personal': (c) => C.isSum(c) || C.a(c) > 0,
-        'Broken Arrows': (c) => C.isSum(c) || C.r(c) === 0,
-        'Keep Your Distance': (c) => C.isSum(c) || C.a(c) === 0,
-        'Rise of the Commons': (c) => C.isSum(c) || C.rarity(c) < 3,
-        'Even Stevens': (c) => C.isSum(c) || C.mana(c) % 2 === 0,
-        'Odd Ones Out': (c) => C.isSum(c) || C.mana(c) % 2,
-        'Lost Legendaries': (c) => C.isSum(c) || C.rarity(c) < 4,
-        'Little League': (c) => C.mana(c) < 5,
-        '': R.T,
-    },
 };
 const getRules = (ruleset) => {
     //const primary="Back to Basics,Silenced Summoners,Aim True,Super Sneak,Weak Magic,Unprotected,Target Practice,Fog of War,Armored Up,Equal Opportunity,Melee Mayhem"; const any="Healed Out,Earthquake,Reverse Speed,Close Range,Heavy Hitters,Equalizer,Noxious Fumes,Stampede,Explosive Weaponry,Holy Protection,Spreading Fury";
     const secondary =
-        'Keep Your Distance,Lost Legendaries,Rise of the Commons,Up Close & Personal,Broken Arrows,Little League,Lost Magic,Even Stevens,Odd Ones Out';
+        'Need for Speed,Junior Varsity,Wands Out,Heavy Metal,Beefcakes,Might Makes Right,High Five,Four’s a Crowd,Keep Your Distance,Lost Legendaries,Rise of the Commons,Up Close & Personal,Broken Arrows,Little League,Lost Magic,Even Stevens,Odd Ones Out';
     const { attr, card } = ruleset.split`|`.reduce(
         (rule, cr) => {
             if (cr === 'Taking Sides') return rule;
-            if (secondary.includes(cr)) rule.card = cr;
+            if (cr in Ru.cardPred || secondary.includes(cr)) rule.card = cr;
             else rule.attr.push(cr);
             return rule;
         },
