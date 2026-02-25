@@ -1,12 +1,11 @@
 const R = require('ramda');
 const RA = require('ramda-adjunct');
-const { _arr } = require('./array');
+const { _arr: A } = require('./array');
 const sf = (x) =>
     require('sync-fetch')(String.raw(x), {
         headers: { Accept: 'application/vnd.citationstyles.csl+json' },
     }).json();
 const { writeFileSync } = require('jsonfile');
-const { ruleEnum } = require('./constants');
 const { log, F } = require('./dbug');
 const getFromAPI = (type, uri, force = 0) => {
     //immediately returning function
@@ -14,7 +13,6 @@ const getFromAPI = (type, uri, force = 0) => {
         if (force) throw new Error('Dummy');
         return require(`../data/${type}.json`);
     } catch (_e) {
-        //log(e)
         require('node:fs').mkdir(
             require('node:path').join(__dirname, '../data'),
             (e) => {
@@ -41,37 +39,38 @@ const updateCards = (__cards) => {
 };
 
 __cards.basic = __cards
-    .filter((c) => c.editions.match(/7|4/) && c.rarity < 3)
+    .filter((c) => c.tier === 15 && c.rarity < 4)
+    // .filter((c) => c.editions.match(/7|4/) && c.rarity < 3)
     .map((c) => c.id);
 const attr = ['color', 'name', 'rarity', 'type', 'editions', 'tier'];
 const stats = ['ranged', 'magic', 'attack', 'speed', 'armor', 'health'];
-const ___card = new Proxy(__cards, {
+const Cards = new Proxy(__cards, {
     get: (cards, c) => {
-        return c in cards
-            ? cards[c]
-            : Number.isInteger(+c) && c >= 0
-              ? updateCards(__cards)[c]
-              : null;
+        if (c in cards) return cards[c];
+        if (!Number.isInteger(+c) || c < 0)
+            throw new Error(`'${c}' is not integer`);
+        console.log(c);
+        return updateCards(__cards)[c];
     },
 });
 var _ablt = F.cached(
     (i) => (l) =>
-        ___card[i - 1].stats?.abilities?.slice(0, Math.max(1, l))?.flat() || [],
+        Cards[i].stats?.abilities?.slice(0, Math.max(1, l))?.flat() || [],
 );
 var _mana = F.cached((i) => {
-    const x = [___card[(i[0] ?? i) - 1].stats.mana].flat()[0];
+    const card = Cards[i[0] ?? i];
+    const x = [card.stats.mana].flat()[0];
     if (x === undefined) {
-        console.log('here', ___card[(i[0] ?? i) - 1]);
-        throw new Error('herh');
+        console.log(card, i);
+        throw new Error('Invalid mana calculated');
     }
     return x;
 });
-var _attr = (c) => F.cached((i) => ___card[(i[0] ?? i) - 1][c]);
+var _attr = (c) => F.cached((i) => Cards[i[0] ?? i][c]);
 var _stat = (c) =>
     F.cached(
         ([i, l]) =>
-            ___card[i - 1].stats[c]?.[Math.max(0, l - 1)] ??
-            ___card[i - 1].stats[c],
+            Cards[i].stats[c]?.[Math.max(0, l - 1)] ?? Cards[i].stats[c],
     );
 const C = {
     basicCards: Object.fromEntries(__cards.basic.map((c) => [c, 0])),
@@ -116,7 +115,6 @@ const C = {
 const nAtORyAb = (attack, ability) =>
     R.anyPass([R.not, (c) => !C[attack](c), C.has(ability)]);
 const Ru = {
-    e: ruleEnum,
     cardPred: {
         'Lost Magic': (c) => C.isSum(c) || C.m(c) === 0,
         'Up Close & Personal': (c) => C.isSum(c) || C.a(c) > 0,
@@ -135,11 +133,17 @@ const Ru = {
         'Need for Speed': (c) => C.isSum(c) || C.speed(c) >= 3,
         'Shades of Gray': (c) => C.isSum(c) || C.color(c) === 'Gray',
         'Taking Sides': (c) => C.isSum(c) || C.color(c) !== 'Gray',
+        '': R.T,
     },
+    /** Apply the following predicates on both the teams.
+     * if they match, they can be used for that ruleset as well.
+     *
+     * Default function should reuturn false, so as to disallow the battle to be
+     * considered for the ruleset
+     * */
     pred: {
-        Standard: R.F,
         'Back to Basics': R.all((t) =>
-            R.all(R.pipe(C.abilities, R.equals([])))(R.drop(1, t)),
+            R.all(R.pipe(C.abilities, R.equals([])), R.drop(1, t)),
         ),
         'Born Again': R.F,
         'Up to Eleven': R.F,
@@ -149,7 +153,7 @@ const Ru = {
         Counterspell: R.F,
         'Thick Skinned': R.F,
         'Collateral Damage': R.F,
-        '': R.F,
+        //'': R.F,
         'Fire & Regret': R.F,
         'Are You Not Entertained?': R.F,
         Maneuvers: R.F,
@@ -238,32 +242,37 @@ const Ru = {
         ),
         'Spreading Fury': R.all(R.all(C.has(/Enrage/))),
     },
-    num: (teams) =>
-        R.sum(
-            R.values(
-                R.mapObjIndexed((v, k) => (v ? 2 ** +ruleEnum[k] : 0))(
-                    R.applySpec(Ru.pred)(teams),
-                ),
+};
+Ru.e = A.enumify(Object.keys(Ru.pred).sort());
+Ru.pred.Standard = R.F;
+/** return a number so that the team can be used for other ruleset */
+Ru.num = (teams) =>
+    R.sum(
+        R.values(
+            R.mapObjIndexed(
+                (v, k) => (v ? 2 ** +Ru.e[k] : 0),
+                R.applySpec(Ru.pred, teams),
             ),
         ),
-    map: R.pipe(
-        R.juxt([R.always([['Standard']]), R.splitEvery(1), R.of]),
-        R.unnest,
-        R.uniq,
-        R.juxt([R.map(R.join`,`), R.reverse]),
-        R.apply(R.zip),
-        R.fromPairs,
-        R.map(R.map(R.pipe(R.flip(R.prop)(ruleEnum), R.curry(Math.pow)(2)))),
-        R.map(R.sum),
-    ),
-    battleRule: (rs) => (teams) =>
-        getRules(rs)
-            .attr.filter((r) => {
-                if (!(r in Ru.pred)) throw new Error(`'${r}' not found`);
-                return !Ru.pred[r](teams);
-            })
-            .join() || 'Standard',
-};
+    );
+Ru.map = R.pipe(
+    R.juxt([R.always([['Standard']]), R.splitEvery(1), R.of(Array)]),
+    R.unnest,
+    R.uniq,
+    R.juxt([R.map(R.join`,`), R.reverse]),
+    R.apply(R.zip),
+    R.fromPairs,
+    R.map(R.map(R.pipe(R.flip(R.prop)(Ru.e), R.curry(Math.pow)(2)))),
+    R.map(R.sum),
+);
+Ru.battleRule = (rs) => (teams) =>
+    getRules(rs)
+        .attr.filter((r) => {
+            if (!(r in Ru.pred)) throw new Error(`'${r}' not found`);
+            return !Ru.pred[r](teams);
+        })
+        .join() || 'Standard';
+
 const getRules = (ruleset) => {
     //const primary="Back to Basics,Silenced Summoners,Aim True,Super Sneak,Weak Magic,Unprotected,Target Practice,Fog of War,Armored Up,Equal Opportunity,Melee Mayhem"; const any="Healed Out,Earthquake,Reverse Speed,Close Range,Heavy Hitters,Equalizer,Noxious Fumes,Stampede,Explosive Weaponry,Holy Protection,Spreading Fury";
     const secondary =
@@ -298,11 +307,20 @@ const T = (t) =>
     Array.isArray(t)
         ? Array.isArray(t[0])
             ? t
-            : _arr.chunk2(t)
-        : _arr.chunk2(t.split`,`.map(Number));
+            : A.chunk2(t)
+        : A.chunk2(t.split`,`.map(Number));
 Object.assign(T, {
     mon: (t) => T(t).slice(1),
-    mana: (t) => T(t).reduce((a, c) => C.mana(c) + a, 0),
+    mana: (t) =>
+        T(t).reduce((a, c) => {
+            try {
+                const cardMana = C.mana(c);
+                return cardMana + a;
+            } catch (e) {
+                log(e);
+                throw new Error(`Teams mana calculation failed for ${t}`);
+            }
+        }, 0),
     colorPri: (t) => C.color(T(t)[0]),
     colorSec: (t) =>
         T(t)

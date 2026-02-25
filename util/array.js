@@ -1,4 +1,15 @@
 const R = require('ramda');
+// const debug = x=>{console.log(x); return x};
+const enumify = (ENUM_VALS, hash = R.identity) => {
+    const Enum = R.pipe(
+        R.invertObj,
+        R.map(R.add`0`),
+        R.map(hash),
+        R.juxt([R.identity, R.invertObj]),
+        R.mergeAll,
+    )(ENUM_VALS);
+    return Object.freeze(Object.assign((x) => Enum[x], { ...Enum, ENUM_VALS }));
+};
 const __IIFE_RM_EMPTY_OBJ = (o, p = o, count) => {
     for (const [k, v] of Object.entries(o)) {
         if (R.isEmpty(v)) {
@@ -9,6 +20,7 @@ const __IIFE_RM_EMPTY_OBJ = (o, p = o, count) => {
     if (o !== p && R.isEmpty(o)) __IIFE_RM_EMPTY_OBJ(p, p, count);
 };
 const _arr = {
+    enumify,
     eq: (a, b) =>
         a.length === b.length &&
         a.every((v, i) => (Array.isArray(v) ? _arr.eq(v, b[i]) : v === b[i])),

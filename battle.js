@@ -30,18 +30,19 @@ module.exports = function BattleObj(battle) {
         opp = battle.opponent_player,
         sortByWinRate = 0,
         isModern = /modern/.test(battle.format);
-    const activeColors = R.range(0, 24).filter(
-        (x) =>
-            ![5, 11].includes(x) &&
-            (inactive.includes`Gray` ? x % 12 < 6 : 1) &&
-            (inactive.includes`Gold` ? x < 12 : 1) &&
-            !inactive.includes(
-                ['Red', 'Blue', 'Green', 'Black', 'White'][x % 6],
-            ),
-    );
-    const aColors = activeColors.join();
+    const activeColors = R.range(0, 24)
+        .filter(
+            (x) =>
+                ![5, 11].includes(x) &&
+                (inactive.includes`Gray` ? x % 12 < 6 : 1) &&
+                (inactive.includes`Gold` ? x < 12 : 1) &&
+                !inactive.includes(
+                    ['Red', 'Blue', 'Green', 'Black', 'White'][x % 6],
+                ),
+        )
+        .join();
 
-    const query = db.prepare(`
+    const query_string = `
     SELECT w,l,d,team1,team2 FROM battles WHERE (
       rules = '${R.pipe(
           Ru.map,
@@ -51,13 +52,12 @@ module.exports = function BattleObj(battle) {
           R.join` > 0 OR\n      rules = '`,
       )(rules.attr)}'
     ) AND (
-      w = 1 AND (m1 = :mana ${mana > 31 ? ` OR m1<=${mana} AND m1 > 30` : ``}) AND c1 IN (${aColors}) OR
-      l = 1 AND (m2 = :mana ${mana > 31 ? ` OR m2<=${mana} AND m2 > 30` : ``}) AND c2 IN (${aColors}) OR
+      w = 1 AND (m1 = :mana ${mana > 31 ? ` OR m1<=${mana} AND m1 > 30` : ``}) AND c1 IN (${activeColors}) OR
+      l = 1 AND (m2 = :mana ${mana > 31 ? ` OR m2<=${mana} AND m2 > 30` : ``}) AND c2 IN (${activeColors}) OR
       (m1 = :mana ${mana > 31 ? ` OR m1<=${mana} AND m1 > 30` : ``}) AND (m1 = m2${mana > 31 ? ` OR m2<=${mana} AND m2>30` : ``}) AND
-      c1 IN (${aColors}) AND c2 IN (${aColors})
-    )
-  `);
-    // log(query.get({mana:23}))
+      c1 IN (${activeColors}) AND c2 IN (${activeColors})
+    )`;
+    const query = db.prepare(query_string);
     const isPlayable = (by) => {
         by ??= 0;
         const cards = [myCards, oppCards][by]; // until we have some opponent_player cards

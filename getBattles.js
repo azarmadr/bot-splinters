@@ -51,7 +51,18 @@ B.insertBattles = db.transaction((battles) => {
             teams.reverse();
             winner *= -1;
         }
-        const [m1, m2] = teams.map(T.mana);
+        const [m1, m2] = teams.map((t, i) => {
+            try {
+                const mana = T.mana(t);
+                return mana;
+            } catch (e) {
+                log(e);
+                log(b.battle_queue_id_1);
+                throw new Error(
+                    `Battle has a team with invalid card in team ${i}`,
+                );
+            }
+        });
         if (!m1 || !m2) {
             console.log(b, m1, m2);
             if (!m1) console.log(b.team1, teams[0].map(C.mana));

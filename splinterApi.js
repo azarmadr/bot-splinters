@@ -24,17 +24,17 @@ module.exports = (page) => ({
         // await page.waitForSelector('aria/chomper', { hidden: true });
         await sleep(7290);
         await Promise.all([
-            page.evaluate(`[...document.querySelectorAll('button')].filter(x=>x.innerText === 'BATTLE')[0].click()
-	    `),
+            page.evaluate(`[...document.querySelectorAll('button')]
+		.filter(x=>x.innerText === 'BATTLE')[0].click()`),
             page.waitForNavigation(),
         ]);
         await sleep(729);
-        const cb = await page.evaluate(
-            `fetch("https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
-	    .then(x=>x.json())`,
-        );
+        const cb = await page.evaluate(`fetch(
+	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
+	    .then(x=>x.json())`);
         try {
-            console.table(B(cb));
+            log(cb);
+            log(B(cb));
         } catch (e) {
             console.error(e);
             await sleep(8e5);
@@ -43,11 +43,12 @@ module.exports = (page) => ({
         return B(cb);
     },
     cards: async (player) => {
-        player = player ? `'${player}'` : 'SM.Player.name';
-        log({ 'Obtaining Cards': player });
-        return await page.evaluate(
-            `new Promise((res,rej)=> SM.LoadCollection(${player}, 1, res))`,
+        const cards = await page.evaluate(
+            `fetch("https://api.splinterlands.com/cards/collection/${player}")
+		.then(x=>x.json()).then(x=>x.cards)`,
         );
+        log({ 'Obtaining Cards': player, '#cards': cards.length });
+        return cards;
     },
 });
 module.exports.login = async function login(page, user, _preMatch) {

@@ -381,20 +381,19 @@ async function logout(page) {
 
 const cards2Obj = (acc) => (cards) =>
     cards
-        .flatMap((card) => card.owned)
         .filter(
-            (owned) =>
-                !(owned.market_id && owned.market_listing_status === 0) &&
-                (!owned.delegated_to || owned.delegated_to === acc) &&
+            (card) =>
+                !(card.market_id && card.market_listing_status === 0) &&
+                (!card.delegated_to || card.delegated_to === acc) &&
                 !(
-                    owned.last_used_player !== acc &&
-                    Date.parse(owned.last_used_date) > Date.now() - 86400000
+                    card.last_used_player !== acc &&
+                    Date.parse(card.last_used_date) > Date.now() - 86400000
                 ),
         )
         .reduce(
             (agg, x) =>
                 R.mergeWith(R.max, agg, {
-                    [x.card_detail_id]: x.uid.startsWith('start') ? 0 : x.level,
+                    [x.card_detail_id]: x.level,
                 }),
             {},
         );
@@ -459,7 +458,7 @@ const cards2Obj = (acc) => (cards) =>
     let [page] = await browser.pages();
     await page.goto('https://splinterlands.com/');
 
-    await logout(page).catch((_err) => console.error('err'));
+    await logout(page).catch((err) => log('err', err));
 
     while (
         !args.CLOSE_AFTER_ERC ||
@@ -491,7 +490,6 @@ const cards2Obj = (acc) => (cards) =>
             } */
             if (!args.SKIP_PRACTICE || user.isRanked) {
                 const B = await nSM.battle(user.battle, '', user);
-                await sleep(8e5);
                 B.myCards = await nSM
                     .cards(user.account)
                     .then(cards2Obj(user.account))
@@ -499,10 +497,17 @@ const cards2Obj = (acc) => (cards) =>
                         (e) =>
                             log(
                                 e,
-                                'cards collection api didnt respond. Did you use username? avoid email!',
+                                `cards collection api didnt respond. Did you use username?
+				avoid email!`,
                             ) ?? {},
                     );
-                // B.oppCards = B.opp=='???' ? {}:(await nSM.cards(B.opp).then(cards2Obj(B.opp)) .catch(e=>log(e,'Opp Cards Failed')??{}))
+                B.oppCards =
+                    B.opp === '???'
+                        ? {}
+                        : await nSM
+                              .cards(B.opp)
+                              .then(cards2Obj(B.opp))
+                              .catch((e) => log(e, 'Opp Cards Failed') ?? {});
 
                 await startBotPlayMatch(B, page, user)
                     .then(() =>
