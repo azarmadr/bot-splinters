@@ -3,3 +3,4 @@ node_modules
 data
 .bot.playing*
 log.txt
+replays

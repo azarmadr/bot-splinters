@@ -74,6 +74,9 @@ module.exports = (page) => ({
 });
 module.exports.login = async function login(page, user, preMatch) {
     await page.goto('https://splinterlands.com/');
+};
+module.exports.login_dep = async function login(page, user, preMatch) {
+    await page.goto('https://splinterlands.com/');
     const SM = module.exports(page);
     await SM.login(user.login || user.account, user.password);
     user.isStarter ??
@@ -82,6 +85,8 @@ module.exports.login = async function login(page, user, preMatch) {
                 'Object.assign({},{settings:SM.settings,Player:SM.Player})',
             )
             .then(preMatch(user)));
-    await page.evaluate(`localStorage.setItem('sl:battle_speed', 6)`);
+    await page.evaluate(
+        `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
+    );
     return SM;
 };

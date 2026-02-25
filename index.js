@@ -51,7 +51,7 @@ const puppeteer = require('puppeteer');
 const { playableTeams } = require('./score');
 const battles = require('./getBattles');
 const fs = require('fs');
-const { login } = require('./splinterApi');
+// const { login } = require('./splinterApi');
 
 // Logging function with save to a file
 var _file = 'log.txt';
@@ -355,6 +355,82 @@ const outstanding_match = (u) =>
         new Promise((res) => setTimeout(res, 27e2, 1)),
     ]).then((x) => (log(u, x), x ? sleep(27e3).then(R.always(x)) : x));
 
+async function logout(page) {
+    await puppeteer.Locator.race([
+        page.locator('::-p-aria(Toggle Settings Menu)'),
+        page.locator('#radix-«r14»'),
+        page.locator('::-p-xpath(//*[@id=\\"radix-«r14»\\"])'),
+        page.locator(':scope >>> #radix-«r14»'),
+    ])
+        .setTimeout(5e3)
+        .click({
+            offset: {
+                x: 5.577392578125,
+                y: 11.70909309387207,
+            },
+        });
+    await puppeteer.Locator.race([
+        page.locator('::-p-aria(Log Out)'),
+        page.locator('div.c-RGCbG-ifssjtQ-css'),
+        page.locator('::-p-xpath(//*[@id=\\"radix-«r15»\\"]/div[8])'),
+        page.locator(':scope >>> div.c-RGCbG-ifssjtQ-css'),
+        page.locator('::-p-text(Log Out)'),
+    ])
+        .setTimeout(5e3)
+        .click({
+            offset: {
+                x: 890,
+                y: 275,
+            },
+        });
+}
+
+async function login(page, user, preMatch) {
+    log('logging');
+    const timeout = 5000;
+    await puppeteer.Locator.race([
+        page.locator('::-p-aria(LOG IN)'),
+        page.locator("[data-testid='page']"),
+        page.locator('::-p-xpath(//*[@data-testid=\\"page\\"])'),
+        page.locator(":scope >>> [data-testid='page']"),
+        page.locator('::-p-text(Log In)'),
+    ])
+        .setTimeout(timeout)
+        .click();
+    await sleep(5e3);
+    await puppeteer.Locator.race([
+        page.locator('::-p-aria(email)'),
+        page.locator('form > div:nth-of-type(1) input'),
+        page.locator(
+            '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/div[1]/div/input)',
+        ),
+        page.locator(':scope >>> form > div:nth-of-type(1) input'),
+    ])
+        .setTimeout(timeout * 1e3)
+        .fill(user.login || user.account);
+    await puppeteer.Locator.race([
+        page.locator('::-p-aria(password)'),
+        page.locator('form > div:nth-of-type(2) input'),
+        page.locator(
+            '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/div[2]/div[1]/input)',
+        ),
+        page.locator(':scope >>> form > div:nth-of-type(2) input'),
+        page.locator('::-p-text(battlePersistent:playbackSpeed)'),
+    ])
+        .setTimeout(timeout)
+        .fill(user.password);
+    await puppeteer.Locator.race([
+        page.locator('div.c-btWakK button.c-drMScW'),
+        page.locator(
+            '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/button[2])',
+        ),
+        page.locator(':scope >>> div.c-btWakK button.c-drMScW'),
+    ])
+        .setTimeout(timeout)
+        .click();
+    await sleep(5e3);
+}
+
 const cards2Obj = (acc) => (cards) =>
     cards
         .flatMap((card) => card.owned)
@@ -432,12 +508,9 @@ const cards2Obj = (acc) => (cards) =>
     log('Opening a browser');
     let browser = await createBrowser(args.HEADLESS);
     let [page] = await browser.pages();
-    await page.goto(
-        'https://splinterlands.com/' /* ,{waitUntil: 'networkidle0'} */,
-    );
-    await page
-        .evaluate(`new Promise(res=>res(SM.Logout()))`)
-        .catch(R.always(1));
+    await page.goto('https://splinterlands.com/');
+
+    await logout(page).catch((err) => console.log('err'));
 
     while (
         !args.CLOSE_AFTER_ERC ||
@@ -456,7 +529,8 @@ const cards2Obj = (acc) => (cards) =>
                 [page] = await browser.pages();
             }
 
-            const nSM = await login(page, user, preMatch);
+            await login(page, user, preMatch);
+            await sleep(8e8);
             if (args.CLAIM_REWARDS) {
                 if (user.claimSeasonReward) await page.evaluate('claim()');
                 if (user.claimQuestReward?.filter((x) => x)?.length == 2)
@@ -495,7 +569,7 @@ const cards2Obj = (acc) => (cards) =>
                     });
             }
             rmLock`.bot.playing.${user.account}`;
-            await page.evaluate('SM.Logout()');
+            logout(page);
             tableList.map(
                 (x, i) =>
                     i > 3 &&
