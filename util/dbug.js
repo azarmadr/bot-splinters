@@ -20,7 +20,9 @@ process.stdin.on('keypress', (_, k) => {
 function sleep(ms, msg = '') {
     rlInterface.resume();
     process.stdout.write('\x1B[?25l');
-    [...Array(27).keys()].forEach(() => process.stdout.write('\u2591'));
+    [...Array(27).keys()].forEach(() => {
+        process.stdout.write('\u2591');
+    });
     rl.cursorTo(process.stdout, 0);
     const obj = {};
     Error.captureStackTrace(obj, sleep);
@@ -30,7 +32,7 @@ function sleep(ms, msg = '') {
         (memo, e) =>
             memo.then(async () => {
                 process.stdout.write('\u2588');
-                if (e == 26) {
+                if (e === 26) {
                     rl.clearLine(process.stdout, 0) &&
                         rl.cursorTo(process.stdout, 0);
                     if (msg) console.log(msg);
@@ -46,10 +48,6 @@ function sleep(ms, msg = '') {
 
 // TODO the above code from `const rl` was under try-catch
 // figure out if it still needs to be so
-try {
-} catch (e) {
-    console.log(e);
-}
 _dbug.timer = class {
     constructor() {
         this.t = Date.now();
@@ -72,9 +70,9 @@ const log = (...m) =>
             .split('\n')
             .find(
                 (c, i) =>
-                    (!c.includes('_dbug') && i == 2) ||
-                    (!c.includes('tt') && i == 3) ||
-                    i == 4,
+                    (!c.includes('_dbug') && i === 2) ||
+                    (!c.includes('tt') && i === 3) ||
+                    i === 4,
             )
             .match(/[^:\\/]+:\d+/)?.[0],
         ...m,
@@ -106,10 +104,10 @@ _dbug.in1 = (...m) => {
 };
 _dbug.table = (m) => {
     const toFixed = (o) => {
-        for (k in o)
-            Number.isNaN(+o[k])
-                ? typeof o[k] == 'object' && toFixed(o[k])
-                : (o[k] = Number(Number(o[k]).toFixed(3)));
+        for (k in o) {
+            if (!Number.isNaN(+o[k])) o[k] = Number(Number(o[k]).toFixed(3));
+            if (typeof o[k] === 'object') toFixed(o[k]);
+        }
     };
     toFixed(m);
     console.table(m);
@@ -124,8 +122,12 @@ _dbug.table = (m) => {
 _dbug.tt = new Proxy(
     {},
     {
-        set: (obj, prop, v) =>
-            Object.hasOwn(obj, prop) ? obj[prop].push(v) : (obj[prop] = [v]),
+        set: (obj, prop, v) => {
+            if (Object.hasOwn(obj, prop)) obj[prop].push(v);
+            else {
+                obj[prop] = [v];
+            }
+        },
         deleteProperty: (obj, prop) =>
             prop in obj &&
             obj[prop].length &&
@@ -157,7 +159,7 @@ F.retryFor = (n, to, continueAfterAllRetries = 0, func, err = '') => {
 };
 //const pathOrSet=>(v,path,arr)=>arr
 F.cached = (fn, map = {}) =>
-    R.type(fn) == 'Function'
+    R.type(fn) === 'Function'
         ? (...arg) =>
               (arg.reduce((map, a) => (map[a] ??= {}), map).__ ??= F.cached(
                   fn(...arg),

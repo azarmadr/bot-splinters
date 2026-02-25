@@ -130,13 +130,12 @@ module.exports.playableTeams = (B) => {
             // pt.sort(_=>Math.random()*2-1)
         } else {
             log({ 'sort by': 'adv' });
+            pt = R.sortBy((x) => -x.adv, pt);
             _dbug.table(
-                (pt = R.sortBy((x) => -x.adv, pt))
-                    .slice(0, 5)
-                    .map(({ team, ...s }) => ({
-                        team: team.map((c) => [C.name(c), c[1]]).join(),
-                        ...s,
-                    })),
+                pt.slice(0, 5).map(({ team, ...s }) => ({
+                    team: team.map((c) => [C.name(c), c[1]]).join(),
+                    ...s,
+                })),
             );
             log({ 'sort by': 'loss-win' });
             pt = R.sortBy((x) => x._l - x._w, pt);

@@ -171,11 +171,11 @@ _score.statCmp = F.cached((c, ruleset /* ,sStats=null */) => (oc) => {
         'health',
     ].filter((s) =>
         ruleset.includes('Reverse Speed')
-            ? s != 'speed'
+            ? s !== 'speed'
             : ruleset.includes('Unprotected')
-              ? s != 'armor'
+              ? s !== 'armor'
               : ruleset.includes('Equalizer')
-                ? s != 'health'
+                ? s !== 'health'
                 : true,
     );
     const abilities = [c, oc].map((x) =>
@@ -185,7 +185,7 @@ _score.statCmp = F.cached((c, ruleset /* ,sStats=null */) => (oc) => {
         ? c2v(C.speed(oc), C.speed(c))
         : 0;
 
-    return ['speed', ...stats].every((t) => C[t](c) == C[t](oc)) &&
+    return ['speed', ...stats].every((t) => C[t](c) === C[t](oc)) &&
         _arr.eqSet(...abilities)
         ? c2v(C.mana(oc), C.mana(c))
         : (stats.every((t) => C[t](c) <= C[t](oc)) &&
@@ -202,7 +202,7 @@ const teamColorPass = F.cached(
 const cardPosScore = (mycards) => (c, pos) =>
     c == null
         ? -1
-        : (mycards.find((x) => x[0] == (Array.isArray(c) ? c[0] : c))?.[2]?.[
+        : (mycards.find((x) => x[0] === (Array.isArray(c) ? c[0] : c))?.[2]?.[
               pos
           ] ?? 0);
 _score.betterTeam = (B) => (t) => {
@@ -212,7 +212,7 @@ _score.betterTeam = (B) => (t) => {
             (c) =>
                 C.isMon(c) &&
                 teamColorPass(nt)(c) &&
-                T(nt).every((x) => x[0] != c[0]) &&
+                T(nt).every((x) => x[0] !== c[0]) &&
                 C.mana(c) <= B.mana - T.mana(nt) + (tc ? C.mana(tc) : 0),
         );
     const nTeam = t.reduce(
@@ -255,7 +255,7 @@ _score.wBetterCards =
             const bs = B.mycards
                 .filter(
                     (c) =>
-                        C.type(c) == 'Summoner' &&
+                        C.type(c) === 'Summoner' &&
                         smnrClrs.includes(C.color(c)),
                 )
                 .reduce(

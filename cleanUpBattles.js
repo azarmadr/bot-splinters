@@ -1,6 +1,6 @@
 /** Motive for the release tag 2.2:
  * Converting array of battles to objects of pattern {t1:{t2:result}} */
-const { readFileSync, writeFileSync } = require('jsonfile');
+const { writeFileSync } = require('jsonfile');
 const { _arr, _dbug, T, C, log } = require('./util');
 const fileName = './data/battle_data_rb.json';
 const nb = require(fileName);
@@ -10,7 +10,7 @@ const card_aliases = require('./data/card_aliases.json');
 log(card_aliases);
 const ac = new Proxy({}, { get: (o, k) => (o[k] ??= 0) });
 const mm = () => {};
-const mm_ = (rs, mana, crs) => {
+const _mm_ = (rs, mana, crs) => {
     const c = new Proxy({}, { get: (o, k) => (o[k] ??= 0) });
     const ca =
         card_aliases[
@@ -34,7 +34,7 @@ const mm_ = (rs, mana, crs) => {
                                 c in ca &&
                                 Object.keys(ca[c]).find(
                                     (x) =>
-                                        C.color(x) == C.color(c) &&
+                                        C.color(x) === C.color(c) &&
                                         l <= ca[c][x],
                                 ),
                         ),
@@ -47,7 +47,7 @@ const mm_ = (rs, mana, crs) => {
                                 i in ca && ++c[i]
                                     ? Object.keys(ca[i]).find(
                                           (x) =>
-                                              C.color(x) == C.color(i) &&
+                                              C.color(x) === C.color(i) &&
                                               l <= ca[i][x],
                                       )
                                     : i,
@@ -62,43 +62,54 @@ const mm_ = (rs, mana, crs) => {
     }
     if (_dbug.tt.n?.at(-1)?.rs !== rs.toString()) delete _dbug.tt.n;
     if (c.c) _dbug.tt.n = { rs: rs + '', mana, ...c };
-    Object.keys(c).forEach((k) => (ac[k] += c[k]));
+    Object.keys(c).forEach((k) => {
+        ac[k] += c[k];
+    });
 };
 const _RefractorBattlesToMana = (rs, mana, crs) => {
     const c = { c: 0, a: 0, e: 0 };
     for (const s in crs) {
-        if (T(s).length == 1) delete crs[s], c.a++;
-        else
+        if (T(s).length === 1) {
+            delete crs[s];
+            c.a++;
+        } else
             for (const t in crs[s]) {
                 const nmana = Math.max(T.mana(s), T.mana(t), 12);
-                if (nmana != mana) {
+                if (nmana !== mana) {
                     c.a++;
-                    c.c += merge(
-                        (rs.reduce((a, rule) => a[rule], nb)[nmana] ??= {}),
-                        { [s]: { [t]: crs[s][t] } },
-                    ).c;
+                    const x = rs.reduce((a, rule) => a[rule], nb);
+                    x[nmana] ??= {};
+                    c.c += merge(x[nmana], { [s]: { [t]: crs[s][t] } }).c;
                     delete crs[s][t];
                 }
             }
-        if (R.isEmpty(crs[s])) delete crs[s], c.e++;
+        if (R.isEmpty(crs[s])) {
+            delete crs[s];
+            c.e++;
+        }
     }
-    if (_dbug.tt.n?.at(-1)?.rs !== rs.toString())
-        delete _dbug.tt.n, log(rs + '', mana);
+    if (_dbug.tt.n?.at(-1)?.rs !== rs.toString()) {
+        delete _dbug.tt.n;
+        log(rs + '', mana);
+    }
     if (c.a) _dbug.tt.n = { ...c, rs: rs + '', mana };
-    Object.keys(c).forEach((k) => (ac[k] += c[k]));
+    Object.keys(c).forEach((k) => {
+        ac[k] += c[k];
+    });
 };
 
-Object.entries(nb).forEach(([rs, rs_]) =>
-    Object.entries(rs_).forEach(([rs1, crs]) =>
+Object.entries(nb).forEach(([rs, rs_]) => {
+    Object.entries(rs_).forEach(([rs1, crs]) => {
         rs1.match(/\d+/)
             ? mm([rs], rs1, crs)
-            : Object.entries(crs).forEach(([mana, crs]) =>
-                  mm([rs, rs1], mana, crs),
-              ),
-    ),
-);
+            : Object.entries(crs).forEach(([mana, crs]) => {
+                  mm([rs, rs1], mana, crs);
+              });
+    });
+});
 delete _dbug.tt.n;
-if (0) log(ac);
+const LOG_AC = 0;
+if (LOG_AC) log(ac);
 else {
     ac.e = _arr.rmEmpty(nb);
     log(ac);

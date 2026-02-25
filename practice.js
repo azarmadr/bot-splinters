@@ -44,21 +44,9 @@ const {
     sleep,
     _dbug: { in1, table },
 } = require('./util');
-const fs = require('node:fs');
 const { login } = require('./splinterApi');
 
-// Logging function with save to a file
-var _file = 'logPractice.txt';
-const util = require('node:util');
-const logFile = fs.createWriteStream(_file, { flags: 'w' });
-const formatEd = (...x) => util.formatWithOptions({ colors: true }, ...x);
-if (args.LOG)
-    console.log = function (...args) {
-        process.stdout.write(formatEd.apply(null, args) + '\n');
-        logFile.write(
-            util.format.apply(null, args).replace(/\033\[[0-9;]*m/g, '') + '\n',
-        );
-    };
+if (args.LOG) console.log = require('./util/common.js').logger();
 
 const _go = 1;
 
@@ -302,7 +290,9 @@ const findNewBattle = (pt, pt0, rules) => {
     ]);
 
     // while((args.t??=Date.now()+Infinity)>Date.now()){
-    for (let user; (user = users.shift()); users.push(user)) {
+    for (let user; ; users.push(user)) {
+        user = users.shift();
+        if (!user) break;
         if (user.isStarter || isLocked`.bot.playing.${user.account}`) continue;
 
         [sBrowser, tBrowser].forEach(async (browser, i) => {

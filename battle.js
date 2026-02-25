@@ -1,6 +1,5 @@
 const R = require('ramda');
 const RA = require('ramda-adjunct');
-const { colorEnum } = require('./util/constants');
 const { T, Ru, getRules, C } = require('./util/card');
 const { log, _dbug } = require('./util/dbug');
 
@@ -9,10 +8,14 @@ const db = require('better-sqlite3')('./data/battles.db', {
     timeout: 81e3,
 });
 const add2nm = (nm, io, s, t, r) => {
+    nm[s] ??= {};
     if (io) {
-        ((nm[s] ??= {})[t] ??= [])[0] = r;
-        ((nm[t] ??= {})[s] ??= [])[1] = r;
-    } else (nm[s] ??= {})[t] = r;
+        nm[s][t] ??= [];
+        nm[s][t][0] = r;
+        nm[t] ??= {};
+        nm[t][s] ??= [];
+        nm[t][s][1] = r;
+    } else nm[s][t] = r;
 };
 
 module.exports = function BattleObj(battle) {
@@ -56,8 +59,9 @@ module.exports = function BattleObj(battle) {
   `);
     // log(query.get({mana:23}))
     const isPlayable = (by) => {
-        const cards = [myCards, oppCards][(by ??= 0)]; // until we have some opponent_player cards
-        return (x) => T(x).every(([i, l]) => cards[i] >= (l == 1 ? by : l));
+        by ??= 0;
+        const cards = [myCards, oppCards][by]; // until we have some opponent_player cards
+        return (x) => T(x).every(([i, l]) => cards[i] >= (l === 1 ? by : l));
     };
     return {
         get myCards() {
@@ -111,7 +115,7 @@ module.exports = function BattleObj(battle) {
                     if (l || d) nmSize[Mana] += +isPlayable(0)(team2);
                     const s = w ? team2 : team1,
                         t = w ? team1 : team2;
-                    if (w == l) {
+                    if (w === l) {
                         add2nm(nm, io, s, t, 2);
                         add2nm(nm, io, t, s, 2);
                     } else {

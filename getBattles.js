@@ -1,7 +1,7 @@
 const R = require('ramda');
 const { writeFileSync } = require('jsonfile');
 const { log, _dbug, sleep } = require('./util/dbug');
-const { T, Ru, getRules } = require('./util/card');
+const { T, Ru } = require('./util/card');
 const { _arr } = require('./util/array');
 const getJson = (player) =>
     Promise.race([
@@ -72,7 +72,7 @@ async function getBattles(
         .catch((e) => log(e) ?? []);
     _dbug.in1(BC.pc++, BC.lastInsertRowid, player);
     db.transaction((_) =>
-        battleHistory.map((b) => {
+        battleHistory.forEach((b) => {
             const { winner, team1, team2 } = JSON.parse(b.details);
             nuSet.add(team1.player);
             nuSet.add(team2.player);
@@ -86,9 +86,9 @@ async function getBattles(
                 if (drs({ rules: b.ruleset, mana: b.mana_cap, teams }))
                     _dbugBattles.push(b);
                 let res =
-                    winner == team1.player
+                    winner === team1.player
                         ? 1
-                        : winner == team2.player
+                        : winner === team2.player
                           ? -1
                           : 0;
                 if (teams[1] > teams[0]) {
@@ -105,7 +105,7 @@ async function getBattles(
                     res += colors.includes('Gold') ? 12 : 0;
                     return res;
                 });
-                const k = res == 1 ? 'w' : res == -1 ? 'l' : 'd';
+                const k = res === 1 ? 'w' : res === -1 ? 'l' : 'd';
                 BC.lastInsertRowid = rStmt[k].run({
                     team1: teams[0].toString(),
                     team2: teams[1].toString(),
@@ -123,8 +123,11 @@ async function getBattles(
     return nuSet;
 }
 
-const checkIfPresent = (obj, delay) => (x) =>
-    Date.now() - obj[x] < delay ? 0 : (obj[x] = Date.now());
+const checkIfPresent = (obj, delay) => (x) => {
+    if (Date.now() - obj[x] < delay) return 0;
+    obj[x] = Date.now();
+    return 1;
+};
 const blackSet = checkIfPresent({}, practiceOn ? 27e3 : 81e4);
 _battles.fromUsers = (players, { depth = 2, rFilter, drs, cl = 27 } = {}) =>
     new Promise((res) => {
@@ -151,7 +154,8 @@ _battles.fromUsers = (players, { depth = 2, rFilter, drs, cl = 27 } = {}) =>
         )
             .then((x) => (depth < 3 ? x : sleep(27e3).then((_) => x)))
             .then((nuSet) => {
-                log({ added: -(BC.count - (BC.count = dbCount.get().c)) });
+                log({ added: -(BC.count - dbCount.get().c) });
+                BC.count = dbCount.get().c;
                 if (
                     --depth > 0 &&
                     nuSet.size &&

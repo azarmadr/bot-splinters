@@ -50,28 +50,18 @@ log`init`;
 const puppeteer = require('puppeteer');
 const { playableTeams } = require('./score');
 const battles = require('./getBattles');
-const fs = require('node:fs');
 const { login } = require('./splinterApi');
 
 // Logging function with save to a file
-var _file = 'log.txt';
-const util = require('node:util');
-const logFile = fs.createWriteStream(_file, { flags: 'w' });
-const formatEd = (...x) => util.formatWithOptions({ colors: true }, ...x);
-if (1 || args.LOG)
-    console.log = function () {
-        process.stdout.write(formatEd.apply(null, arguments) + '\n');
-        logFile.write(
-            util.format.apply(null, arguments).replace(/\033\[[0-9;]*m/g, '') +
-                '\n',
-        );
-    };
+if (args.LOG) {
+    console.log = require('./util/common.js').logger();
+}
 
 const _go = 1;
 const sleepingTime = 6e4 * (args.SESSION_INTERVAL ?? 27);
 log`init1`;
 
-async function checkForUpdate() {
+async function _checkForUpdate() {
     await fetch(
         'https://raw.githubusercontent.com/azarmadr/bot-splinters/master/package.json',
     )
@@ -149,7 +139,9 @@ const postBattle = (user) => (battle) => {
         battle.winner === user.account ? 1 : battle.winner === 'DRAW' ? 0 : -1;
     log({
         getBattles:
-            battle.player_1 !== user.account ? battle.player_1 : battle.player_2,
+            battle.player_1 !== user.account
+                ? battle.player_1
+                : battle.player_2,
     });
     const pl =
         battle.player_1 !== user.account ? battle.player_1 : battle.player_2;
@@ -177,7 +169,7 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
     } = teamToPlay;
     if (!B.rules.includes('Taking Sides')) {
         const __medusa = Monsters.find((m) => m[0] === 17);
-        if(__medusa ) (__medusa[0] = 194);
+        if (__medusa) __medusa[0] = 194;
     }
     table([
         ...teamToPlay.team.map(([Id, Lvl]) => ({
@@ -317,9 +309,8 @@ const preMatch =
         //if quest done claim reward
         user.claimQuestReward = [];
         user.quest = 0;
-	let name, completed_items, total_items;
         if (Player.quest && !Player.quest.claim_trx_id) {
-            let { name, completed_items, total_items } = Player.quest;
+            const { name } = Player.quest;
             const quest = settings.daily_quests.find((x) => x.name === name);
             if (
                 (Number(args.q) || 3) * Math.random() < 1 &&
@@ -335,27 +326,28 @@ const preMatch =
             //   //user.quest = 0;
             // }
         }
+        Player.quest ??= {};
+        user.et = (100 - erc) / 12 / settings.dec.ecr_regen_rate;
         table([
             {
                 Rating: Player.rating,
                 ECRate: erc,
                 t: (args.t - Date.now()) / 36e5,
-                et: (user.et = (100 - erc) / 12 / settings.dec.ecr_regen_rate),
-                ...(completed_items && {
-                    Quest: name,
-                    completed_items,
-                    total_items,
-                }),
+                et: user.et,
+                ...Player.quest,
             },
         ]);
     };
-const outstanding_match = (u) =>
+const _outstanding_match = (u) =>
     Promise.race([
         fetch(
             `https://api.splinterlands.io/players/outstanding_match?username=${u}`,
         ).then((x) => x.json()),
         new Promise((res) => setTimeout(res, 27e2, 1)),
-    ]).then((x) => (log(u, x), x ? sleep(27e3).then(R.always(x)) : x));
+    ]).then((x) => {
+        log(u, x);
+        return x ? sleep(27e3).then(R.always(x)) : x;
+    });
 
 async function logout(page) {
     await puppeteer.Locator.race([
@@ -428,12 +420,13 @@ const cards2Obj = (acc) => (cards) =>
     const userData = (() => {
         try {
             return require('./data/user_data.json');
-        } catch (e) {
+        } catch (_e) {
             return {};
         }
     })();
     const users = args.ACCOUNT.map((account, i) => {
-        const u = (userData[toDay] ??= {})?.[account];
+        userData[toDay] ??= {};
+        const u = userData[toDay]?.[account];
         return {
             account,
             password: args.PASSWORD[i],
@@ -466,7 +459,7 @@ const cards2Obj = (acc) => (cards) =>
     let [page] = await browser.pages();
     await page.goto('https://splinterlands.com/');
 
-    await logout(page).catch((err) => console.error('err'));
+    await logout(page).catch((_err) => console.error('err'));
 
     while (
         !args.CLOSE_AFTER_ERC ||
@@ -474,7 +467,9 @@ const cards2Obj = (acc) => (cards) =>
     ) {
         //await checkForUpdate();
         const aUsers = users.filter((u) => !args.SKIP_PRACTICE || u.isRanked);
-        for (let user; (user = aUsers.shift()); ) {
+        for (let user; ; ) {
+            user = aUsers.shift();
+            if (!user) break;
             if (isLocked`.bot.playing.${user.account}`) {
                 aUsers.push(user);
                 await sleep(1e3);
@@ -486,14 +481,14 @@ const cards2Obj = (acc) => (cards) =>
             }
 
             const nSM = await login(page, user, preMatch);
-            if (0 && args.CLAIM_REWARDS) {
+            /* if (0 && args.CLAIM_REWARDS) {
                 // TODO not that important
                 // if (user.claimSeasonReward) await page.evaluate('claim()');
-                if (user.claimQuestReward?.filter((x) => x)?.length == 2)
+                if (user.claimQuestReward?.filter((x) => x)?.length === 2)
                     await nSM
                         .questClaim(...user.claimQuestReward)
                         .then(() => sleep(4e3));
-            }
+            } */
             if (!args.SKIP_PRACTICE || user.isRanked) {
                 const B = await nSM.battle(user.battle, '', user);
                 await sleep(8e5);
@@ -528,11 +523,12 @@ const cards2Obj = (acc) => (cards) =>
             }
             rmLock`.bot.playing.${user.account}`;
             logout(page);
-            tableList.map(
-                (x, i) =>
-                    i > 3 &&
-                    ((userData[toDay][user.account] ??= {})[x] = user[x]),
-            );
+            tableList.forEach((x, i) => {
+                if (i > 3) {
+                    userData[toDay][user.account] ??= {};
+                    userData[toDay][user.account][x] = user[x];
+                }
+            });
             writeFileSync('./data/user_data.json', userData);
         }
         table(
