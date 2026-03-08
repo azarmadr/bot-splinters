@@ -57,7 +57,7 @@ def get-battles [u] {
   | $in.battles
 
   $b | proc-battles | update-battles
-  node etc/insert_battles.js
+  node etc/insert_battles.js | complete | print
 
   $b
   | select created_date player_1 player_2
