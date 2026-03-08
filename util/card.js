@@ -32,10 +32,10 @@ const re_map_cards = (cards) => {
 };
 const __cards = re_map_cards(getFromAPI('cards', 'cards/get_details'));
 const SMsettings = getFromAPI('settings', 'settings');
-const updateCards = (__cards) => {
+const updateCards = (cards) => {
     log('Getting new cards');
-    __cards = re_map_cards(getFromAPI('cards', 'cards/get_details', 1));
-    return __cards;
+    cards = re_map_cards(getFromAPI('cards', 'cards/get_details', 1));
+    return cards;
 };
 
 __cards.basic = __cards
@@ -46,7 +46,12 @@ const attr = ['color', 'name', 'rarity', 'type', 'editions', 'tier'];
 const stats = ['ranged', 'magic', 'attack', 'speed', 'armor', 'health'];
 const Cards = new Proxy(__cards, {
     get: (cards, c) => {
-        if (c in cards) return cards[c];
+        if (c in cards) {
+            if (!('mana' in cards[c].stats))
+                throw new Error(`id:'${c}' is probably not a card`);
+            return cards[c];
+        }
+
         if (!Number.isInteger(+c) || c < 0)
             throw new Error(`'${c}' is not integer`);
         console.log(c);
@@ -85,7 +90,7 @@ const C = {
     ...attr.reduce((o, a) => Object.assign(o, { [a]: _attr(a) }), {}),
     ...stats.reduce((o, s) => Object.assign(o, { [s]: _stat(s) }), {}),
     stats: ([i]) => {
-        const { mana, ...rem } = __cards[i - 1];
+        const { mana, ...rem } = Cards[i];
         return rem;
     },
     isModern: F.cached(
@@ -116,6 +121,7 @@ const nAtORyAb = (attack, ability) =>
     R.anyPass([R.not, (c) => !C[attack](c), C.has(ability)]);
 const Ru = {
     cardPred: {
+        'Junior Varsity': (c) => C.mana(c) <= 6,
         'Lost Magic': (c) => C.isSum(c) || C.m(c) === 0,
         'Up Close & Personal': (c) => C.isSum(c) || C.a(c) > 0,
         'Wands Out': (c) => C.isSum(c) || C.m(c) > 0,
@@ -246,15 +252,12 @@ const Ru = {
 Ru.e = A.enumify(Object.keys(Ru.pred).sort());
 Ru.pred.Standard = R.F;
 /** return a number so that the team can be used for other ruleset */
-Ru.num = (teams) =>
-    R.sum(
-        R.values(
-            R.mapObjIndexed(
-                (v, k) => (v ? 2 ** +Ru.e[k] : 0),
-                R.applySpec(Ru.pred, teams),
-            ),
-        ),
-    );
+Ru.num = R.pipe(
+    R.applySpec(Ru.pred),
+    R.mapObjIndexed((v, k) => (v ? 2 ** +Ru.e[k] : 0)),
+    R.values,
+    R.sum,
+);
 Ru.map = R.pipe(
     R.juxt([R.always([['Standard']]), R.splitEvery(1), R.of(Array)]),
     R.unnest,
@@ -274,13 +277,12 @@ Ru.battleRule = (rs) => (teams) =>
         .join() || 'Standard';
 
 const getRules = (ruleset) => {
-    //const primary="Back to Basics,Silenced Summoners,Aim True,Super Sneak,Weak Magic,Unprotected,Target Practice,Fog of War,Armored Up,Equal Opportunity,Melee Mayhem"; const any="Healed Out,Earthquake,Reverse Speed,Close Range,Heavy Hitters,Equalizer,Noxious Fumes,Stampede,Explosive Weaponry,Holy Protection,Spreading Fury";
-    const secondary =
-        'Need for Speed,Junior Varsity,Wands Out,Heavy Metal,Beefcakes,Might Makes Right,High Five,Four’s a Crowd,Keep Your Distance,Lost Legendaries,Rise of the Commons,Up Close & Personal,Broken Arrows,Little League,Lost Magic,Even Stevens,Odd Ones Out';
+    const team_restrictions = 'High Five,Four’s a Crowd';
     const { attr, card } = ruleset.split`|`.reduce(
         (rule, cr) => {
-            if (cr === 'Taking Sides') return rule;
-            if (cr in Ru.cardPred || secondary.includes(cr)) rule.card = cr;
+            if (team_restrictions.includes(cr) || cr === 'Taking Sides')
+                return rule;
+            if (cr in Ru.cardPred) rule.card = cr;
             else rule.attr.push(cr);
             return rule;
         },
