@@ -61,8 +61,12 @@ const splinterApi = (page) => {
         log({ 'Obtaining Cards': player, '#cards': cards.length });
         return cards;
     };
-    const waitForChomperToHide = () => {
-        page.waitForSelector('img[alt="chomper"]', { hidden: true });
+    const waitForChomperToHide = async () => {
+        while (true) {
+            await page.waitForSelector('img[alt="chomper"]', { hidden: true });
+            if (!(await page.$('img[alt="chomper"]').catch(log))) break;
+        }
+        log('Waiting finished');
     };
     return {
         questClaim: async (q, _q) => {
@@ -83,22 +87,33 @@ const splinterApi = (page) => {
                 clickButtonWith('BATTLE'),
                 page.waitForNavigation(),
             ]);
-            await waitForChomperToHide();
             await page.waitForFunction(
                 () => document.URL.match(/\/battle\/sl_/),
-                { polling: 1e3 },
+                { timeout: 1e5, polling: 1e4 },
             );
             await sleep(8e3);
             await clickButtonWith('SKIP BATTLE').catch((x) => {
                 log(x);
                 return sleep(8e4);
             });
+            await sleep(3e3);
         },
         clickButtonWith,
         battle: async (type = 'Ranked', _opp = '', user) => {
             log(`Finding ${type} match`);
-            await page.goto('https://splinterlands.com/battle-history');
-            await sleep(7290);
+            await Promise.all([
+                page.goto('https://splinterlands.com/battle-history'),
+                page.waitForNavigation(),
+            ]);
+            await page.waitForFunction(
+                () =>
+                    [...document.querySelectorAll('button')]
+                        .map((x) => x.innerText)
+                        .includes('BATTLE'),
+                {},
+            );
+            await waitForChomperToHide();
+            await sleep(8e3);
             await Promise.all([
                 clickButtonWith('BATTLE'),
                 page.waitForNavigation(),

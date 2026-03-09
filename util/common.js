@@ -42,4 +42,5 @@ if (!['ACCOUNT', 'PASSWORD'].every((e) => args[e]))
             '\nsee `cat .env-example` for help',
         args,
     );
+console.log(Object.assign(args, { password: '' }));
 module.exports.args = args;

@@ -4,7 +4,7 @@ const { T, Ru } = require('./util/card');
 const { log, D } = require('./util/dbug');
 
 const db = require('better-sqlite3')('./data/battles.db', {
-    verbose: log,
+    // verbose: log,
     timeout: 81e3,
 });
 const add2nm = (nm, io, s, t, r) => {

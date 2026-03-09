@@ -6,5 +6,6 @@
     - We now have two ways to get battles. It requires using authorization.
     - Might have inherent limits on the api usage.
 
-- [x] Need to create justfile
 - [ ] support correcting the db, if any rule processing improves or change
+- [ ] Fix issues with battles
+    - [ ] mana of the team submission should not exceed the mana_cap

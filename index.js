@@ -164,7 +164,7 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
 }
 async function startBotPlayMatch(B, page) {
     // TODO find better strategy B.sortByWinRate =
-    console.table([
+    table([
         {
             ...R.filter((f) => !R.is(Function, f), B),
             myCards: Object.keys(B.myCards).length,

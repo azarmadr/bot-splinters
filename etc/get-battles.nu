@@ -123,7 +123,7 @@ def main [] {
     if $c < 0 {break}
 
     let users = open $user_f
-    | where p != '???' and p !~ ' '
+    | where p != '???' and p !~ ' |^_slbb_'
     | join $default_users p -o
     | handle-join-remnants
 
