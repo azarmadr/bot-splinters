@@ -1,8 +1,11 @@
 get-battles: (test-js)
     nu -l etc/get-battles.nu
 
-update-battles-db:
-    node etc/insert_battles.js
+update-battles-db opts:
+    node etc/insert_battles.js {{opts}}
+
+refresh-battle-db: && (update-battles-db "-a")
+    rm data/battles.db
 
 test-js:
     # node util/common.js
