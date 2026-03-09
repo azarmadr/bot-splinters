@@ -47,8 +47,12 @@ const processCards = ({ player, rules, inactive, format }) =>
     );
 const splinterApi = (page) => {
     const clickButtonWith = (name) =>
-        page.evaluate(`[...document.querySelectorAll('button')]
-		.filter(x=>x.innerText === '${name}')[0].click()`);
+        page.$$eval(
+            'button',
+            (buttons, name) =>
+                buttons.filter((e) => e.innerText === name)[0].click(),
+            name,
+        );
     const getCards = async (player) => {
         const cards = await page.evaluate(
             `fetch("https://api.splinterlands.com/cards/collection/${player}")
@@ -56,6 +60,9 @@ const splinterApi = (page) => {
         );
         log({ 'Obtaining Cards': player, '#cards': cards.length });
         return cards;
+    };
+    const waitForChomperToHide = () => {
+        page.waitForSelector('img[alt="chomper"]', { hidden: true });
     };
     return {
         questClaim: async (q, _q) => {
@@ -76,8 +83,13 @@ const splinterApi = (page) => {
                 clickButtonWith('BATTLE'),
                 page.waitForNavigation(),
             ]);
-            await sleep(3e3);
-            await clickButtonWith('SKIP_BATTLE').catch((x) => {
+            await waitForChomperToHide();
+            await page.waitForFunction(
+                () => document.URL.match(/\/battle\/sl_/),
+                { polling: 1e3 },
+            );
+            await sleep(8e3);
+            await clickButtonWith('SKIP BATTLE').catch((x) => {
                 log(x);
                 return sleep(8e4);
             });

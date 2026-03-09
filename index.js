@@ -159,7 +159,7 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
         );
     }
     if (notifyUser)
-        await sleep(Math.min(60, Math.abs(args.PAUSE_BEFORE_SUBMIT)) * 999);
+        await sleep(Math.min(60, Math.abs(args.PAUSE_BEFORE_SUBMIT)) * 1e3);
     log('Team submitted, Waiting for opponent');
 }
 async function startBotPlayMatch(B, page) {
@@ -287,11 +287,11 @@ async function logout(page) {
     while (!args.CLOSE_AFTER_ERC) {
         //await checkForUpdate();
         for (let user; ; ) {
-            user = users.shift();
             log({ users: users.map((x) => x.account) });
+            user = users.shift();
             if (!user) break;
+            users.push(user);
             if (isLocked`.bot.playing.${user.account}`) {
-                users.push(user);
                 await sleep(1e3);
                 continue;
             }

@@ -30,6 +30,7 @@ const setScores = (scores, B) => {
         }
     return nm;
 };
+globalThis.practiceOn = 0;
 module.exports.playableTeams = (B) => {
     const scores = new Proxy(
         {},
