@@ -5,7 +5,7 @@ update-battles-db:
     node etc/insert_battles.js
 
 test-js:
-    node util/common.js
+    # node util/common.js
     node --test test/main.js
 
 get-splinterlands-info:

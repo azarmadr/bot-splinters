@@ -1,29 +1,5 @@
 const args = require('minimist')(process.argv.slice(2));
-const l2s = (s) =>
-    s
-        .split('_')
-        .map((x) => x[0])
-        .join('')
-        .toLowerCase();
-try {
-    Object.entries(require('dotenv').config().parsed).forEach(([e, v]) => {
-        args[l2s(e)] ??= v && JSON.parse(v);
-        args[e] ??= v.includes(',')
-            ? (args[l2s(e)] ?? v).split(',')
-            : args[l2s(e)];
-    });
-} catch (e) {
-    console.error(e);
-    throw `NO '.env' file present
-  Please create a new '.env' file following the '.env-example'`;
-}
-if (!['ACCOUNT', 'PASSWORD'].every((e) => args[e]))
-    throw console.error(
-        'Missing ACCOUNT/PASSWORD,the REQUIRED parameter(s) in .env' +
-            '\nsee `cat .env-example` for help',
-        args,
-    );
-
+const {args} = require('./util/common.js');
 const R = require('ramda');
 const { log, C, _dbug, _arr, F, _elem, sleep } = require('./util');
 const puppeteer = require('puppeteer');
