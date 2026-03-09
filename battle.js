@@ -71,8 +71,14 @@ module.exports = function BattleObj(battle) {
             myCards = R.pipe(
                 R.toPairs,
                 R.filter(rules.byCard),
-                R.filter((x) => !inactive.includes(C.color(x))),
-                R.filter(isModern ? C.isModern : R.T),
+                R.filter(
+                    (x) =>
+                        !inactive.includes(C.color(x)) &&
+                        (battle.format == 'foundation'
+                            ? [15]
+                            : [12, 14, 15]
+                        ).includes(C.tier(x)),
+                ),
                 R.fromPairs,
             )(_);
             // log(

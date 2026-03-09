@@ -93,12 +93,6 @@ const C = {
         const { mana, ...rem } = Cards[i];
         return rem;
     },
-    isModern: F.cached(
-        R.anyPass([
-            (x) => SMsettings.battles.modern.tiers.includes(C.tier(x)),
-            (x) => SMsettings.battles.modern.editions.includes(C.editions(x)),
-        ]),
-    ),
     get a() {
         return C.attack;
     },

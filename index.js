@@ -306,7 +306,7 @@ const preMatch =
             const { name } = Player.quest;
             const quest = settings.daily_quests.find((x) => x.name === name);
             if (
-                (Number(args.q) || 3) * Math.random() < 1 &&
+                (Number(args.qp) || 3) * Math.random() < 1 &&
                 args.QUEST_PRIORITY
             )
                 user.quest = {
