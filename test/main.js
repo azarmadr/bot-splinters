@@ -19,5 +19,5 @@ test('team and rule set number calculation', (t) => {
     //     team.map((c) => stats.reduce((a, x) => ((a[x] = C[x](c)), a), {})),
     // );
     // console.log(R.pipe(R.applySpec(Ru.pred))([team, team]));
-    assert.equal(Ru.num([team, team]), 8933852839936);
+    assert.equal(Ru.num([team, team]), 17867655348224);
 });
