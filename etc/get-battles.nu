@@ -8,11 +8,12 @@ def proc-if-team [] {
   | rename -c {card_detail_id: id}
   | select id level uid
 }
+
 def proc-details [] {
   update cells -c ('{final_,}team{1,2}' | str expand) {proc-if-team}
   | update rounds {flatten -a}
   | update pre_battle {insert num 0}
-  | update rounds {|i|
+  | update rounds {|i| # TODO process rounds and reject uid's
     $i.pre_battle ++ $in
     | upsert initiator {default '-'}
     # | upsert group_state {if $in == null {} else {}}
@@ -36,19 +37,36 @@ def proc-battles [] {
 # | describe | str replace -r '[,]' "$0\n" -a
 }
 
-def update-battles [] {
-  $in ++ (open data/battles-processed.json)
-  | where battle_queue_id_1 !~ 'prologue|tutorial'
+# TODO remove dependancy on battle_queue_id's
+#      devise methods to work with the rounds
+def prune-unwanted-battles [] {
+  where battle_queue_id_1 !~ 'prologue|tutorial'
+  | where team1? != null and team2? != null
+  | reject -o home away perks created_date
   | uniq-by battle_queue_id_1 battle_queue_id_2
   # | do {select -o home away perks | compact -e home | table -e | print; $in}
-  | save -f data/battles-processed1.json
+}
+
+def safe-backup [] {
+  save -f data/battles-processed1.json
   ls data/battles-processed*.json | insert count {open $in.name | length} | collect | print
   mv data/battles-processed1.json data/battles-processed.json
+}
+
+def insert-into-db [] {
   let count = open data/battles.db | $in.battles | length | wrap old
   node etc/insert_battles.js | complete | print
   $count | insert new {open data/battles.db | $in.battles | length} | print
-
 }
+
+def update-battles [] {
+  $in ++ (open data/battles-processed.json)
+  | prune-unwanted-battles
+  | safe-backup
+
+  insert-into-db
+}
+
 def "cleanup battles files" [] {
   glob data/battles.*json | each {open $in | $in.battles | proc-battles}
   | flatten
@@ -74,13 +92,26 @@ def get-battles [u] {
   | transpose -d | rename p d | sort-by d
 }
 
+def backup-processed [] {
+  if (open data/battles-processed.json | length) < 5000 {return}
+
+  open data/battles-processed.json data/processed/battles-*.json
+  | prune-unwanted-battles
+  | chunks 999 | enumerate
+  | each {|i| $i.item | save -f $'data/processed/battles-($i.index).json'}
+
+  open data\battles-processed.json | last 1111 | safe-backup
+  insert-into-db
+}
+
 def handle-join-remnants [] {
     upsert d {|r| [$r.d? $r.d_?] | compact -e | math max} | reject -o d_
     | sort-by d
 }
+
 def main [] {
   # cleanup battles files
-  node etc/insert_battles.js
+  backup-processed
 
   let user_f = 'data/user.nuon'
   let default_users = rg ACCOUNT= .env | lines | split row -r '[=,]' | skip | wrap p
@@ -106,4 +137,8 @@ def main [] {
     # $users | rename name | grid | print
     gum spin -- sleep 1m
   }
+}
+
+export-env {
+  $env.config.table.mode = 'compact'
 }
