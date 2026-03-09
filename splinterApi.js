@@ -46,7 +46,7 @@ const splinterApi = (page, args) => {
                 Lvl,
             })),
         ]);
-        D.table({ Stats });
+        D.table([Stats]);
         await F.retryFor(3, 3000, !continueAfterError, async () =>
             page
                 .waitForSelector(`[data-card_detail_id="${Summoner[0]}"]`, {
@@ -120,6 +120,7 @@ const splinterApi = (page, args) => {
         const cb = await page.evaluate(`fetch(
 	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
 	    .then(x=>x.json())`);
+        log(cb);
         const battle = B(cb);
         await sleep(729);
         battle.cardsOfPlayers = await Promise.all(
@@ -139,7 +140,9 @@ const splinterApi = (page, args) => {
                 ),
             },
         ]);
-        await teamSelection(battle.playableTeams()).catch(log).then(finishBattle);
+        await teamSelection(battle.playableTeams())
+            .catch(log)
+            .then(finishBattle);
         return battle;
     };
     return {

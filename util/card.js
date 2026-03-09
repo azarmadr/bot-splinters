@@ -146,6 +146,7 @@ const Ru = {
         'Back to Basics': R.all((t) =>
             R.all(R.pipe(C.abilities, R.equals([])), R.drop(1, t)),
         ),
+        Backlash: R.F,
         'Born Again': R.F,
         'Up to Eleven': R.F,
         'Now You See Me...': R.F,
@@ -253,16 +254,6 @@ Ru.num = R.pipe(
     R.mapObjIndexed((v, k) => (v ? 2 ** +Ru.e[k] : 0)),
     R.values,
     R.sum,
-);
-Ru.map = R.pipe(
-    R.juxt([R.always([['Standard']]), R.splitEvery(1), R.of(Array)]),
-    R.unnest,
-    R.uniq,
-    R.juxt([R.map(R.join`,`), R.reverse]),
-    R.apply(R.zip),
-    R.fromPairs,
-    R.map(R.map(R.pipe(R.flip(R.prop)(Ru.e), R.curry(Math.pow)(2)))),
-    R.map(R.sum),
 );
 Ru.getRules = (ruleset) => {
     const team_restrictions = 'High Five,Four’s a Crowd';

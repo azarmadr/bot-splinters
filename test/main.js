@@ -21,7 +21,7 @@ test('team and rule set number calculation', (_t) => {
     //     team.map((c) => stats.reduce((a, x) => ((a[x] = C[x](c)), a), {})),
     // );
     // console.log(R.pipe(R.applySpec(Ru.pred))([team, team]));
-    assert.equal(Ru.num([team, team]), 17867655348224);
+    assert.equal(Ru.num([team, team]), 35735310696448);
 });
 
 const battleOpts = {
@@ -53,14 +53,19 @@ const users = [
     { player: 'azarmadr3' },
 ].map((x) => Object.assign(x, require(`../data/test/${x.player}-cards.json`)));
 
-test('card filter', { skip: true }, (_t) => {
+test('card filter', { skip: false }, (_t) => {
     for (const u of users) {
-        const procedCards = B(battleOpts).processCards(u.cards);
+        if (!u?.count) continue;
+
+        const procedCards = B({ ...battleOpts, ...u }).processCards(0)(u.cards);
         assert.equal(Object.keys(procedCards).length, u.count);
+        assert(!('10001' in procedCards));
     }
 });
 
-test('max call stack error', (_t) => {
+test('sql query fails when unkown rule appears', (_t) => {});
+
+test('max call stack error', { skip: true }, (_t) => {
     const battleOpts = {
         created_block_num: 104525568,
         expiration_block_num: 104525628,

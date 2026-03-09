@@ -101,7 +101,7 @@ def backup-processed [] {
   | chunks 999 | enumerate
   | each {|i| $i.item | save -f $'data/processed/battles-($i.index).json'}
 
-  open data\battles-processed.json | last 1111 | safe-backup
+  open data\battles-processed.json | last 111 | safe-backup
   insert-into-db
 }
 
@@ -129,14 +129,14 @@ def main [] {
     | handle-join-remnants
 
     let next = $users | first
-    print $'($c) ($next.p) ($next.d) out of ($users | length)'
+    print $'($c) ($next.p) ($next.d | date humanize) out of ($users | length)'
     get-battles $next.p
     | join $users p -o
     | tee {where bad? == true | length
       | if $in > 0 {print $'($in) players with < 999 rating'}}
     | where bad? != true | reject -o bad
     | handle-join-remnants
-    | update d {|i| if $i.p in $default_users.p {$in - 1hr} else {}}
+    | update d {|i| if $i.p in $default_users.p {$in - 3hr} else {}}
     | save -f $user_f
 
     # $users | rename name | grid | print

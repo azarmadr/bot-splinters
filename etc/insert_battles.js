@@ -10,7 +10,9 @@ if (args.values.all) {
     const dir = 'data/processed';
     fs.readdirSync(dir)
         .map((x) => path.join('..', dir, x))
-        .forEach((x) => files.push(x));
+        .forEach((x) => {
+            files.push(x);
+        });
 }
 console.log(files);
 

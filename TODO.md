@@ -11,3 +11,5 @@
     - [ ] mana of the team submission should not exceed the mana_cap
 
 - [ ] Remove minimist dependancy
+- [ ] utilize rulesets.json to automatically create rule processing from it
+- [ ] handle team size limiting rules

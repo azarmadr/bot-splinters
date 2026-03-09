@@ -14,9 +14,12 @@ const add2nm = (nm, io, s, t, r) => {
         nm[t] ??= {};
         nm[t][s] ??= [];
         nm[s][t] ??= [];
-        nm[s][t][0] = r;
-        nm[t][s][1] = r;
-    } else nm[s][t] = r;
+        nm[s][t][0] ??= r;
+        nm[t][s][1] ??= r;
+    } else {
+        // if (t in nm[s]) log('duplicate battle', s, t, r, nm[s][t]);
+        nm[s][t] ??= r;
+    }
 };
 
 // const BASE_MANA = 30;
@@ -67,9 +70,11 @@ module.exports = function BattleObj(battle) {
             R.toPairs,
             R.filter((c) => {
                 try {
-                    C.mana(c[0]);
+                    C.mana(c);
                     return true;
                 } catch (_e) {
+                    // TODO log if not already seen error comes
+                    // if log(e);
                     return false;
                 }
             }),
@@ -88,22 +93,6 @@ module.exports = function BattleObj(battle) {
     const manaQuery = [1, 2].map((x) => `m${x} = :mana`);
     // `(m${x} = :mana${mana > BASE_MANA ? ` OR m${x} <=${mana} AND m${x} > ${BASE_MANA}` : ``})`,
 
-    const query_string = `
-    SELECT w,l,d,team1,team2 FROM battles WHERE (
-      rules = '${R.pipe(
-          Ru.map,
-          R.toPairs,
-          R.map(R.filter(RA.isNotNaN)),
-          R.map(R.join`' AND r & `),
-          R.join` > 0 OR\n      rules = '`,
-      )(rules.attr)}'
-    ) AND (
-      ${manaQuery[0]} AND ${colorQuery[0]} OR
-      ${manaQuery[1]} AND ${colorQuery[1]}
-    )`;
-    log(query_string);
-    console.trace();
-    const query = db.prepare(query_string);
     const isPlayable = (by) => {
         by ??= 0;
         const cards = cardsOfPlayers[by]; // until we have some opponent_player cards
@@ -116,43 +105,79 @@ module.exports = function BattleObj(battle) {
     };
     function nodeMatrix(
         io = 0,
-        minWinningTeams = (222 * mana) / (rules.attr.length > 1 ? 9 : 1),
+        minWinningTeams = (22 * mana) / (rules.attr.length > 1 ? 9 : 1),
     ) {
         log({ minWinningTeams });
-        const nmSize = new Proxy({}, { get: (o, n) => (o[n] ??= 0) });
         // x=>((a,b)=>x>mana?x/a-mana/a:mana/b-x/b)(2,1),
         const timeLimit = Date.now() + 81e3;
         // RA.rangeStep(-1, Math.min(mana, BASE_MANA), 8)
-        const nm = R.range(1, mana)
-            .reverse()
-            .reduce((nm, Mana, _, arr) => {
-                if (timeLimit < Date.now()) return nm;
-                let count = 0;
-                for (const { w, l, d, team1, team2 } of query.iterate({
-                    mana: Math.floor(Mana),
-                })) {
-                    count++;
-                    if (w || d) nmSize[Mana] += +isPlayable(0)(team1);
-                    if (l || d) nmSize[Mana] += +isPlayable(0)(team2);
-                    const s = w ? team2 : team1,
-                        t = w ? team1 : team2;
-                    if (w === l) {
-                        add2nm(nm, io, s, t, 2);
-                        add2nm(nm, io, t, s, 2);
-                    } else {
-                        if (d) {
-                            add2nm(nm, io, s, t, 3);
-                            add2nm(nm, io, t, s, 1);
+        const possibleAttrRules = R.pipe(
+            R.juxt([R.of(Array), R.splitEvery(1), R.always([['Standard']])]),
+            R.unnest,
+            R.uniq,
+        )(rules.attr);
+        let nm = {};
+        for (const attrRule of possibleAttrRules) {
+            const query_string = `
+            SELECT w,l,d,team1,team2 FROM battles WHERE (
+              rules = '${R.pipe(
+                  R.juxt([
+                      R.always([['Standard']]),
+                      R.splitEvery(1),
+                      R.of(Array),
+                  ]),
+                  R.unnest,
+                  R.uniq,
+                  R.juxt([R.map(R.join`,`), R.reverse]),
+                  R.apply(R.zip),
+                  R.fromPairs,
+                  R.map(
+                      R.map(R.pipe(R.flip(R.prop)(Ru.e), R.curry(Math.pow)(2))),
+                  ),
+                  R.map(R.sum),
+                  R.toPairs,
+                  R.map(R.filter(RA.isNotNaN)),
+                  R.map(R.join`' AND r & `),
+                  R.join` > 0 OR\n      rules = '`,
+              )(attrRule)}'
+            ) AND (
+              ${manaQuery[0]} AND ${colorQuery[0]} OR
+              ${manaQuery[1]} AND ${colorQuery[1]}
+            )`;
+            log(query_string);
+            const query = db.prepare(query_string);
+            const nmSize = new Proxy({}, { get: (o, n) => (o[n] ??= 0) });
+            nm = R.range(1, mana)
+                .reverse()
+                .reduce((nm, Mana, _, arr) => {
+                    if (timeLimit < Date.now()) return nm;
+                    // let count = 0;
+                    for (const { w, l, d, team1, team2 } of query.iterate({
+                        mana: Math.floor(Mana),
+                    })) {
+                        // count++;
+                        if (w || d) nmSize[Mana] += +isPlayable(0)(team1);
+                        if (l || d) nmSize[Mana] += +isPlayable(0)(team2);
+                        const s = w ? team2 : team1,
+                            t = w ? team1 : team2;
+                        if (w === l) {
+                            add2nm(nm, io, s, t, 2);
+                            add2nm(nm, io, t, s, 2);
                         } else {
-                            add2nm(nm, io, s, t, 4);
+                            if (d) {
+                                add2nm(nm, io, s, t, 3);
+                                add2nm(nm, io, t, s, 1);
+                            } else {
+                                add2nm(nm, io, s, t, 4);
+                            }
                         }
                     }
-                }
-                log(`${rules}|${Mana}: ${nmSize[Mana]}/${count}`);
-                if (R.reduce(R.add, 0, R.values(nmSize)) > minWinningTeams)
-                    arr.length = 0;
-                return nm;
-            }, {});
+                    // log(`${rules}|${Mana}: ${nmSize[Mana]}/${count}`);
+                    if (R.reduce(R.add, 0, R.values(nmSize)) > minWinningTeams)
+                        arr.length = 0;
+                    return nm;
+                }, nm);
+        }
         return nm;
     }
     const ret = {
