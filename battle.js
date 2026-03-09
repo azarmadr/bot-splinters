@@ -1,6 +1,6 @@
 const R = require('ramda');
 const RA = require('ramda-adjunct');
-const { T, Ru, getRules, C } = require('./util/card');
+const { T, Ru, C } = require('./util/card');
 const { log, _dbug } = require('./util/dbug');
 
 const db = require('better-sqlite3')('./data/battles.db', {
@@ -25,11 +25,9 @@ module.exports = function BattleObj(battle) {
         ),
         myCards = {},
         oppCards = {},
-        rules = getRules(battle.ruleset, 1),
+        rules = Ru.getRules(battle.ruleset, 1),
         inactive = `${battle.inactive}${battle.ruleset.includes`Taking Sides` ? ',Gray' : ''}`,
-        opp = battle.opponent_player,
-        sortByWinRate = 0,
-        isModern = /modern/.test(battle.format);
+        sortByWinRate = 0;
     const activeColors = R.range(0, 24)
         .filter(
             (x) =>
@@ -68,30 +66,7 @@ module.exports = function BattleObj(battle) {
             return myCards;
         },
         set myCards(_) {
-            myCards = R.pipe(
-                R.toPairs,
-                R.filter(rules.byCard),
-                R.filter(
-                    (x) =>
-                        !inactive.includes(C.color(x)) &&
-                        (battle.format == 'foundation'
-                            ? [15]
-                            : [12, 14, 15]
-                        ).includes(C.tier(x)),
-                ),
-                R.fromPairs,
-            )(_);
-            // log(
-            //     R.map(
-            //         R.juxt([
-            //             R.identity,
-            //             C.color,
-            //             (x) => !inactive.includes(C.color(x)),
-            //             rules.byCard,
-            //             C.r,
-            //         ]),
-            //     )(R.difference(R.toPairs(_), R.toPairs(myCards))),
-            // );
+            myCards = _;
         },
         get oppCards() {
             return oppCards;
@@ -108,7 +83,6 @@ module.exports = function BattleObj(battle) {
         mana,
         rules,
         inactive,
-        opp,
         isPlayable,
         nodeMatrix(
             io = 0,

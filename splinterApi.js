@@ -1,60 +1,122 @@
-const { log, sleep, _elem } = require('./util');
+const R = require('ramda');
 const B = require('./battle');
+const { C, log, sleep, _elem } = require('./util');
 const puppeteer = require('puppeteer');
 const timeout = 5000;
 
-module.exports = (page) => ({
-    questClaim: async (q, _q) => {
-        log({ 'Claiming quest box': q.name });
-        await page
-            .evaluate(([q, _q]) => QuestClaimReward(q, _q), [q, _q])
-            .then(() => page.waitForSelector('.loading', { hidden: true }))
-            .then(() => _elem.click(page, '.card3d .card_img'))
-            .then(() => _elem.click(page, '#btnCloseOpenPack'))
-            .catch(
-                () =>
-                    log('failed to open Quest Box') ??
-                    page.evaluate('SM.HideLoading()'),
-            );
-    },
-    battle: async (type = 'Ranked', _opp = '', user) => {
-        log(`Finding ${type} match`);
-        await page.goto('https://splinterlands.com/battle-history');
-        // await page.waitForSelector('aria/chomper');
-        // await page.waitForSelector('aria/chomper', { hidden: true });
-        await sleep(7290);
-        await Promise.all([
-            page.evaluate(`[...document.querySelectorAll('button')]
-		.filter(x=>x.innerText === 'BATTLE')[0].click()`),
-            page.waitForNavigation(),
-        ]);
-
-        await sleep(2e3);
-        await page.evaluate(`[...document.querySelectorAll('button')]
-		.filter(x=>x.innerText === 'ENTER ARENA')[0].click()`);
-        const cb = await page.evaluate(`fetch(
-	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
-	    .then(x=>x.json())`);
-        try {
-            log(cb);
-            log(B(cb));
-        } catch (e) {
-            console.error(e);
-            await sleep(8e5);
-        }
-        await sleep(729);
-        return B(cb);
-    },
-    cards: async (player) => {
+// TODO merge into processCards
+const cards2Obj = (acc) => (cards) =>
+    cards
+        .filter(
+            (card) =>
+                !(card.market_id && card.market_listing_status === 0) &&
+                (!card.delegated_to || card.delegated_to === acc) &&
+                !(
+                    card.last_used_player !== acc &&
+                    Date.parse(card.last_used_date) > Date.now() - 86400000
+                ),
+        )
+        .reduce(
+            (agg, x) =>
+                R.mergeWith(R.max, agg, {
+                    [x.card_detail_id]: x.level,
+                }),
+            {},
+        );
+const processCards = ({ player, rules, inactive, format }) =>
+    R.pipe(
+        cards2Obj(player),
+        R.toPairs,
+        R.filter((c) => {
+            try {
+                C.mana(c);
+                return true;
+            } catch (_e) {
+                return false;
+            }
+        }),
+        R.filter(rules.byCard),
+        R.filter(
+            (x) =>
+                !inactive.includes(C.color(x)) &&
+                (format == 'foundation' ? [15] : [12, 14, 15]).includes(
+                    C.tier(x),
+                ),
+        ),
+        R.fromPairs,
+    );
+const splinterApi = (page) => {
+    const clickButtonWith = (name) =>
+        page.evaluate(`[...document.querySelectorAll('button')]
+		.filter(x=>x.innerText === '${name}')[0].click()`);
+    const getCards = async (player) => {
         const cards = await page.evaluate(
             `fetch("https://api.splinterlands.com/cards/collection/${player}")
 		.then(x=>x.json()).then(x=>x.cards)`,
         );
         log({ 'Obtaining Cards': player, '#cards': cards.length });
         return cards;
-    },
-});
-module.exports.login = async function login(page, user, _preMatch) {
+    };
+    return {
+        questClaim: async (q, _q) => {
+            log({ 'Claiming quest box': q.name });
+            await page
+                .evaluate(([q, _q]) => QuestClaimReward(q, _q), [q, _q])
+                .then(() => page.waitForSelector('.loading', { hidden: true }))
+                .then(() => _elem.click(page, '.card3d .card_img'))
+                .then(() => _elem.click(page, '#btnCloseOpenPack'))
+                .catch(
+                    () =>
+                        log('failed to open Quest Box') ??
+                        page.evaluate('SM.HideLoading()'),
+                );
+        },
+        finishBattle: async () => {
+            await Promise.all([
+                clickButtonWith('BATTLE'),
+                page.waitForNavigation(),
+            ]);
+            await sleep(3e3);
+            await clickButtonWith('SKIP_BATTLE');
+        },
+        clickButtonWith,
+        battle: async (type = 'Ranked', _opp = '', user) => {
+            log(`Finding ${type} match`);
+            await page.goto('https://splinterlands.com/battle-history');
+            await sleep(7290);
+            await Promise.all([
+                clickButtonWith('BATTLE'),
+                page.waitForNavigation(),
+            ]);
+
+            await sleep(2e3);
+            await clickButtonWith('ENTER ARENA');
+            const cb = await page.evaluate(`fetch(
+	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
+	    .then(x=>x.json())`);
+            const battle = B(cb);
+            try {
+                log(cb);
+            } catch (e) {
+                console.error(e);
+                await sleep(8e5);
+            }
+            await sleep(729);
+            [battle.myCards, battle.oppCards] = await Promise.all(
+                [user.account, cb.opponent_player]
+                    .filter((x) => x !== '???')
+                    .map((account) =>
+                        getCards(account)
+                            .then(processCards({ ...cb, rules: battle.rules }))
+                            .catch(log),
+                    ),
+            );
+            return battle;
+        },
+        getCards,
+    };
+};
+async function login(page, user, _preMatch) {
     log('logging');
     await page.goto('https://splinterlands.com/login/email');
     await sleep(5e3);
@@ -85,5 +147,6 @@ module.exports.login = async function login(page, user, _preMatch) {
         `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
     );
     await sleep(5e3);
-    return module.exports(page);
-};
+    return splinterApi(page);
+}
+module.exports = { login, processCards };

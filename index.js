@@ -60,13 +60,6 @@ async function _checkForUpdate() {
         });
 }
 const fn = args.UPDATE_BATTLE_DATA ? '' : '_new';
-async function _getBattles(player) {
-    const cl = 55;
-    if (args.UPDATE_BATTLE_DATA) return battles.fromUsers(player, { cl });
-    else {
-        battles.fromUsers(player, { fn, cl });
-    }
-}
 async function createBrowser(headless) {
     const l_browser = await puppeteer.launch({
         headless,
@@ -162,6 +155,7 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
             .catch(log),
     );
     await sleep(2e3);
+    // TODO fix for the gold
     if (C.color(Summoner) === 'Gold') {
         const splinter = T.splinter(B.inactive)(teamToPlay.team);
         log({ splinter });
@@ -307,24 +301,6 @@ async function logout(page) {
     await page.goto('https://splinterlands.com/logout').catch(log);
 }
 
-const cards2Obj = (acc) => (cards) =>
-    cards
-        .filter(
-            (card) =>
-                !(card.market_id && card.market_listing_status === 0) &&
-                (!card.delegated_to || card.delegated_to === acc) &&
-                !(
-                    card.last_used_player !== acc &&
-                    Date.parse(card.last_used_date) > Date.now() - 86400000
-                ),
-        )
-        .reduce(
-            (agg, x) =>
-                R.mergeWith(R.max, agg, {
-                    [x.card_detail_id]: x.level,
-                }),
-            {},
-        );
 (async () => {
     const tableList = [
             'account',
@@ -407,42 +383,11 @@ const cards2Obj = (acc) => (cards) =>
             }
 
             const nSM = await login(page, user, preMatch);
-            /* if (0 && args.CLAIM_REWARDS) {
-                // TODO not that important
-                // if (user.claimSeasonReward) await page.evaluate('claim()');
-                if (user.claimQuestReward?.filter((x) => x)?.length === 2)
-                    await nSM
-                        .questClaim(...user.claimQuestReward)
-                        .then(() => sleep(4e3));
-            } */
             if (!args.SKIP_PRACTICE || user.isRanked) {
                 const B = await nSM.battle(user.battle, '', user);
-                B.myCards = await nSM
-                    .cards(user.account)
-                    .then(cards2Obj(user.account))
-                    .catch(
-                        (e) =>
-                            log(
-                                e,
-                                `cards collection api didnt respond. Did you use username?
-				avoid email!`,
-                            ) ?? {},
-                    );
-                B.oppCards =
-                    B.opp === '???'
-                        ? {}
-                        : await nSM
-                              .cards(B.opp)
-                              .then(cards2Obj(B.opp))
-                              .catch((e) => log(e, 'Opp Cards Failed') ?? {});
 
                 await startBotPlayMatch(B, page, user)
-                    .then(() =>
-                        console.log({
-                            '      ': ` ${Array(9).fill('    ').join(' ')} `,
-                            '         ': '        ',
-                        }),
-                    )
+                    .then(nSM.finishBattle)
                     .catch(async (e) => {
                         log(
                             e,
