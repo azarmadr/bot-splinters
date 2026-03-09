@@ -1,5 +1,5 @@
 const args = require('minimist')(process.argv.slice(2));
-const {args} = require('./util/common.js');
+const { args } = require('./util/common.js');
 const R = require('ramda');
 const { log, C, _dbug, _arr, F, _elem, sleep } = require('./util');
 const puppeteer = require('puppeteer');

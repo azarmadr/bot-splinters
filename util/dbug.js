@@ -17,17 +17,19 @@ process.stdin.on('keypress', (_, k) => {
     rl.moveCursor(process.stdout, 0, k && k.name === 'return' ? -1 : 0);
 });
 
-function sleep(ms, msg = '') {
+function sleep(ms, { msg, showTrace } = {}) {
     rlInterface.resume();
     process.stdout.write('\x1B[?25l');
     [...Array(27).keys()].forEach(() => {
         process.stdout.write('\u2591');
     });
     rl.cursorTo(process.stdout, 0);
-    const obj = {};
-    Error.captureStackTrace(obj, sleep);
-    const caller = obj.stack.replace('Error', '`sleep()` Called From');
-    console.log(caller);
+    if (showTrace) {
+        const obj = {};
+        Error.captureStackTrace(obj, sleep);
+        const caller = obj.stack.replace('Error', '`sleep()` Called From');
+        console.log(caller);
+    }
     return [...Array(27).keys()].reduce(
         (memo, e) =>
             memo.then(async () => {

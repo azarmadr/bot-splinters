@@ -1,6 +1,6 @@
 // Parsing .env
 const R = require('ramda');
-const {args} = require('./util/common.js');
+const { args } = require('./util/common.js');
 
 globalThis.practiceOn = true;
 Error.stackTraceLimit = 127;

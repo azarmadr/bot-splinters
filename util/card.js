@@ -264,15 +264,7 @@ Ru.map = R.pipe(
     R.map(R.map(R.pipe(R.flip(R.prop)(Ru.e), R.curry(Math.pow)(2)))),
     R.map(R.sum),
 );
-Ru.battleRule = (rs) => (teams) =>
-    getRules(rs)
-        .attr.filter((r) => {
-            if (!(r in Ru.pred)) throw new Error(`'${r}' not found`);
-            return !Ru.pred[r](teams);
-        })
-        .join() || 'Standard';
-
-const getRules = (ruleset) => {
+Ru.getRules = (ruleset) => {
     const team_restrictions = 'High Five,Four’s a Crowd';
     const { attr, card } = ruleset.split`|`.reduce(
         (rule, cr) => {
@@ -293,6 +285,14 @@ const getRules = (ruleset) => {
         byTeam: R.all(Ru.cardPred[card]),
     });
 };
+Ru.battleRule = (rs) => (teams) =>
+    Ru.getRules(rs)
+        .attr.filter((r) => {
+            if (!(r in Ru.pred)) throw new Error(`'${r}' not found`);
+            return !Ru.pred[r](teams);
+        })
+        .join() || 'Standard';
+
 /** Team helper functions in T object */
 const color2Deck = {
     Red: 'Fire',
@@ -342,4 +342,4 @@ Object.assign(T, {
     ),
 });
 
-module.exports = { C, Ru, getRules, T };
+module.exports = { C, Ru, T };

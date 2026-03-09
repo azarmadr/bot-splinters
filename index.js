@@ -1,7 +1,7 @@
 // Parsing .env
 const R = require('ramda');
 const { writeFileSync } = require('jsonfile');
-const {args} = require('./util/common.js');
+const { args } = require('./util/common.js');
 
 globalThis.practiceOn = 0;
 
@@ -18,10 +18,8 @@ const {
     _dbug: { table },
 } = require('./util');
 
-log`init`;
 const puppeteer = require('puppeteer');
 const { playableTeams } = require('./score');
-// const battles = require('./getBattles');
 const { login } = require('./splinterApi');
 
 // Logging function with save to a file
@@ -32,7 +30,6 @@ if (args.LOG) {
 
 const _go = 1;
 const sleepingTime = 6e4 * (args.SESSION_INTERVAL ?? 27);
-log`init1`;
 
 async function _checkForUpdate() {
     await fetch(
@@ -164,6 +161,7 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
             .then(clickElement)
             .catch(log),
     );
+    await sleep(2e3);
     if (C.color(Summoner) === 'Gold') {
         const splinter = T.splinter(B.inactive)(teamToPlay.team);
         log({ splinter });
@@ -177,7 +175,7 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
     for (const [mon] of Monsters) {
         //log({[`Playing ${C.name(mon)}`]:mon})
         await retryFor(3, 3000, _go, async () =>
-            page.$eval(`[data-card_detail_id="${mon}"]`, clickElement),
+            page.$eval(`[data-card_detail_id="${mon}"] img`, clickElement),
         );
     }
     if (notifyUser)
@@ -196,22 +194,6 @@ async function startBotPlayMatch(B, page, user) {
             oppCards: Object.keys(B.oppCards).length,
         },
     ]);
-    // if (Object.keys(oppCards).length)
-    //     table(
-    //         (__oppDeck = Object.entries(oppCards)
-    //             .map(([Id, Lvl]) => {
-    //                 return {
-    //                     [C.type(Id).slice(0, 3)]: C.name(Id),
-    //                     Id,
-    //                     Lvl,
-    //                     [C.color(Id).slice(0, 2)]: C.abilities([
-    //                         Id,
-    //                         Lvl,
-    //                     ]).join(),
-    //                 };
-    //             })
-    //             .sort((a, b) => ('Mon' in a) - ('Mon' in b))),
-    //     );
     // B.battles = await getBattles(B.opp).catch((e) => {
     //     log(e);
     //     return require('./data/battle_data.json');
@@ -226,28 +208,28 @@ async function startBotPlayMatch(B, page, user) {
         page,
         !args.HEADLESS && user.isRanked && !user.isStarter,
     ).catch(log);
-    await Promise.any([
-        page
-            .waitForSelector('#btnRumble', { timeout: 16e4 })
-            .then(() =>
-                page.evaluate(
-                    `startFightLoop();localStorage.setItem('sl:battle_speed', 6)`,
-                ),
-            )
-            .then(
-                () =>
-                    args.SKIP_REPLAY ||
-                    page.waitForSelector(
-                        'div.modal.fade.v2.battle-results.in',
-                        { timeout: 2e3 * B.mana },
-                    ),
-            ),
-        page.waitForSelector('div.modal.fade.v2.battle-results.in', {
-            timeout: 3e5,
-        }),
-    ])
-        .then(() => page.evaluate('SM.CurrentView.data').then(postBattle(user)))
-        .catch(() => log('Wrapping up Battle'));
+    // await Promise.any([
+    //     page
+    //         .waitForSelector('#btnRumble', { timeout: 16e4 })
+    //         .then(() =>
+    //             page.evaluate(
+    //                 `startFightLoop();localStorage.setItem('sl:battle_speed', 6)`,
+    //             ),
+    //         )
+    //         .then(
+    //             () =>
+    //                 args.SKIP_REPLAY ||
+    //                 page.waitForSelector(
+    //                     'div.modal.fade.v2.battle-results.in',
+    //                     { timeout: 2e3 * B.mana },
+    //                 ),
+    //         ),
+    //     page.waitForSelector('div.modal.fade.v2.battle-results.in', {
+    //         timeout: 3e5,
+    //     }),
+    // ])
+    //     .then(() => page.evaluate('SM.CurrentView.data').then(postBattle(user)))
+    //     .catch(() => log('Wrapping up Battle'));
 }
 const calculateECR = ({ capture_rate, last_reward_time }, { dec }) =>
     Math.min(
@@ -318,19 +300,11 @@ const preMatch =
             },
         ]);
     };
-const _outstanding_match = (u) =>
-    Promise.race([
-        fetch(
-            `https://api.splinterlands.io/players/outstanding_match?username=${u}`,
-        ).then((x) => x.json()),
-        new Promise((res) => setTimeout(res, 27e2, 1)),
-    ]).then((x) => {
-        log(u, x);
-        return x ? sleep(27e3).then(R.always(x)) : x;
-    });
 
 async function logout(page) {
-    await page.goto('https://splinterlands.com/login/email');
+    await sleep(1e4);
+    await page.goto('https://splinterlands.com').catch(log);
+    await page.goto('https://splinterlands.com/logout').catch(log);
 }
 
 const cards2Obj = (acc) => (cards) =>
@@ -494,12 +468,6 @@ const cards2Obj = (acc) => (cards) =>
             ),
         );
         if (!args.KEEP_BROWSER_OPEN) browser.close();
-        await battles.fromUsers(
-            users
-                .filter((u) => !args.SKIP_PRACTICE || u.isRanked)
-                .map((user) => user.account),
-            { depth: 1, fn },
-        );
         log(
             'Waiting for the next battle in',
             sleepingTime / 1000 / 60,
