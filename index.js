@@ -1,22 +1,17 @@
 // Parsing .env
-const R = require('ramda');
 const { writeFileSync } = require('jsonfile');
 const { args } = require('./util/common.js');
 
 const {
-    C,
     isLocked,
     rmLock,
     log,
-    T,
     A,
-    F: { retryFor },
     sleep,
     D: { table },
 } = require('./util');
 
 const puppeteer = require('puppeteer');
-const { playableTeams } = require('./score');
 const { login } = require('./splinterApi');
 
 // Logging function with save to a file
@@ -25,7 +20,6 @@ if (args.LOG) {
     console.log = require('./util/common.js').logger();
 }
 
-const continueAfterError = 1;
 const sleepingTime = 6e4 * (args.SESSION_INTERVAL ?? 27);
 
 async function _checkForUpdate() {
@@ -111,78 +105,7 @@ const _postBattle = (user) => (battle) => {
     } else user.won < 0 ? user.l++ : user.d++;
     user.netWon += user.won;
 };
-const clickElement = (e) => e.click();
-async function teamSelection(teamToPlay, B, page, notifyUser) {
-    const {
-        team: [Summoner, ...Monsters],
-        ...Stats
-    } = teamToPlay;
-    if (!B.rules.includes('Taking Sides')) {
-        const medusa_condition = Monsters.find((m) => m[0] === 17);
-        if (medusa_condition) medusa_condition[0] = 194;
-    }
-    table([
-        ...teamToPlay.team.map(([Id, Lvl]) => ({
-            [C.type(Id)]: C.name(Id),
-            Id,
-            Lvl,
-        })),
-    ]);
-    table({ Stats });
-    // if (notifyUser)
-    //   await page.evaluate(`var n=new Notification('Battle Ready');
-    // n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
-    await retryFor(3, 3000, !continueAfterError, async () =>
-        page
-            .waitForSelector(`[data-card_detail_id="${Summoner[0]}"]`, {
-                timeout: 1001,
-            })
-            .then(clickElement)
-            .catch(log),
-    );
-    await sleep(2e3);
-    // TODO fix for the gold
-    if (C.color(Summoner) === 'Gold') {
-        const splinter = T.splinter(B.inactive)(teamToPlay.team);
-        log({ splinter });
-        await retryFor(3, 3000, !continueAfterError, async () =>
-            page.$eval(
-                `[data-data-original-title="${splinter}"] label`,
-                clickElement,
-            ),
-        );
-    }
-    for (const [mon] of Monsters) {
-        //log({[`Playing ${C.name(mon)}`]:mon})
-        await retryFor(3, 3000, continueAfterError, async () =>
-            page.$eval(`[data-card_detail_id="${mon}"] img`, clickElement),
-        );
-    }
-    if (notifyUser)
-        await sleep(Math.min(60, Math.abs(args.PAUSE_BEFORE_SUBMIT)) * 1e3);
-    log('Team submitted, Waiting for opponent');
-}
-async function startBotPlayMatch(B, page) {
-    // TODO find better strategy B.sortByWinRate =
-    table([
-        {
-            ...R.filter((f) => !R.is(Function, f), B),
-            myCards: Object.keys(B.myCards).length,
-            oppCards: Object.keys(B.oppCards).length,
-        },
-    ]);
-    // B.battles = await getBattles(B.opp).catch((e) => {
-    //     log(e);
-    //     return require('./data/battle_data.json');
-    // });
-    const pt = playableTeams(B);
-    const [teamToPlay] = pt;
-    // team Selection
-    await teamSelection(teamToPlay, B, page, !args.HEADLESS).catch(log);
-    //     .then(() => page.evaluate('SM.CurrentView.data').then(postBattle(user)))
-    //     .catch(() => log('Wrapping up Battle'));
-}
-const preMatch =
+const _preMatch =
     (user) =>
     ({ Player, settings }) => {
         user.wRating = Player.rating;
@@ -300,11 +223,9 @@ async function logout(page) {
                 [page] = await browser.pages();
             }
 
-            const nSM = await login(page, user, preMatch);
-            const B = await nSM.battle(user.battle, '', user);
-
-            await startBotPlayMatch(B, page)
-                .then(nSM.finishBattle)
+            const nSM = await login(page, user, args);
+            const _battle = await nSM
+                .battle(user.battle, user)
                 .catch(async (e) => {
                     log(
                         e,

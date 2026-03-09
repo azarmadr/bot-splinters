@@ -184,9 +184,9 @@ const cardPosScore = (mycards) => (c, pos) =>
               pos
           ] ?? 0);
 S.betterTeam = (B) => (t) => {
-    const cps = cardPosScore(B.mycards);
+    const cps = cardPosScore(B.cardsOfPlayers[0]);
     const filteredCards = (nt) => (tc) =>
-        B.mycards.filter(
+        B.cardsOfPlayers[0].filter(
             (c) =>
                 C.isMon(c) &&
                 teamColorPass(nt)(c) &&
@@ -230,7 +230,7 @@ S.wBetterCards =
         betterTeam = S.betterTeam(B);
         if (B.rules.includes('Silenced Summoners')) {
             const smnrClrs = C.color(team[0]); //+(team.slice(1).some(c=>C.color(c)=='Gold')||T.colorSec(team)).replace(/Gray/,'RedWhiteBlueBlackGreen');
-            const bs = B.mycards
+            const bs = B.cardsOfPlayers[0]
                 .filter(
                     (c) =>
                         C.type(c) === 'Summoner' &&
@@ -249,6 +249,11 @@ S.wBetterCards =
                 team[0] = bs;
             }
         }
+        // TODO fix below issue
+        // if (!B.rules.includes('Taking Sides')) {
+        //     const medusa_condition = Monsters.find((m) => m[0] === 17);
+        //     if (medusa_condition) medusa_condition[0] = 194;
+        // }
         //team = betterTeam(team);
         //}
         return { team: betterTeam(team), ...stats };

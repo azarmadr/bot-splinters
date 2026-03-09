@@ -113,7 +113,7 @@ async function startBotPlayMatch(page, teamToPlay, B) {
         ...teamToPlay.team.map(([Id]) => ({
             [C.type(Id)]: C.name(Id),
             Id,
-            Lvl: B.myCards[Id],
+            Lvl: B.cardsOfPlayers[0][Id],
         })),
     ]);
     table({ Stats });
@@ -295,8 +295,8 @@ const findNewBattle = (pt, pt0, rules) => {
             console.table([
                 {
                     ...R.filter((f) => !R.is(Function, f), B),
-                    myCards: Object.keys(B.myCards).length,
-                    oppCards: Object.keys(B.oppCards).length,
+                    myCards: Object.keys(B.cardsOfPlayers[0]).length,
+                    oppCards: Object.keys(B.cardsOfPlayers[1]).length,
                 },
             ]);
 
@@ -329,12 +329,10 @@ const findNewBattle = (pt, pt0, rules) => {
                         ) ?? {},
                 );
 
-            B.myCards = user.cards;
-            B.oppCards = opp.cards;
+            B.cardsOfPlayers = [user.cards, opp.cards];
             const pt = playableTeams(B);
-            const B0 = B.clone;
-            B0.oppCards = user.cards;
-            B0.myCards = opp.cards;
+            const B0 = B.clone();
+            B0.cardsOfPlayers = [opp.cards, user.cards];
             if (opp.isStarter) B0.sortByWinRate = 1;
             const pt0 = playableTeams(B0);
             log({ pt: pt.length, pt0: pt0.length });

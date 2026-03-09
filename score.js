@@ -95,9 +95,11 @@ module.exports.playableTeams = (B) => {
         S.teamStats(nm, teams);
         A.normalizeMut(teams, 'ev', 2);
     }
-    B.mycards = Object.entries(B.myCards)
-        .filter((c) => !B.inactive.includes(C.color(c)) && B.rules.byCard(c))
-        .map((c) => [Number(c[0]), c[1], cardscores[c[0]]]);
+    B.cardsOfPlayers[0] = Object.entries(B.cardsOfPlayers[0]).map((c) => [
+        Number(c[0]),
+        c[1],
+        cardscores[c[0]],
+    ]);
 
     var pt = teams;
     if (B.sortByWinRate) {

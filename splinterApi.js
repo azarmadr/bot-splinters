@@ -1,51 +1,12 @@
 const R = require('ramda');
 const B = require('./battle');
-const { C, log, sleep, E } = require('./util');
+const { C, log, sleep, E, D, F } = require('./util');
 const puppeteer = require('puppeteer');
 const timeout = 5000;
+const continueAfterError = 1;
+const clickElement = (e) => e.click();
 
-// TODO merge into processCards
-const cards2Obj = (acc) => (cards) =>
-    cards
-        .filter(
-            (card) =>
-                !(card.market_id && card.market_listing_status === 0) &&
-                (!card.delegated_to || card.delegated_to === acc) &&
-                !(
-                    card.last_used_player !== acc &&
-                    Date.parse(card.last_used_date) > Date.now() - 86400000
-                ),
-        )
-        .reduce(
-            (agg, x) =>
-                R.mergeWith(R.max, agg, {
-                    [x.card_detail_id]: x.level,
-                }),
-            {},
-        );
-const processCards = ({ player, rules, inactive, format }) =>
-    R.pipe(
-        cards2Obj(player),
-        R.toPairs,
-        R.filter((c) => {
-            try {
-                C.mana(c);
-                return true;
-            } catch (_e) {
-                return false;
-            }
-        }),
-        R.filter(rules.byCard),
-        R.filter(
-            (x) =>
-                !inactive.includes(C.color(x)) &&
-                (format === 'foundation' ? [15] : [12, 14, 15]).includes(
-                    C.tier(x),
-                ),
-        ),
-        R.fromPairs,
-    );
-const splinterApi = (page) => {
+const splinterApi = (page, args) => {
     const clickButtonWith = (name) =>
         page.$$eval(
             'button',
@@ -68,6 +29,121 @@ const splinterApi = (page) => {
         }
         log('Waiting finished');
     };
+    const teamSelection = async (teams) => {
+        // TODO add a tui to select the best team
+        // TODO find better strategy B.sortByWinRate =
+        // TODO can get recent battles from the opponent
+
+        const teamToPlay = teams[0];
+        const {
+            team: [Summoner, ...Monsters],
+            ...Stats
+        } = teamToPlay;
+        D.table([
+            ...teamToPlay.team.map(([Id, Lvl]) => ({
+                [C.type(Id)]: C.name(Id),
+                Id,
+                Lvl,
+            })),
+        ]);
+        D.table({ Stats });
+        await F.retryFor(3, 3000, !continueAfterError, async () =>
+            page
+                .waitForSelector(`[data-card_detail_id="${Summoner[0]}"]`, {
+                    timeout: 1001,
+                })
+                .then(clickElement)
+                .catch(log),
+        );
+        await sleep(2e3);
+        // TODO fix for the gold
+        if (C.color(Summoner) === 'Gold') {
+            const splinter = T.splinter(B.inactive)(teamToPlay.team);
+            log({ splinter });
+            await F.retryFor(3, 3000, !continueAfterError, async () =>
+                page.$eval(
+                    `[data-data-original-title="${splinter}"] label`,
+                    clickElement,
+                ),
+            );
+        }
+        for (const [mon] of Monsters) {
+            //log({[`Playing ${C.name(mon)}`]:mon})
+            await F.retryFor(3, 3000, continueAfterError, async () =>
+                page.$eval(`[data-card_detail_id="${mon}"] img`, clickElement),
+            );
+        }
+        if (!args.HEADLESS)
+            await sleep(Math.min(60, Math.abs(args.PAUSE_BEFORE_SUBMIT)) * 1e3);
+        log('Team submitted, Waiting for opponent');
+        //     .then(() => page.evaluate('SM.CurrentView.data').then(postBattle(user)))
+        //     .catch(() => log('Wrapping up Battle'));
+    };
+    const finishBattle = async () => {
+        await Promise.all([
+            clickButtonWith('BATTLE'),
+            page.waitForNavigation(),
+        ]);
+        await page.waitForFunction(() => document.URL.match(/\/battle\/sl_/), {
+            timeout: 1e5,
+            polling: 1e4,
+        });
+        await sleep(8e3);
+        await clickButtonWith('SKIP BATTLE').catch((x) => {
+            log(x);
+            return sleep(8e4);
+        });
+        await sleep(3e3);
+    };
+    const battle = async (type = 'Ranked', user) => {
+        log(`Finding ${type} match`);
+        await Promise.all([
+            page.goto('https://splinterlands.com/battle-history'),
+            page.waitForNavigation(),
+        ]);
+        await page.waitForFunction(
+            () =>
+                [...document.querySelectorAll('button')]
+                    .map((x) => x.innerText)
+                    .includes('BATTLE'),
+            {},
+        );
+        await waitForChomperToHide();
+        await sleep(8e3);
+        await Promise.all([
+            clickButtonWith('BATTLE'),
+            page.waitForNavigation(),
+        ]);
+
+        await sleep(2e3);
+        await clickButtonWith('ENTER ARENA');
+        const cb = await page.evaluate(`fetch(
+	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
+	    .then(x=>x.json())`);
+        const battle = B(cb);
+        await sleep(729);
+        battle.cardsOfPlayers = await Promise.all(
+            [user.account, cb.opponent_player]
+                .filter((x) => x !== '???')
+                .map((account, index) =>
+                    getCards(account)
+                        .then(battle.processCards(index))
+                        .catch(log),
+                ),
+        );
+        D.table([
+            {
+                ...R.filter((f) => !R.is(Function, f), battle),
+                cardsOfPlayers: battle.cardsOfPlayers.map(
+                    (x) => Object.keys(x).length,
+                ),
+            },
+        ]);
+        await teamSelection(battle.playableTeams()).then(
+            finishBattle,
+        );
+        return battle;
+    };
     return {
         questClaim: async (q, _q) => {
             log({ 'Claiming quest box': q.name });
@@ -82,71 +158,13 @@ const splinterApi = (page) => {
                         page.evaluate('SM.HideLoading()'),
                 );
         },
-        finishBattle: async () => {
-            await Promise.all([
-                clickButtonWith('BATTLE'),
-                page.waitForNavigation(),
-            ]);
-            await page.waitForFunction(
-                () => document.URL.match(/\/battle\/sl_/),
-                { timeout: 1e5, polling: 1e4 },
-            );
-            await sleep(8e3);
-            await clickButtonWith('SKIP BATTLE').catch((x) => {
-                log(x);
-                return sleep(8e4);
-            });
-            await sleep(3e3);
-        },
+        finishBattle,
         clickButtonWith,
-        battle: async (type = 'Ranked', _opp = '', user) => {
-            log(`Finding ${type} match`);
-            await Promise.all([
-                page.goto('https://splinterlands.com/battle-history'),
-                page.waitForNavigation(),
-            ]);
-            await page.waitForFunction(
-                () =>
-                    [...document.querySelectorAll('button')]
-                        .map((x) => x.innerText)
-                        .includes('BATTLE'),
-                {},
-            );
-            await waitForChomperToHide();
-            await sleep(8e3);
-            await Promise.all([
-                clickButtonWith('BATTLE'),
-                page.waitForNavigation(),
-            ]);
-
-            await sleep(2e3);
-            await clickButtonWith('ENTER ARENA');
-            const cb = await page.evaluate(`fetch(
-	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
-	    .then(x=>x.json())`);
-            const battle = B(cb);
-            try {
-                log(cb);
-            } catch (e) {
-                console.error(e);
-                await sleep(8e5);
-            }
-            await sleep(729);
-            [battle.myCards, battle.oppCards] = await Promise.all(
-                [user.account, cb.opponent_player]
-                    .filter((x) => x !== '???')
-                    .map((account) =>
-                        getCards(account)
-                            .then(processCards({ ...cb, rules: battle.rules }))
-                            .catch(log),
-                    ),
-            );
-            return battle;
-        },
+        battle,
         getCards,
     };
 };
-async function login(page, user) {
+async function login(page, user, args) {
     log('logging');
     await page.goto('https://splinterlands.com/login/email');
     await sleep(5e3);
@@ -177,6 +195,6 @@ async function login(page, user) {
         `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
     );
     await sleep(5e3);
-    return splinterApi(page);
+    return splinterApi(page, args);
 }
-module.exports = { login, processCards };
+module.exports = { login };
