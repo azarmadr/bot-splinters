@@ -139,9 +139,7 @@ const splinterApi = (page, args) => {
                 ),
             },
         ]);
-        await teamSelection(battle.playableTeams()).then(
-            finishBattle,
-        );
+        await teamSelection(battle.playableTeams()).catch(log).then(finishBattle);
         return battle;
     };
     return {

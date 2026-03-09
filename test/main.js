@@ -1,3 +1,4 @@
+const { printTable } = require('console-table-printer');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { C, T, Ru } = require('../util/card.js');
@@ -87,7 +88,7 @@ test('max call stack error', (_t) => {
         .flatMap((p) => users.filter((x) => x.player === p))
         .map((x, i) => battle.processCards(i)(x.cards));
     console.log(battle.cardsOfPlayers);
-    console.table([
+    printTable([
         {
             ...R.filter((f) => !R.is(Function, f), battle),
             cardsOfPlayers: battle.cardsOfPlayers.map(
@@ -95,7 +96,7 @@ test('max call stack error', (_t) => {
             ),
         },
     ]);
-    console.log(battle.playableTeams());
+    battle.playableTeams();
     assert.equal(1, 2);
 });
 

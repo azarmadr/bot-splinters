@@ -1,4 +1,5 @@
 const R = require('ramda');
+const Belt = require('@mobily/ts-belt');
 const { log, S, T, C, A, F, D } = require('./util');
 const dotP = (x, y) => Object.keys(x).reduce((sc, k) => sc + x[k] * y[k], 0);
 const defaultScores = { w: 0, _w: 0, l: 0, _l: 0, d: 0, _d: 0, count: 0 };
@@ -30,6 +31,7 @@ const setScores = (scores, B) => {
         }
     return nm;
 };
+const printConf = { columns: [{ name: 'team', maxLen: 35 }] };
 globalThis.practiceOn = 0;
 module.exports.playableTeams = (B) => {
     const scores = new Proxy(
@@ -102,16 +104,23 @@ module.exports.playableTeams = (B) => {
     ]);
 
     var pt = teams;
+    const tablePrinter = (x) =>
+        Belt.pipe(
+            x,
+            Belt.A.take(6),
+            Belt.A.map(
+                Belt.D.updateUnsafe(
+                    'team',
+                    Belt.A.map((c) => [C.name(c), c[1]].join(', ')),
+                ),
+            ),
+            (x) => D.table(x, printConf),
+        );
     if (B.sortByWinRate) {
         pt = pt.slice(0, 27);
         pt.sort((_) => Math.random() * 2 - 1);
     }
-    D.table(
-        pt.slice(0, 5).map(({ team, ...s }) => ({
-            team: team.map((c) => [C.name(c), c[1]]).join(),
-            ...s,
-        })),
-    );
+    tablePrinter(pt);
     if (!B.sortByWinRate) {
         if (practiceOn) {
             R.pipe(
@@ -132,45 +141,22 @@ module.exports.playableTeams = (B) => {
             // pt=pt.slice(0,9);
             // pt.sort(_=>Math.random()*2-1)
         } else {
-            log({ 'sort by': 'adv' });
-            pt = R.sortBy((x) => -x.adv, pt);
-            D.table(
-                pt.slice(0, 5).map(({ team, ...s }) => ({
-                    team: team.map((c) => [C.name(c), c[1]]).join(),
-                    ...s,
-                })),
-            );
-            log({ 'sort by': 'loss-win' });
-            pt = R.sortBy((x) => x._l - x._w, pt);
-            D.table(
-                pt.slice(0, 5).map(({ team, ...s }) => ({
-                    team: team.map((c) => [C.name(c), c[1]]).join(),
-                    ...s,
-                })),
-            );
-            log({ 'sort by': 'ev' });
-            pt = R.sortBy((b) => -b.ev, pt);
-            D.table(
-                pt.slice(0, 5).map(({ team, ...s }) => ({
-                    team: team.map((c) => [C.name(c), c[1]]).join(),
-                    ...s,
-                })),
-            );
-            log({ 'sort by': 'aScore+ev' });
-            pt = R.sortWith(
-                [
-                    (x) => x.aScore ** 2 + x.ev ** 2 * 1.27,
-                    (x) => x.score,
-                    (x) => x.ev,
-                ].map((fn) => R.descend(fn)),
-                pt,
-            );
-            D.table(
-                pt.slice(0, 5).map(({ team, ...s }) => ({
-                    team: team.map((c) => [C.name(c), c[1]]).join(),
-                    ...s,
-                })),
-            );
+            for (const [name, fn] of Belt.D.toPairs({
+                adv: R.sortBy((x) => -x.adv),
+                'loss-win': R.sortBy((x) => x._l - x._w),
+                ev: R.sortBy((b) => -b.ev),
+                'aScore+ev': R.sortWith(
+                    [
+                        (x) => x.aScore ** 2 + x.ev ** 2 * 1.27,
+                        (x) => x.score,
+                        (x) => x.ev,
+                    ].map((fn) => R.descend(fn)),
+                ),
+            })) {
+                log(name);
+                pt = fn(pt);
+                tablePrinter(pt);
+            }
         }
     }
     return pt.slice(0, 27).map(S.wBetterCards(B));

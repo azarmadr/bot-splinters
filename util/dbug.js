@@ -1,3 +1,4 @@
+const { printTable } = require('console-table-printer');
 const R = require('ramda');
 const D = {},
     F = {},
@@ -104,15 +105,20 @@ D.in1 = (...m) => {
     console.log(`tt: ${m}`);
     rl.moveCursor(process.stdout, 0, -1);
 };
-D.table = (m) => {
-    const toFixed = (o) => {
+D.table = (m, opts = {}) => {
+    const applySimpleEdits = (o) => {
+        const n = Array.isArray(o) ? [] : {};
         for (k in o) {
-            if (!Number.isNaN(+o[k])) o[k] = Number(Number(o[k]).toFixed(3));
-            if (typeof o[k] === 'object') toFixed(o[k]);
+            if (!Number.isNaN(+o[k])) n[k] = Number(Number(o[k]).toFixed(2));
+            else if (typeof o[k] === 'object') n[k] = applySimpleEdits(o[k]);
+            else n[k] = o[k];
+            // if (typeof o[k] === 'string') n[k] = o[k].replace(
+            //     /(?![^\n]{1,32}$)([^\n]{1,32})\s/g, '$1\n'
+            // );
         }
+        return n;
     };
-    toFixed(m);
-    console.table(m);
+    printTable(applySimpleEdits(m), opts);
     try {
         rl.moveCursor(process.stdout, 0, -1);
         log();
