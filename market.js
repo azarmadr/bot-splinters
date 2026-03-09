@@ -1,7 +1,7 @@
-const args = require('minimist')(process.argv.slice(2));
+const _args = require('minimist')(process.argv.slice(2));
 const { args } = require('./util/common.js');
 const R = require('ramda');
-const { log, C, _dbug, _arr, F, _elem, sleep } = require('./util');
+const { log, C, D, A, F, E, sleep } = require('./util');
 const puppeteer = require('puppeteer');
 const headless = 0;
 
@@ -72,8 +72,8 @@ const cb = (acc) => (x) =>
         (r) =>
             leagues.reduce(
                 ([cp0, cp1], { min_rating, min_power }) => {
-                    if (min_rating <= r) _dbug.tt.cp = [cp1, min_power];
-                    return min_rating > r ? [cp0, cp1] : _dbug.tt.cp;
+                    if (min_rating <= r) D.tt.cp = [cp1, min_power];
+                    return min_rating > r ? [cp0, cp1] : D.tt.cp;
                 },
                 [0, 0],
             )[args.l ? 1 : 0],
@@ -96,12 +96,12 @@ const cb = (acc) => (x) =>
                 1e3,
                 args.c ?? Math.min(15e3, leaguesRating(rating)),
             );
-            delete _dbug.tt.cp;
+            delete D.tt.cp;
             log({ cpu, collection_power });
             if (!starter_pack_purchase || collection_power >= cpu) break;
             const cp = Math.max(101, cpu - collection_power);
             log(cp, args.c);
-            _dbug.table({
+            D.table({
                 [account]: {
                     collection_power,
                     'card ids': card_ids.length,
@@ -112,7 +112,7 @@ const cb = (acc) => (x) =>
             await page.evaluate(`SM.ShowMarket('rentals')`);
             await page.waitForSelector('.loading', { hidden: true });
             await page.select('#filter-sort', 'price');
-            await _elem.click(
+            await E.click(
                 page,
                 `.filter-section-foil .filter-option-button:nth-child(2) > label`,
             );
@@ -199,17 +199,17 @@ const cb = (acc) => (x) =>
                             ),
                         )
                     ).reduce(
-                        _arr.indexOfminBy((x) => (x < lpDec ? x : undefined)),
+                        A.indexOfminBy((x) => (x < lpDec ? x : undefined)),
                         -1,
                     );
                     if (id > -1) {
-                        await _elem.click(
+                        await E.click(
                             page,
                             `tr:nth-child(${id + 1}) .card-checkbox`,
                         );
-                        await _elem
-                            .click(page, '#btn_buy')
-                            .then(R.always(sleep(333)));
+                        await E.click(page, '#btn_buy').then(
+                            R.always(sleep(333)),
+                        );
                         await page
                             .waitForSelector('#txt_rent_days')
                             .then(R.always(sleep(33)))
@@ -219,7 +219,7 @@ const cb = (acc) => (x) =>
                             .then(() =>
                                 page.type('#txt_rent_days', rentDuration(ends)),
                             );
-                        await _elem.click(page, '#btn_rent_popup_rent');
+                        await E.click(page, '#btn_rent_popup_rent');
                         if (account !== 'azarmadr3')
                             await page
                                 .waitForSelector('#active_key', {
@@ -230,7 +230,7 @@ const cb = (acc) => (x) =>
                                 .then(() =>
                                     page.type('#active_key', active_key),
                                 )
-                                .then(() => _elem.click(page, '#approve_tx'))
+                                .then(() => E.click(page, '#approve_tx'))
                                 .catch(() => page.evaluate(`SM.HideDialog()`));
                         await page
                             .waitForSelector('.loading', {
@@ -249,7 +249,7 @@ const cb = (acc) => (x) =>
                 log(e);
             }
             await sleep(3e2);
-            delete _dbug.tt.userSummary;
+            delete D.tt.userSummary;
         }
         await page.evaluate('SM.Logout()');
     }

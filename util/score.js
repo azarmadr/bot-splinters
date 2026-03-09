@@ -1,17 +1,17 @@
 const R = require('ramda');
-const { log, _dbug, F } = require('./dbug');
+const { log, F } = require('./dbug');
 const { C, T } = require('./card');
-const { _arr } = require('./array');
-const _score = {};
+const { A } = require('./array');
+const S = {};
 const _defGetter = (x) => new Proxy({}, { get: (o, n) => (o[n] ??= x) });
 
-_score.rmDanglingLinks = (nm) => {
+S.rmDanglingLinks = (nm) => {
     const _tail = { l: 0 },
         dlScore = _defGetter(0);
     do {
         _tail.k = [];
-        const inm = _score.nm2inm(nm);
-        //_dbug.tt.hrc = {level:_tail.l,nodes:Object.keys(nm).length,iNodes:inm.size};
+        const inm = S.nm2inm(nm);
+        //D.tt.hrc = {level:_tail.l,nodes:Object.keys(nm).length,iNodes:inm.size};
         for (const s in nm)
             if (!inm.has(s)) {
                 _tail.k.push(s);
@@ -23,14 +23,14 @@ _score.rmDanglingLinks = (nm) => {
             }
         _tail.l++;
     } while (_tail.k.length);
-    //_dbug.tt.hrc.forEach((x,i,a)=>{
+    //D.tt.hrc.forEach((x,i,a)=>{
     //  x['#SinkNodes']       = x.iNodes-a[i+1]?.iNodes;
     //  x['#DanglingNodes']   = x.nodes-a[i+1]?.nodes
-    //});delete _dbug.tt.hrc;
-    _arr.normalizeMut(dlScore, null, 1);
+    //});delete D.tt.hrc;
+    A.normalizeMut(dlScore, null, 1);
     return dlScore;
 };
-_score.eigenRank = (nm, { tolerance = 6, iters = 200 } = {}) => {
+S.eigenRank = (nm, { tolerance = 6, iters = 200 } = {}) => {
     const nodeScore = _defGetter(1);
     // power iterations
     // TODO Oscillating values
@@ -40,49 +40,27 @@ _score.eigenRank = (nm, { tolerance = 6, iters = 200 } = {}) => {
             if (nodeScore[s])
                 for (const t in nm[s]) nxt[t] += nm[s][t] * nodeScore[s];
         //if(Object.values(nxt).every(x=>!x))break;
-        _arr.normalizeMut(nxt);
+        A.normalizeMut(nxt);
         let diff = 0;
         for (const n in nxt) diff += Math.abs(nxt[n] - nodeScore[n]);
 
-        //_dbug.tt.iter = {iter,diff};
+        //D.tt.iter = {iter,diff};
         if (diff * 10 ** tolerance < 1) {
             log({ 'converged@': iter });
             break;
         }
         for (const e in nodeScore) nodeScore[e] = nxt[e];
-    } //delete _dbug.tt.iter;
+    } //delete D.tt.iter;
 
     if (Object.keys(nodeScore) < 9) log({ nodeScore });
-    _arr.normalizeMut(nodeScore, null, 2);
+    A.normalizeMut(nodeScore, null, 2);
     if (Object.keys(nodeScore) < 9) log({ nodeScore });
     return R.sortBy((x) => -x[1], Object.entries(nodeScore)).map(
         ([t, e], i) => ({ team: t, eigenValue: e, eigenRank: i }),
     );
 };
 
-_score.forQuest = (teams, { type, value, color } = {}) => {
-    log({ 'Playing for Quest': value ? { [value]: type } : type });
-    var i =
-        type === 'splinter'
-            ? teams.findIndex((t) => C.color(t.team[0]) === color)
-            : type === 'no_neutral'
-              ? teams.findIndex((t) =>
-                    t.team.every((c) => C.color(c) !== 'Gray'),
-                )
-              : type === 'ability'
-                ? teams.findIndex((t) =>
-                      t.team.some((c) => `${C.abilities(c)}`.includes(value)),
-                  )
-                : null;
-    if (i > 0 && i < 3) teams.unshift(...teams.splice(i, 1));
-};
-_score.bCopyBy = (
-    o,
-    battles,
-    biDirectional = 0,
-    predicate = R.always(1),
-    count,
-) => {
+S.bCopyBy = (o, battles, biDirectional = 0, predicate = R.always(1), count) => {
     for (const s in battles) {
         if (!predicate(s)) continue;
         for (const t in battles[s]) {
@@ -101,9 +79,9 @@ _score.bCopyBy = (
     }
     return o;
 };
-_score.teamStats = (battles, teams /* ,res2Score={w:3,d:1,l:0} */) => {
+S.teamStats = (battles, teams /* ,res2Score={w:3,d:1,l:0} */) => {
     const bs = Object.fromEntries(teams.map((x, i) => [x.team, i]));
-    const bOfTeams = _score.bCopyBy({}, battles, 0, R.has(R.__, bs));
+    const bOfTeams = S.bCopyBy({}, battles, 0, R.has(R.__, bs));
     /*{{_s
   Object.entries(bOfTeams)
     .flatMap(([s, v])=>Object.entries(v).flatMap(([t, r]) =>
@@ -113,19 +91,19 @@ _score.teamStats = (battles, teams /* ,res2Score={w:3,d:1,l:0} */) => {
       teams[bs[team]][k]= (teams[bs[team]]?.[k] ?? 0) + v), null)
   //teams.forEach((x,i)=>teams[i].s_= res2Score.w*(x.w_??0) + res2Score.l*(x.l_??0) + res2Score.d*(x.d_??0))
   //}}_s*/
-    _score
-        .eigenRank(bOfTeams)
-        .forEach(({ team: t, eigenRank: er, eigenValue: ev }) => {
+    S.eigenRank(bOfTeams).forEach(
+        ({ team: t, eigenRank: er, eigenValue: ev }) => {
             teams[bs[t]].er = er;
             teams[bs[t]].ev = ev;
-        });
+        },
+    );
 };
-_score.nm2inm = (nm) => {
+S.nm2inm = (nm) => {
     const inm = new Set();
     for (const s in nm) for (const t of Object.keys(nm[s])) inm.add(t);
     return inm;
 };
-// _score.cardAlias=ruleset=>c=>{ }
+// S.cardAlias=ruleset=>c=>{ }
 const filterAbilities = (ruleset, c) => (ablt) =>
     ruleset.split(',').every((rule) =>
         rule === 'Super Sneak'
@@ -159,7 +137,7 @@ const filterAbilities = (ruleset, c) => (ablt) =>
                                   : true,
     );
 const c2v = F.cached((a, b) => (b - a) ** 2 * (a < b)); //comparison2value
-_score.statCmp = F.cached((c, ruleset /* ,sStats=null */) => (oc) => {
+S.statCmp = F.cached((c, ruleset /* ,sStats=null */) => (oc) => {
     // sStats - abilities should also be filtered
     // some times attack and ranged or ..., will be similar, then sStats should play a hand
     const stats = [
@@ -186,14 +164,14 @@ _score.statCmp = F.cached((c, ruleset /* ,sStats=null */) => (oc) => {
         : 0;
 
     return ['speed', ...stats].every((t) => C[t](c) === C[t](oc)) &&
-        _arr.eqSet(...abilities)
+        A.eqSet(...abilities)
         ? c2v(C.mana(oc), C.mana(c))
         : (stats.every((t) => C[t](c) <= C[t](oc)) &&
-              _arr.subSet(...abilities) &&
+              A.subSet(...abilities) &&
               (!ruleset.includes('Reverse Speed') ||
                   C.speed(oc) <= C.speed(c))) *
               (stats.reduce((s, t) => s + c2v(C[t](c), C[t](oc)), 0) +
-                  _arr.strictSubSet(...abilities) +
+                  A.strictSubSet(...abilities) +
                   speed);
 });
 const teamColorPass = F.cached(
@@ -205,7 +183,7 @@ const cardPosScore = (mycards) => (c, pos) =>
         : (mycards.find((x) => x[0] === (Array.isArray(c) ? c[0] : c))?.[2]?.[
               pos
           ] ?? 0);
-_score.betterTeam = (B) => (t) => {
+S.betterTeam = (B) => (t) => {
     const cps = cardPosScore(B.mycards);
     const filteredCards = (nt) => (tc) =>
         B.mycards.filter(
@@ -221,7 +199,7 @@ _score.betterTeam = (B) => (t) => {
                 nt[i] = filteredCards(nt)(tc)
                     .reduce(
                         (bc, c) =>
-                            _score.statCmp(
+                            S.statCmp(
                                 bc,
                                 B.rules,
                             )(c) /*&&cps(bc,pos)<cps(c,pos)*/
@@ -242,14 +220,14 @@ _score.betterTeam = (B) => (t) => {
         );
         if (c) nTeam.push(c);
     }
-    if (R.not(R.equals(nTeam, t))) return _score.betterTeam(B)(nTeam);
+    if (R.not(R.equals(nTeam, t))) return S.betterTeam(B)(nTeam);
     return nTeam;
 };
-_score.wBetterCards =
+S.wBetterCards =
     (B) =>
     ({ team, ...stats }, idx) => {
         //if(!wBetterCards&&!sortByWinRate&&idx<3){
-        betterTeam = _score.betterTeam(B);
+        betterTeam = S.betterTeam(B);
         if (B.rules.includes('Silenced Summoners')) {
             const smnrClrs = C.color(team[0]); //+(team.slice(1).some(c=>C.color(c)=='Gold')||T.colorSec(team)).replace(/Gray/,'RedWhiteBlueBlackGreen');
             const bs = B.mycards
@@ -263,7 +241,7 @@ _score.wBetterCards =
                     team[0],
                 );
             if (!R.equals(bs, team[0])) {
-                log(bs, team[0], !_arr.eq(bs, team[0]));
+                log(bs, team[0], !A.eq(bs, team[0]));
                 log({
                     [`-${C.name(team[0])}`]: `+${C.name(bs)}`,
                     'Smnr@Team': idx,
@@ -275,5 +253,5 @@ _score.wBetterCards =
         //}
         return { team: betterTeam(team), ...stats };
     };
-module.exports = { _score };
-//let e = _score.eigenRank; e({a:{c:2},b:{c:2},c:{d:2,b:1}})
+module.exports = { S };
+//let e = S.eigenRank; e({a:{c:2},b:{c:2},c:{d:2,b:1}})

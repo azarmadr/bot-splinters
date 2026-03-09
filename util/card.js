@@ -1,6 +1,6 @@
 const R = require('ramda');
 const RA = require('ramda-adjunct');
-const { _arr: A } = require('./array');
+const { A } = require('./array');
 const sf = (x) =>
     require('sync-fetch')(String.raw(x), {
         headers: { Accept: 'application/vnd.citationstyles.csl+json' },
@@ -31,7 +31,7 @@ const re_map_cards = (cards) => {
     return newCards;
 };
 const __cards = re_map_cards(getFromAPI('cards', 'cards/get_details'));
-const SMsettings = getFromAPI('settings', 'settings');
+const _SMsettings = getFromAPI('settings', 'settings');
 const updateCards = (cards) => {
     log('Getting new cards');
     cards = re_map_cards(getFromAPI('cards', 'cards/get_details', 1));

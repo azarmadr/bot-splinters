@@ -1,7 +1,7 @@
 const R = require('ramda');
 const RA = require('ramda-adjunct');
-const { T, Ru, C } = require('./util/card');
-const { log, _dbug } = require('./util/dbug');
+const { T, Ru } = require('./util/card');
+const { log, D } = require('./util/dbug');
 
 const db = require('better-sqlite3')('./data/battles.db', {
     verbose: log,
@@ -10,10 +10,10 @@ const db = require('better-sqlite3')('./data/battles.db', {
 const add2nm = (nm, io, s, t, r) => {
     nm[s] ??= {};
     if (io) {
-        nm[s][t] ??= [];
-        nm[s][t][0] = r;
         nm[t] ??= {};
         nm[t][s] ??= [];
+        nm[s][t] ??= [];
+        nm[s][t][0] = r;
         nm[t][s][1] = r;
     } else nm[s][t] = r;
 };
@@ -126,7 +126,7 @@ module.exports = function BattleObj(battle) {
                 },
                 {},
             );
-            _dbug.table(nmSize);
+            D.table(nmSize);
             return nm;
         },
         unStarters(t) {

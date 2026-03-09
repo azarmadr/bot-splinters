@@ -1,5 +1,5 @@
 const R = require('ramda');
-const { log, _score, T, C, _arr, F, _dbug } = require('./util');
+const { log, S, T, C, A, F, D } = require('./util');
 const dotP = (x, y) => Object.keys(x).reduce((sc, k) => sc + x[k] * y[k], 0);
 const defaultScores = { w: 0, _w: 0, l: 0, _l: 0, d: 0, _d: 0, count: 0 };
 const pos = F.cached((i, l) => (i > l / 2 ? i - l : i));
@@ -37,14 +37,14 @@ module.exports.playableTeams = (B) => {
     );
 
     const nm = setScores(scores, B);
-    //_score.eigenRank(nm).forEach(x=>{scores[x.team].ter=x.eigenRank;scores[x.team].tev=x.eigenValue})
+    //S.eigenRank(nm).forEach(x=>{scores[x.team].ter=x.eigenRank;scores[x.team].tev=x.eigenValue})
     let teams = Object.entries(scores).map(([t, s]) => ({
         team: T(t),
         ...s,
         score: dotP({ _w: 1, _d: -0.54, _l: -1 }, s),
         adv: B.unStarters(t),
     }));
-    _arr.normalizeMut(teams, 'score', 2);
+    A.normalizeMut(teams, 'score', 2);
 
     const cardscores = teams.reduce(
         (cs, { team, score }) =>
@@ -81,29 +81,29 @@ module.exports.playableTeams = (B) => {
             )({}),
         ),
     )(teams);
-    _arr.normalizeMut(teams, 'score', 2);
+    A.normalizeMut(teams, 'score', 2);
     teams.forEach((x, i, arr) => {
         arr[i].rank = i;
         arr[i].aScore = Math.sqrt(x.score ** 2 + x.adv ** 2);
         arr[i]['s/c'] = x.score / x.count;
     });
-    _arr.normalizeMut(teams, 'aScore', 2);
-    _arr.normalizeMut(teams, 's/c', 2);
+    A.normalizeMut(teams, 'aScore', 2);
+    A.normalizeMut(teams, 's/c', 2);
     log('trimming', { filteredTeams_length }, 'to', teams.length);
     if (!B.sortByWinRate) {
-        _score.teamStats(nm, teams);
-        _arr.normalizeMut(teams, 'ev', 2);
+        S.teamStats(nm, teams);
+        A.normalizeMut(teams, 'ev', 2);
     }
     B.mycards = Object.entries(B.myCards)
         .filter((c) => !B.inactive.includes(C.color(c)) && B.rules.byCard(c))
         .map((c) => [Number(c[0]), c[1], cardscores[c[0]]]);
 
     var pt = teams;
-    if (B.sortByWinRate && practiceOn) {
+    if (B.sortByWinRate) {
         pt = pt.slice(0, 27);
         pt.sort((_) => Math.random() * 2 - 1);
     }
-    _dbug.table(
+    D.table(
         pt.slice(0, 5).map(({ team, ...s }) => ({
             team: team.map((c) => [C.name(c), c[1]]).join(),
             ...s,
@@ -124,14 +124,14 @@ module.exports.playableTeams = (B) => {
                     team: team.map((c) => [C.name(c), c[1]]).join(),
                     ...s,
                 })),
-                _dbug.table,
+                D.table,
             )(teams);
             // pt=pt.slice(0,9);
             // pt.sort(_=>Math.random()*2-1)
         } else {
             log({ 'sort by': 'adv' });
             pt = R.sortBy((x) => -x.adv, pt);
-            _dbug.table(
+            D.table(
                 pt.slice(0, 5).map(({ team, ...s }) => ({
                     team: team.map((c) => [C.name(c), c[1]]).join(),
                     ...s,
@@ -139,7 +139,7 @@ module.exports.playableTeams = (B) => {
             );
             log({ 'sort by': 'loss-win' });
             pt = R.sortBy((x) => x._l - x._w, pt);
-            _dbug.table(
+            D.table(
                 pt.slice(0, 5).map(({ team, ...s }) => ({
                     team: team.map((c) => [C.name(c), c[1]]).join(),
                     ...s,
@@ -147,7 +147,7 @@ module.exports.playableTeams = (B) => {
             );
             log({ 'sort by': 'ev' });
             pt = R.sortBy((b) => -b.ev, pt);
-            _dbug.table(
+            D.table(
                 pt.slice(0, 5).map(({ team, ...s }) => ({
                     team: team.map((c) => [C.name(c), c[1]]).join(),
                     ...s,
@@ -162,7 +162,7 @@ module.exports.playableTeams = (B) => {
                 ].map((fn) => R.descend(fn)),
                 pt,
             );
-            _dbug.table(
+            D.table(
                 pt.slice(0, 5).map(({ team, ...s }) => ({
                     team: team.map((c) => [C.name(c), c[1]]).join(),
                     ...s,
@@ -170,5 +170,5 @@ module.exports.playableTeams = (B) => {
             );
         }
     }
-    return pt.slice(0, 27).map(_score.wBetterCards(B));
+    return pt.slice(0, 27).map(S.wBetterCards(B));
 };

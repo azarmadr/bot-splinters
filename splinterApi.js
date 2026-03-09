@@ -1,6 +1,6 @@
 const R = require('ramda');
 const B = require('./battle');
-const { C, log, sleep, _elem } = require('./util');
+const { C, log, sleep, E } = require('./util');
 const puppeteer = require('puppeteer');
 const timeout = 5000;
 
@@ -39,7 +39,7 @@ const processCards = ({ player, rules, inactive, format }) =>
         R.filter(
             (x) =>
                 !inactive.includes(C.color(x)) &&
-                (format == 'foundation' ? [15] : [12, 14, 15]).includes(
+                (format === 'foundation' ? [15] : [12, 14, 15]).includes(
                     C.tier(x),
                 ),
         ),
@@ -63,8 +63,8 @@ const splinterApi = (page) => {
             await page
                 .evaluate(([q, _q]) => QuestClaimReward(q, _q), [q, _q])
                 .then(() => page.waitForSelector('.loading', { hidden: true }))
-                .then(() => _elem.click(page, '.card3d .card_img'))
-                .then(() => _elem.click(page, '#btnCloseOpenPack'))
+                .then(() => E.click(page, '.card3d .card_img'))
+                .then(() => E.click(page, '#btnCloseOpenPack'))
                 .catch(
                     () =>
                         log('failed to open Quest Box') ??
@@ -77,7 +77,10 @@ const splinterApi = (page) => {
                 page.waitForNavigation(),
             ]);
             await sleep(3e3);
-            await clickButtonWith('SKIP_BATTLE');
+            await clickButtonWith('SKIP_BATTLE').catch((x) => {
+                log(x);
+                return sleep(8e4);
+            });
         },
         clickButtonWith,
         battle: async (type = 'Ranked', _opp = '', user) => {
@@ -116,7 +119,7 @@ const splinterApi = (page) => {
         getCards,
     };
 };
-async function login(page, user, _preMatch) {
+async function login(page, user) {
     log('logging');
     await page.goto('https://splinterlands.com/login/email');
     await sleep(5e3);

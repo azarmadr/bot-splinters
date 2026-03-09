@@ -18,7 +18,7 @@ const {
     Ru,
     F: { retryFor },
     sleep,
-    _dbug: { in1, table },
+    D: { in1, table },
 } = require('./util');
 const { login } = require('./splinterApi');
 

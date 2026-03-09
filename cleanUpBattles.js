@@ -1,7 +1,7 @@
 /** Motive for the release tag 2.2:
  * Converting array of battles to objects of pattern {t1:{t2:result}} */
 const { writeFileSync } = require('jsonfile');
-const { _arr, _dbug, T, C, log } = require('./util');
+const { A, D, T, C, log } = require('./util');
 const fileName = './data/battle_data_rb.json';
 const nb = require(fileName);
 const { merge } = require('./battles-data');
@@ -55,13 +55,13 @@ const _mm_ = (rs, mana, crs) => {
                             ]),
                         )
                         .map((x) => `${x}`);
-                    _dbug.$1s.a = { sn, tn, s, t };
+                    D.$1s.a = { sn, tn, s, t };
                     c.s += merge(crs, { [sn]: { [tn]: crs[s][t] } }).c;
                     c.c += delete crs[s][t];
                 }
     }
-    if (_dbug.tt.n?.at(-1)?.rs !== rs.toString()) delete _dbug.tt.n;
-    if (c.c) _dbug.tt.n = { rs: `${rs}`, mana, ...c };
+    if (D.tt.n?.at(-1)?.rs !== rs.toString()) delete D.tt.n;
+    if (c.c) D.tt.n = { rs: `${rs}`, mana, ...c };
     Object.keys(c).forEach((k) => {
         ac[k] += c[k];
     });
@@ -88,11 +88,11 @@ const _RefractorBattlesToMana = (rs, mana, crs) => {
             c.e++;
         }
     }
-    if (_dbug.tt.n?.at(-1)?.rs !== rs.toString()) {
-        delete _dbug.tt.n;
+    if (D.tt.n?.at(-1)?.rs !== rs.toString()) {
+        delete D.tt.n;
         log(`${rs}`, mana);
     }
-    if (c.a) _dbug.tt.n = { ...c, rs: `${rs}`, mana };
+    if (c.a) D.tt.n = { ...c, rs: `${rs}`, mana };
     Object.keys(c).forEach((k) => {
         ac[k] += c[k];
     });
@@ -107,11 +107,11 @@ Object.entries(nb).forEach(([rs, rs_]) => {
               });
     });
 });
-delete _dbug.tt.n;
+delete D.tt.n;
 const LOG_AC = 0;
 if (LOG_AC) log(ac);
 else {
-    ac.e = _arr.rmEmpty(nb);
+    ac.e = A.rmEmpty(nb);
     log(ac);
     // if satisfied,rename the `battle_data-temp.json` to `battle_data.json`
     if (Object.values(ac).some((x) => x)) {

@@ -3,19 +3,16 @@ const R = require('ramda');
 const { writeFileSync } = require('jsonfile');
 const { args } = require('./util/common.js');
 
-globalThis.practiceOn = 0;
-
 const {
     C,
     isLocked,
     rmLock,
     log,
-    _score: { forQuest },
     T,
-    _arr,
+    A,
     F: { retryFor },
     sleep,
-    _dbug: { table },
+    D: { table },
 } = require('./util');
 
 const puppeteer = require('puppeteer');
@@ -28,7 +25,7 @@ if (args.LOG) {
     console.log = require('./util/common.js').logger();
 }
 
-const _go = 1;
+const continueAfterError = 1;
 const sleepingTime = 6e4 * (args.SESSION_INTERVAL ?? 27);
 
 async function _checkForUpdate() {
@@ -41,7 +38,7 @@ async function _checkForUpdate() {
             const version = require('./package.json')
                 .version.replace(/(\.0+)+$/, '')
                 .split('.');
-            if (_arr.checkVer(gitVersion, version)) {
+            if (A.checkVer(gitVersion, version)) {
                 const rl = require('node:readline/promises').createInterface({
                     input: process.stdin,
                     output: process.stdout,
@@ -59,7 +56,6 @@ async function _checkForUpdate() {
             }
         });
 }
-const fn = args.UPDATE_BATTLE_DATA ? '' : '_new';
 async function createBrowser(headless) {
     const l_browser = await puppeteer.launch({
         headless,
@@ -97,7 +93,7 @@ async function createBrowser(headless) {
     });
     return l_browser;
 }
-const postBattle = (user) => (battle) => {
+const _postBattle = (user) => (battle) => {
     user.won =
         battle.winner === user.account ? 1 : battle.winner === 'DRAW' ? 0 : -1;
     // log({
@@ -111,18 +107,8 @@ const postBattle = (user) => (battle) => {
     // if (pl) getBattles(pl).catch(log);
     if (user.won > 0) {
         log({ Result: `Won!!!${Array(battle.current_streak).fill('_.~"(')}` });
-        user.decWon = Number(
-            (user.decWon + Number.parseFloat(battle.reward_dec)).toFixed(3),
-        );
-        user.isRanked ? user.w++ : user.w_p++;
-    } else
-        user.won < 0
-            ? user.isRanked
-                ? user.l++
-                : user.l_p++
-            : user.isRanked
-              ? user.d++
-              : user.d_p++;
+        user.w++;
+    } else user.won < 0 ? user.l++ : user.d++;
     user.netWon += user.won;
 };
 const clickElement = (e) => e.click();
@@ -132,8 +118,8 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
         ...Stats
     } = teamToPlay;
     if (!B.rules.includes('Taking Sides')) {
-        const __medusa = Monsters.find((m) => m[0] === 17);
-        if (__medusa) __medusa[0] = 194;
+        const medusa_condition = Monsters.find((m) => m[0] === 17);
+        if (medusa_condition) medusa_condition[0] = 194;
     }
     table([
         ...teamToPlay.team.map(([Id, Lvl]) => ({
@@ -146,7 +132,7 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
     // if (notifyUser)
     //   await page.evaluate(`var n=new Notification('Battle Ready');
     // n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
-    await retryFor(3, 3000, !_go, async () =>
+    await retryFor(3, 3000, !continueAfterError, async () =>
         page
             .waitForSelector(`[data-card_detail_id="${Summoner[0]}"]`, {
                 timeout: 1001,
@@ -159,7 +145,7 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
     if (C.color(Summoner) === 'Gold') {
         const splinter = T.splinter(B.inactive)(teamToPlay.team);
         log({ splinter });
-        await retryFor(3, 3000, !_go, async () =>
+        await retryFor(3, 3000, !continueAfterError, async () =>
             page.$eval(
                 `[data-data-original-title="${splinter}"] label`,
                 clickElement,
@@ -168,19 +154,16 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
     }
     for (const [mon] of Monsters) {
         //log({[`Playing ${C.name(mon)}`]:mon})
-        await retryFor(3, 3000, _go, async () =>
+        await retryFor(3, 3000, continueAfterError, async () =>
             page.$eval(`[data-card_detail_id="${mon}"] img`, clickElement),
         );
     }
     if (notifyUser)
         await sleep(Math.min(60, Math.abs(args.PAUSE_BEFORE_SUBMIT)) * 999);
-    await retryFor(3, 300, _go, async () =>
-        page.$eval('.btn-green', clickElement),
-    );
     log('Team submitted, Waiting for opponent');
 }
-async function startBotPlayMatch(B, page, user) {
-    B.sortByWinRate = user.isStarter || !user.isRanked;
+async function startBotPlayMatch(B, page) {
+    // TODO find better strategy B.sortByWinRate =
     console.table([
         {
             ...R.filter((f) => !R.is(Function, f), B),
@@ -193,76 +176,29 @@ async function startBotPlayMatch(B, page, user) {
     //     return require('./data/battle_data.json');
     // });
     const pt = playableTeams(B);
-    // forQuest(pt, user.quest);
     const [teamToPlay] = pt;
     // team Selection
-    await teamSelection(
-        teamToPlay,
-        B,
-        page,
-        !args.HEADLESS && user.isRanked && !user.isStarter,
-    ).catch(log);
-    // await Promise.any([
-    //     page
-    //         .waitForSelector('#btnRumble', { timeout: 16e4 })
-    //         .then(() =>
-    //             page.evaluate(
-    //                 `startFightLoop();localStorage.setItem('sl:battle_speed', 6)`,
-    //             ),
-    //         )
-    //         .then(
-    //             () =>
-    //                 args.SKIP_REPLAY ||
-    //                 page.waitForSelector(
-    //                     'div.modal.fade.v2.battle-results.in',
-    //                     { timeout: 2e3 * B.mana },
-    //                 ),
-    //         ),
-    //     page.waitForSelector('div.modal.fade.v2.battle-results.in', {
-    //         timeout: 3e5,
-    //     }),
-    // ])
+    await teamSelection(teamToPlay, B, page, !args.HEADLESS).catch(log);
     //     .then(() => page.evaluate('SM.CurrentView.data').then(postBattle(user)))
     //     .catch(() => log('Wrapping up Battle'));
 }
-const calculateECR = ({ capture_rate, last_reward_time }, { dec }) =>
-    Math.min(
-        10000,
-        (parseInt(capture_rate, 10) || 10000) +
-            ((Date.now() - new Date(last_reward_time)) / 3000) *
-                dec.ecr_regen_rate,
-    ) / 100;
 const preMatch =
     (user) =>
     ({ Player, settings }) => {
-        user.dec = Player.balances.find((x) => x.token === 'DEC')?.balance;
-        const erc = calculateECR(Player, settings);
-        user.erc = erc;
         user.wRating = Player.rating;
         user.mRating = Player.modern_rating;
         const roll = 1; //Math.random()>0.27;
         user.rating = roll ? user.mRating : user.wRating;
-        user.isStarter = !Player.starter_pack_purchase;
         user.cp = Player.collection_power;
-        if (!user.isStarter) {
-            user.sp = Player.current_season_player?.rshares;
-            user.qp = Player.quest?.rshares;
-        }
+        user.sp = Player.current_season_player?.rshares;
+        user.qp = Player.quest?.rshares;
         user.claimSeasonReward =
             args.CLAIM_SEASON_REWARD &&
             Player?.season_reward.reward_packs > 0 &&
             Player.starter_pack_purchase;
-        user.isRanked =
-            user.isStarter ||
-            (erc > 75 && user.rating < 400) ||
-            erc > args.ERC_THRESHOLD ||
-            args.t - Date.now() >
-                ((99.81 - erc) * 3e5) / settings.dec.ecr_regen_rate;
 
-        user.battle = user.isRanked
-            ? `${roll ? 'Modern ' : ''}Ranked`
-            : 'Practice';
-        //if quest done claim reward
+        user.battle = `${roll ? 'Modern ' : ''}Ranked`;
+        // TODO if quest done claim reward
         user.claimQuestReward = [];
         user.quest = 0;
         if (Player.quest && !Player.quest.claim_trx_id) {
@@ -283,13 +219,10 @@ const preMatch =
             // }
         }
         Player.quest ??= {};
-        user.et = (100 - erc) / 12 / settings.dec.ecr_regen_rate;
         table([
             {
                 Rating: Player.rating,
-                ECRate: erc,
                 t: (args.t - Date.now()) / 36e5,
-                et: user.et,
                 ...Player.quest,
             },
         ]);
@@ -304,17 +237,13 @@ async function logout(page) {
 (async () => {
     const tableList = [
             'account',
-            'erc',
-            'et',
             'won',
             'cp',
-            'dec',
             'wRating',
             `mRating`,
             'sp',
             'qp',
             'netWon',
-            'decWon',
             'w',
             'l',
             'd',
@@ -323,7 +252,8 @@ async function logout(page) {
     const userData = (() => {
         try {
             return require('./data/user_data.json');
-        } catch (_e) {
+        } catch (e) {
+            log(e);
             return {};
         }
     })();
@@ -337,17 +267,9 @@ async function logout(page) {
             w: u?.w ?? 0,
             l: u?.l ?? 0,
             d: u?.d ?? 0,
-            w_p: 0,
-            l_p: 0,
-            d_p: 0,
             won: 0,
-            decWon: u?.decWon ?? 0,
             netWon: u?.netWon ?? 0,
-            erc: 100,
             rating: u?.rating ?? 0,
-            dec: u?.dec ?? 0,
-            isStarter: 0,
-            isRanked: 1,
             claimQuestReward: [],
             claimSeasonReward: 0,
         };
@@ -362,18 +284,14 @@ async function logout(page) {
     let [page] = await browser.pages();
     await page.goto('https://splinterlands.com/');
 
-    while (
-        !args.CLOSE_AFTER_ERC ||
-        users.some((x) => !x.isStarter && x.isRanked)
-    ) {
+    while (!args.CLOSE_AFTER_ERC) {
         //await checkForUpdate();
-        const aUsers = users.filter((u) => !args.SKIP_PRACTICE || u.isRanked);
         for (let user; ; ) {
-            user = aUsers.shift();
-            log({ aUsers: aUsers.map((x) => x.account) });
+            user = users.shift();
+            log({ users: users.map((x) => x.account) });
             if (!user) break;
             if (isLocked`.bot.playing.${user.account}`) {
-                aUsers.push(user);
+                users.push(user);
                 await sleep(1e3);
                 continue;
             }
@@ -383,20 +301,18 @@ async function logout(page) {
             }
 
             const nSM = await login(page, user, preMatch);
-            if (!args.SKIP_PRACTICE || user.isRanked) {
-                const B = await nSM.battle(user.battle, '', user);
+            const B = await nSM.battle(user.battle, '', user);
 
-                await startBotPlayMatch(B, page, user)
-                    .then(nSM.finishBattle)
-                    .catch(async (e) => {
-                        log(
-                            e,
-                            'failed to submit team, so waiting for user to input manually and close the session',
-                        );
-                        await sleep(81e3);
-                        throw e; //can we continue here without throwing error
-                    });
-            }
+            await startBotPlayMatch(B, page)
+                .then(nSM.finishBattle)
+                .catch(async (e) => {
+                    log(
+                        e,
+                        'failed to submit team, so waiting for user to input manually and close the session',
+                    );
+                    await sleep(81e3);
+                    throw e; //can we continue here without throwing error
+                });
             rmLock`.bot.playing.${user.account}`;
             logout(page);
             tableList.forEach((x, i) => {

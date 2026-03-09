@@ -19,11 +19,11 @@ const __IIFE_RM_EMPTY_OBJ = (o, p = o, count) => {
     }
     if (o !== p && R.isEmpty(o)) __IIFE_RM_EMPTY_OBJ(p, p, count);
 };
-const _arr = {
+const A = {
     enumify,
     eq: (a, b) =>
         a.length === b.length &&
-        a.every((v, i) => (Array.isArray(v) ? _arr.eq(v, b[i]) : v === b[i])),
+        a.every((v, i) => (Array.isArray(v) ? A.eq(v, b[i]) : v === b[i])),
     eqSet: (a, b) => {
         var [aSet, bSet] = [a, b].map((x) => new Set(x.map(JSON.stringify)));
         // To allow compare array of obj
@@ -51,7 +51,7 @@ const _arr = {
         a.length === b.length
             ? a.reduce(
                   (r, v, i) =>
-                      r || (Array.isArray(v) ? _arr.cmp(v, b[i]) : v - b[i]),
+                      r || (Array.isArray(v) ? A.cmp(v, b[i]) : v - b[i]),
                   0,
               )
             : a.length - b.length,
@@ -114,7 +114,7 @@ const _arr = {
         delete arr['@@functional/placeholder'];
         return arr;
     },
-    normalize: (arr, path, v) => _arr.normalizeMut(arr.slice(0), path, v),
+    normalize: (arr, path, v) => A.normalizeMut(arr.slice(0), path, v),
     rmEmpty: (o) => {
         const count = {
             e: 0,
@@ -125,5 +125,5 @@ const _arr = {
 };
 
 module.exports = {
-    _arr,
+    A,
 };

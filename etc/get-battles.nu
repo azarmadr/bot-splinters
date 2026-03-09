@@ -86,7 +86,7 @@ def main [] {
   let default_users = rg ACCOUNT= .env | lines | split row -r '[=,]' | skip | wrap p
   | insert d {0 | into datetime}
   if not ($user_f | path exists) { $default_users | save data/user.nuon }
-  mut c = 8.
+  mut c = 5.
   loop {
     $c -= random float
     if $c < 0 {break}
@@ -97,7 +97,7 @@ def main [] {
     | handle-join-remnants
 
     let next = $users | first
-    print $'($c) ($next)'
+    print $'($c) ($next.p) ($next.d) out of ($users | length)'
     get-battles $next.p
     | join $users p -o
     | handle-join-remnants

@@ -1,9 +1,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { C, T, Ru } = require('../util/card.js');
-const R = require('ramda');
+const _R = require('ramda');
 
-test('mana matches', (t) => {
+test('mana matches', (_t) => {
     assert.equal(C.mana([870]), 7);
     assert.equal(C.mana(870), 7);
 
@@ -12,7 +12,7 @@ test('mana matches', (t) => {
     }, /Error: id:'869' is probably not a card/);
 });
 
-test('team and rule set number calculation', (t) => {
+test('team and rule set number calculation', (_t) => {
     const team = T('827,4,850,4,830,2,824,4,855,2,567,4');
     // const stats = 'name,armor,attack,ranged,magic,abilities'.split`,`;
     // console.table(
@@ -22,7 +22,7 @@ test('team and rule set number calculation', (t) => {
     assert.equal(Ru.num([team, team]), 17867655348224);
 });
 
-test('card filter', (t) => {
+test('card filter', (_t) => {
     const { processCards } = require('../splinterApi.js');
     for (const u of [
         { player: 'enochroot', count: 28 },

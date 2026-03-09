@@ -1,8 +1,8 @@
 const R = require('ramda');
 const { writeFileSync } = require('jsonfile');
-const { log, _dbug, sleep } = require('./util/dbug');
+const { log, D, sleep } = require('./util/dbug');
 const { C, T, Ru } = require('./util/card');
-const { _arr } = require('./util/array');
+const { A } = require('./util/array');
 const getJson = (player) =>
     Promise.race([
         fetch(
@@ -110,7 +110,7 @@ async function getBattles(
             ),
         )
         .catch((e) => log(e) ?? []);
-    _dbug.in1(BC.pc++, BC.lastInsertRowid, player);
+    D.in1(BC.pc++, BC.lastInsertRowid, player);
     B.insertBattles(
         battleHistory.filterMap((b_old) => {
             const b = b_old;
@@ -124,8 +124,7 @@ async function getBattles(
                 ]),
             );
 
-            if (_arr.eq(...teams) || teams.some((x) => T(x).length < 2))
-                return [];
+            if (A.eq(...teams) || teams.some((x) => T(x).length < 2)) return [];
             if (drs({ rules: b.ruleset, mana: b.mana_cap, teams }))
                 _dbugBattles.push(b);
             b.teams = teams;
@@ -153,19 +152,17 @@ B.fromUsers = (players, { depth = 2, rFilter, drs, cl = 27 } = {}) =>
             .filter((_, i) => i < 243);
         if (practiceOn) log({ ul, depth });
         Promise.resolve(
-            _arr
-                .chunk(cl, ul)
-                .reduce(
-                    (memo, ul_chunk) =>
-                        memo.then((nuSet) =>
-                            Promise.all(
-                                ul_chunk.map((u) =>
-                                    getBattles(u, nuSet, rFilter, drs),
-                                ),
-                            ).then(() => nuSet),
-                        ),
-                    Promise.resolve(new Set()),
-                ),
+            A.chunk(cl, ul).reduce(
+                (memo, ul_chunk) =>
+                    memo.then((nuSet) =>
+                        Promise.all(
+                            ul_chunk.map((u) =>
+                                getBattles(u, nuSet, rFilter, drs),
+                            ),
+                        ).then(() => nuSet),
+                    ),
+                Promise.resolve(new Set()),
+            ),
         )
             .then((x) => (depth < 3 ? x : sleep(27e3).then((_) => x)))
             .then((nuSet) => {

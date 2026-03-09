@@ -1,8 +1,7 @@
-const { log, _dbug } = require('./util');
+const { log } = require('./util');
 const args = require('minimist')(process.argv.slice(2));
 const { readFileSync, writeFileSync } = require('jsonfile');
 
-globalThis.practiceOn = 0;
 const drs = args.drs ?? ''; // TODO
 const player = args.n ?? '';
 const depth = args.d ?? 2;

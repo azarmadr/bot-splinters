@@ -1,7 +1,7 @@
 const R = require('ramda');
-const _dbug = {},
+const D = {},
     F = {},
-    _elem = {};
+    E = {};
 
 var _wake;
 const rl = require('node:readline');
@@ -50,7 +50,7 @@ function sleep(ms, { msg, showTrace } = {}) {
 
 // TODO the above code from `const rl` was under try-catch
 // figure out if it still needs to be so
-_dbug.timer = class {
+D.timer = class {
     constructor() {
         this.t = Date.now();
     }
@@ -60,11 +60,11 @@ _dbug.timer = class {
         return `${t > 6e4 ? `${Math.floor(t / 6e4)}:` : ''}${Math.floor((t / 1e3) % 60)}`;
     }
 };
-_dbug.isEObj = (o) =>
+D.isEObj = (o) =>
     o &&
     Object.keys(obj).length === 0 &&
     Object.getPrototypeOf(obj) === Object.prototype;
-const _logTimer = new _dbug.timer();
+const _logTimer = new D.timer();
 const log = (...m) =>
     console.log(
         _logTimer._d,
@@ -72,7 +72,7 @@ const log = (...m) =>
             .split('\n')
             .find(
                 (c, i) =>
-                    (!c.includes('_dbug') && i === 2) ||
+                    (!c.includes('D') && i === 2) ||
                     (!c.includes('tt') && i === 3) ||
                     i === 4,
             )
@@ -81,7 +81,7 @@ const log = (...m) =>
     );
 const dbug = (...m) => process.env.displayDebug || log(...m);
 
-_dbug.f =
+D.f =
     (f, cb) =>
     (...args) => {
         const ret = f(...args);
@@ -89,8 +89,8 @@ _dbug.f =
         log('dbug', { ..._, ...(cb && { cb: cb(_) }) });
         return ret;
     };
-_dbug.r = (n) => (v) => (n-- && log(v)) || v;
-_dbug.t = (n) => {
+D.r = (n) => (v) => (n-- && log(v)) || v;
+D.t = (n) => {
     let arr = [],
         done = 1;
     return (v) => {
@@ -98,13 +98,13 @@ _dbug.t = (n) => {
         else if (done) done = console.table(arr) ?? 0;
     };
 };
-_dbug.in1 = (...m) => {
+D.in1 = (...m) => {
     rl.clearLine(process.stdout, 0);
     rl.cursorTo(process.stdout, 0);
     console.log(`tt: ${m}`);
     rl.moveCursor(process.stdout, 0, -1);
 };
-_dbug.table = (m) => {
+D.table = (m) => {
     const toFixed = (o) => {
         for (k in o) {
             if (!Number.isNaN(+o[k])) o[k] = Number(Number(o[k]).toFixed(3));
@@ -121,7 +121,7 @@ _dbug.table = (m) => {
     }
     false;
 };
-_dbug.tt = new Proxy(
+D.tt = new Proxy(
     {},
     {
         set: (obj, prop, v) => {
@@ -133,10 +133,10 @@ _dbug.tt = new Proxy(
         deleteProperty: (obj, prop) =>
             prop in obj &&
             obj[prop].length &&
-            (_dbug.table(obj[prop]) || delete obj[prop]),
+            (D.table(obj[prop]) || delete obj[prop]),
     },
 );
-_dbug.$1s = new Proxy(
+D.$1s = new Proxy(
     {},
     {
         set: (obj, prop, v) => (obj[prop] ??= 1 + log(v)),
@@ -168,12 +168,7 @@ F.cached = (fn, map = {}) =>
               ))
         : //(...arg)=>R.init(arg).reduce((map,a)=>map[a]??={},map)[R.last(arg)]??=F.cached(fn(...arg))
           fn;
-_elem.click = async (
-    page,
-    selector,
-    timeout = 20000,
-    delayBeforeClicking = 0,
-) => {
+E.click = async (page, selector, timeout = 20000, delayBeforeClicking = 0) => {
     await page
         .waitForSelector(selector, { timeout })
         .then((_) =>
@@ -182,15 +177,15 @@ _elem.click = async (
             ),
         );
 };
-_elem.getText = async (page, selector, timeout = 20000) => {
+E.getText = async (page, selector, timeout = 20000) => {
     const element = await page.waitForSelector(selector, { timeout });
     const text = await element.evaluate((el) => el.textContent);
     return text;
 };
-_elem.getTextByXpath = async (page, selector, timeout = 20000) => {
+E.getTextByXpath = async (page, selector, timeout = 20000) => {
     const element = await page.waitForXPath(selector, { timeout });
     const text = await element.evaluate((el) => el.textContent);
     return text;
 };
 
-module.exports = { log, sleep, _dbug, F, _elem, dbug };
+module.exports = { log, sleep, D, F, E, dbug };
