@@ -135,6 +135,7 @@ const postBattle = (user) => (battle) => {
               : user.d_p++;
     user.netWon += user.won;
 };
+const clickElement = (e) => e.click();
 async function teamSelection(teamToPlay, B, page, notifyUser) {
     const {
         team: [Summoner, ...Monsters],
@@ -155,48 +156,34 @@ async function teamSelection(teamToPlay, B, page, notifyUser) {
     // if (notifyUser)
     //   await page.evaluate(`var n=new Notification('Battle Ready');
     // n.addEventListener('click',(e)=>{window.focus();e.target.close();},false);`);
-    await page
-        .waitForSelector(`[data-card_detail_id="${Summoner[0]}"]`, {
-            timeout: 1001,
-        })
-        .catch(() =>
-            page
-                .reload()
-                .then(() => sleep(7001))
-                .then(() =>
-                    page.evaluate(
-                        'SM.HideDialog();SM.ShowCreateTeam(SM._currentBattle)',
-                    ),
-                ),
-        );
     await retryFor(3, 3000, !_go, async () =>
         page
-            .$eval(`[card_detail_id="${Summoner[0]}"] img`, (e) => e.click())
-            .then(() =>
-                page.waitForSelector('.item--summoner.item--selected', {
-                    timeout: 1e3,
-                }),
-            ),
+            .waitForSelector(`[data-card_detail_id="${Summoner[0]}"]`, {
+                timeout: 1001,
+            })
+            .then(clickElement)
+            .catch(log),
     );
     if (C.color(Summoner) === 'Gold') {
         const splinter = T.splinter(B.inactive)(teamToPlay.team);
         log({ splinter });
         await retryFor(3, 3000, !_go, async () =>
-            page.$eval(`[data-original-title="${splinter}"] label`, (e) =>
-                e.click(),
+            page.$eval(
+                `[data-data-original-title="${splinter}"] label`,
+                clickElement,
             ),
         );
     }
     for (const [mon] of Monsters) {
         //log({[`Playing ${C.name(mon)}`]:mon})
         await retryFor(3, 3000, _go, async () =>
-            page.$eval(`[card_detail_id="${mon}"] img`, (e) => e.click()),
+            page.$eval(`[data-card_detail_id="${mon}"]`, clickElement),
         );
     }
     if (notifyUser)
         await sleep(Math.min(60, Math.abs(args.PAUSE_BEFORE_SUBMIT)) * 999);
     await retryFor(3, 300, _go, async () =>
-        page.$eval('.btn-green', (e) => e.click()),
+        page.$eval('.btn-green', clickElement),
     );
     log('Team submitted, Waiting for opponent');
 }
@@ -230,7 +217,7 @@ async function startBotPlayMatch(B, page, user) {
     //     return require('./data/battle_data.json');
     // });
     const pt = playableTeams(B);
-    forQuest(pt, user.quest);
+    // forQuest(pt, user.quest);
     const [teamToPlay] = pt;
     // team Selection
     await teamSelection(
@@ -343,33 +330,7 @@ const _outstanding_match = (u) =>
     });
 
 async function logout(page) {
-    await puppeteer.Locator.race([
-        page.locator('::-p-aria(Toggle Settings Menu)'),
-        page.locator('#radix-«r14»'),
-        page.locator('::-p-xpath(//*[@id=\\"radix-«r14»\\"])'),
-        page.locator(':scope >>> #radix-«r14»'),
-    ])
-        .setTimeout(5e3)
-        .click({
-            offset: {
-                x: 5.577392578125,
-                y: 11.70909309387207,
-            },
-        });
-    await puppeteer.Locator.race([
-        page.locator('::-p-aria(Log Out)'),
-        page.locator('div.c-RGCbG-ifssjtQ-css'),
-        page.locator('::-p-xpath(//*[@id=\\"radix-«r15»\\"]/div[8])'),
-        page.locator(':scope >>> div.c-RGCbG-ifssjtQ-css'),
-        page.locator('::-p-text(Log Out)'),
-    ])
-        .setTimeout(5e3)
-        .click({
-            offset: {
-                x: 890,
-                y: 275,
-            },
-        });
+    await page.goto('https://splinterlands.com/login/email');
 }
 
 const cards2Obj = (acc) => (cards) =>
@@ -451,8 +412,6 @@ const cards2Obj = (acc) => (cards) =>
     let [page] = await browser.pages();
     await page.goto('https://splinterlands.com/');
 
-    await logout(page).catch((err) => log('err', err));
-
     while (
         !args.CLOSE_AFTER_ERC ||
         users.some((x) => !x.isStarter && x.isRanked)
@@ -461,6 +420,7 @@ const cards2Obj = (acc) => (cards) =>
         const aUsers = users.filter((u) => !args.SKIP_PRACTICE || u.isRanked);
         for (let user; ; ) {
             user = aUsers.shift();
+            log({ aUsers: aUsers.map((x) => x.account) });
             if (!user) break;
             if (isLocked`.bot.playing.${user.account}`) {
                 aUsers.push(user);

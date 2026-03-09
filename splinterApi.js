@@ -28,7 +28,10 @@ module.exports = (page) => ({
 		.filter(x=>x.innerText === 'BATTLE')[0].click()`),
             page.waitForNavigation(),
         ]);
-        await sleep(729);
+
+        await sleep(2e3);
+        await page.evaluate(`[...document.querySelectorAll('button')]
+		.filter(x=>x.innerText === 'ENTER ARENA')[0].click()`);
         const cb = await page.evaluate(`fetch(
 	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
 	    .then(x=>x.json())`);
