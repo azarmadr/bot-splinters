@@ -55,7 +55,7 @@ def safe-backup [] {
 
 def insert-into-db [] {
   let count = open data/battles.db | $in.battles | length | wrap old
-  node etc/insert_battles.js | complete | print
+  node etc/insert_battles.js | complete | if $in.exit_code != 0 {print}
   $count | insert new {open data/battles.db | $in.battles | length} | print
 }
 
@@ -81,15 +81,16 @@ def get-battles [u] {
   $b | proc-battles | update-battles
 
   $b
-  | select created_date player_1 player_2
+  | insert bad {$in.player_2_rating_final < 999 and $in.player_1_rating_final < 999}
+  | select created_date player_1 player_2 bad
   | rename d p1 p2
   | update d {into datetime}
   | sort-by d
   | reduce -f {} {|r a| $r | get p1 p2 | reduce -f $a {|p|
-    upsert $p $r.d
+    upsert $p ($r | select d bad)
   }}
-  | update $u (date now)
-  | transpose -d | rename p d | sort-by d
+  | update $u {update d (date now)}
+  | transpose -d | flatten | rename p | sort-by d
 }
 
 def backup-processed [] {
@@ -105,8 +106,8 @@ def backup-processed [] {
 }
 
 def handle-join-remnants [] {
-    upsert d {|r| [$r.d? $r.d_?] | compact -e | math max} | reject -o d_
-    | sort-by d
+  upsert d {|r| [$r.d? $r.d_?] | compact -e | math max} | reject -o d_
+  | sort-by d
 }
 
 def main [] {
@@ -117,7 +118,7 @@ def main [] {
   let default_users = rg ACCOUNT= .env | lines | split row -r '[=,]' | skip | wrap p
   | insert d {0 | into datetime}
   if not ($user_f | path exists) { $default_users | save data/user.nuon }
-  mut c = 5.
+  mut c = 3.
   loop {
     $c -= random float
     if $c < 0 {break}
@@ -131,11 +132,15 @@ def main [] {
     print $'($c) ($next.p) ($next.d) out of ($users | length)'
     get-battles $next.p
     | join $users p -o
+    | tee {where bad? == true | length
+      | if $in > 0 {print $'($in) players with < 999 rating'}}
+    | where bad? != true | reject -o bad
     | handle-join-remnants
+    | update d {|i| if $i.p in $default_users.p {$in - 1hr} else {}}
     | save -f $user_f
 
     # $users | rename name | grid | print
-    gum spin -- sleep 1m
+    gum spin -- sleep 15
   }
 }
 
