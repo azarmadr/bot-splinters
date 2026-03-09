@@ -11,3 +11,7 @@ test-js:
 get-splinterlands-info:
     #!nu
     http https://api.splinterlands.com/battle/rulesets | save -f data/rulesets.json
+
+get-cards player:
+    #!nu
+    http https://api.splinterlands.com/cards/collection/{{player}} | save data/test/{{player}}-cards.json

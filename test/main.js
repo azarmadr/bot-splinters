@@ -1,7 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { C, T, Ru } = require('../util/card.js');
-const _R = require('ramda');
 const B = require('../battle.js');
 const { processCards } = require('../splinterApi.js');
 
