@@ -41,8 +41,13 @@ def update-battles [] {
   | where battle_queue_id_1 !~ 'prologue|tutorial'
   | uniq-by battle_queue_id_1 battle_queue_id_2
   # | do {select -o home away perks | compact -e home | table -e | print; $in}
-  | save data/battles-processed1.json
+  | save -f data/battles-processed1.json
+  ls data/battles-processed*.json | insert count {open $in.name | length} | collect | print
   mv data/battles-processed1.json data/battles-processed.json
+  let count = open data/battles.db | $in.battles | length | wrap old
+  node etc/insert_battles.js | complete | print
+  $count | insert new {open data/battles.db | $in.battles | length} | print
+
 }
 def "cleanup battles files" [] {
   glob data/battles.*json | each {open $in | $in.battles | proc-battles}
@@ -52,12 +57,10 @@ def "cleanup battles files" [] {
 }
 
 def get-battles [u] {
-  $u | inspect
   let b = http $'https://api.splinterlands.io/battle/history?player=($u)' -H (open data/auth.json)
   | $in.battles
 
   $b | proc-battles | update-battles
-  node etc/insert_battles.js | complete | print
 
   $b
   | select created_date player_1 player_2
@@ -67,11 +70,12 @@ def get-battles [u] {
   | reduce -f {} {|r a| $r | get p1 p2 | reduce -f $a {|p|
     upsert $p $r.d
   }}
+  | update $u (date now)
   | transpose -d | rename p d | sort-by d
 }
 
 def handle-join-remnants [] {
-    upsert d {|r| [$r.d? $r.d_?] | compact -e | math max} | reject d_
+    upsert d {|r| [$r.d? $r.d_?] | compact -e | math max} | reject -o d_
     | sort-by d
 }
 def main [] {
@@ -82,21 +86,24 @@ def main [] {
   let default_users = rg ACCOUNT= .env | lines | split row -r '[=,]' | skip | wrap p
   | insert d {0 | into datetime}
   if not ($user_f | path exists) { $default_users | save data/user.nuon }
-  mut c = 0
+  mut c = 8.
   loop {
+    $c -= random float
+    if $c < 0 {break}
+
     let users = open $user_f
     | where p != '???' and p !~ ' '
+    | join $default_users p -o
     | handle-join-remnants
 
-    let users = $users | join $default_users p -o
+    let next = $users | first
+    print $'($c) ($next)'
+    get-battles $next.p
+    | join $users p -o
     | handle-join-remnants
+    | save -f $user_f
 
-    let next = get-battles ($users | first).p
-    $next | join $users p -o | save -f $user_f
-
-    $users | rename name | grid | print
-    $c += 1
-    if $c > 8 {break}
+    # $users | rename name | grid | print
     gum spin -- sleep 1m
   }
 }
