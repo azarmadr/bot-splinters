@@ -6,5 +6,5 @@
     - We now have two ways to get battles. It requires using authorization.
     - Might have inherent limits on the api usage.
 
-- [ ] Need to create justfile
+- [x] Need to create justfile
 - [ ] support correcting the db, if any rule processing improves or change

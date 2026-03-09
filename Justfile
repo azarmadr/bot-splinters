@@ -1,10 +1,11 @@
+get-battles: (test-js)
+    nu -l etc/get-battles.nu
+
 update-battles-db:
     node etc/insert_battles.js
 
-get-battles:
-    nu etc/get-battles.nu
-
 test-js:
+    node util/common.js
     node --test test/main.js
 
 get-splinterlands-info:
