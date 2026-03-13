@@ -4,8 +4,10 @@ const { log, S, T, C, A, F, D } = require('./util');
 const dotP = (x, y) => Object.keys(x).reduce((sc, k) => sc + x[k] * y[k], 0);
 const defaultScores = { w: 0, _w: 0, l: 0, _l: 0, d: 0, _d: 0, count: 0 };
 const pos = F.cached((i, l) => (i > l / 2 ? i - l : i));
-const setScores = (scores, battle) => {
+const setScores = (battle) => {
     const nm = battle.nodeMatrix();
+    // log(nm);
+    const scores = {};
     for (const s in nm)
         for (const t in nm[s]) {
             const p = nm[s][t];
@@ -23,27 +25,23 @@ const setScores = (scores, battle) => {
                 2;
             teams.forEach((x, i) => {
                 if (battle.isPlayable(0)(x)) {
-                    scores[i ? t : s].count += p / 4;
-                    scores[i ? t : s][p === 1 ? 'd' : i ? 'w' : 'l'] += p / 4;
-                    scores[i ? t : s][p === 1 ? '_d' : i ? '_w' : '_l'] +=
+                    const team = i ? t : s;
+                    scores[team] ??= { ...defaultScores };
+                    scores[team].count += p / 4;
+                    scores[team][p === 1 ? 'd' : i ? 'w' : 'l'] += p / 4;
+                    scores[team][p === 1 ? '_d' : i ? '_w' : '_l'] +=
                         ((m * p) / 4) * (i ? 1 : sMana / tMana);
-                    scores[i ? t : s].oppMark |= teams.some(
-                        battle.isPlayable(1),
-                    );
+                    scores[team].oppMark |= teams.some(battle.isPlayable(1));
                 }
             });
         }
-    return nm;
+    return [nm, scores];
 };
 const printConf = { columns: [{ name: 'team', maxLen: 35 }] };
 globalThis.practiceOn = 0;
 module.exports.playableTeams = (battle) => {
-    const scores = new Proxy(
-        {},
-        { get: (t, n) => (t[n] ??= { ...defaultScores }) },
-    );
-
-    const nm = setScores(scores, battle);
+    const [nm, scores] = setScores(battle);
+    // log(scores);
     //S.eigenRank(nm).forEach(x=>{scores[x.team].ter=x.eigenRank;scores[x.team].tev=x.eigenValue})
     let teams = Object.entries(scores).map(([t, s]) => ({
         team: T(t),
@@ -65,7 +63,8 @@ module.exports.playableTeams = (battle) => {
         {},
     );
     var filteredTeams_length = teams.length;
-    teams = R.pipe(
+    teams = Belt.pipe(
+        teams,
         R.filter((x) => x._w > 0 || x._d > 0),
         R.sortWith(
             R.map(R.descend)([
@@ -87,7 +86,7 @@ module.exports.playableTeams = (battle) => {
                 }
             )({}),
         ),
-    )(teams);
+    );
     A.normalizeMut(teams, 'score', 2);
     teams.forEach((x, i, arr) => {
         arr[i].rank = i;
@@ -106,7 +105,7 @@ module.exports.playableTeams = (battle) => {
     );
 
     var pt = teams;
-    const tablePrinter = R.pipe(
+    const tablePrinter = Belt.flow(
         Belt.A.take(6),
         Belt.A.map(
             Belt.D.updateUnsafe(
@@ -123,7 +122,8 @@ module.exports.playableTeams = (battle) => {
     tablePrinter(pt);
     if (!battle.sortByWinRate) {
         if (practiceOn) {
-            R.pipe(
+            Belt.pipe(
+                teams,
                 R.sortWith(
                     R.map(R.descend)([
                         (x) => x.adv * Math.sqrt(x.score ** 2 + x.ev ** 2),
@@ -137,7 +137,7 @@ module.exports.playableTeams = (battle) => {
                     ...s,
                 })),
                 D.table,
-            )(teams);
+            );
             // pt=pt.slice(0,9);
             // pt.sort(_=>Math.random()*2-1)
         } else {

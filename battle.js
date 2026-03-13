@@ -1,4 +1,5 @@
 const R = require('ramda');
+const Belt = require('@mobily/ts-belt');
 const RA = require('ramda-adjunct');
 const { T, Ru, C } = require('./util/card');
 const { log } = require('./util/dbug');
@@ -46,15 +47,15 @@ module.exports = function BattleObj(battle) {
     // `(m${x} = :mana${mana > BASE_MANA ? ` OR m${x} <=${mana} AND m${x} > ${BASE_MANA}` : ``})`,
 
     const isPlayable = (by) => {
-        by ??= 0;
         const cards = cardsOfPlayers[by]; // until we have some opponent_player cards
-        return R.pipe(
-            // R.tap(log),
+        if (!cards) return () => false;
+        return Belt.flow(
             T,
             R.both(
                 R.all(([id, r]) => cards[id] >= r),
                 rules.byTeam,
             ),
+            // R.tap(log),
         );
     };
     function nodeMatrix(
@@ -130,7 +131,7 @@ module.exports = function BattleObj(battle) {
         },
         set cardsOfPlayers(playerCards) {
             cardsOfPlayers = playerCards.map(
-                R.pipe(
+                Belt.flow(
                     R.reduce(
                         (agg, x) =>
                             R.mergeWith(R.max, agg, {

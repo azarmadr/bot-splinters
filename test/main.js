@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { C, T, Ru } = require('../util/card.js');
 const B = require('../battle.js');
 const R = require('ramda');
-const battleCore = require('../core/battle.js');
+const { playableCards } = require('../core/battle.js');
 
 test('mana matches', (_t) => {
     assert.equal(C.mana([870]), 7);
@@ -54,12 +54,14 @@ const users = [
     { player: 'azarmadr3' },
 ].map((x) => Object.assign(x, require(`../data/test/${x.player}-cards.json`)));
 
-test('card filter', { skip: true }, (_t) => {
+test('card filter', { skip: false }, (_t) => {
     for (const u of users) {
         if (!u?.count) continue;
 
-        const procedCards = B({ ...battleOpts, ...u }).processCards(0)(u.cards);
-        assert.equal(Object.keys(procedCards).length, u.count);
+        const battle = B({ ...battleOpts, ...u });
+        battle.cardsOfPlayers = [playableCards(u)];
+        const procedCards = battle.cardsOfPlayers[0];
+        if (u.count) assert.equal(Object.keys(procedCards).length, u.count);
         assert(!('10001' in procedCards));
     }
 });
@@ -92,7 +94,7 @@ test('max call stack error', { skip: true }, (_t) => {
     const battle = B(battleOpts);
     battle.cardsOfPlayers = [battleOpts.player, battleOpts.opponent_player]
         .flatMap((p) => users.filter((x) => x.player === p))
-        .map((x) => battleCore.playableCards(x.player, x.cards));
+        .map((x) => playableCards(x.player, x.cards));
     console.log(battle.cardsOfPlayers);
     printTable([
         {
@@ -106,16 +108,23 @@ test('max call stack error', { skip: true }, (_t) => {
     assert.equal(1, 2);
 });
 
-test('node matrix', { skip: true }, (_t) => {
+test('node matrix', { skip: false }, (_t) => {
     battleOpts.inactive = '';
     battleOpts.mana_cap = 58;
+    const [player] = users.filter((x) => x.player === 'enochroot');
+    const cards = playableCards(player);
+    // console.log(cards, Object.keys(player));
+
+    assert.equal(cards.length, 136);
+
     const battle = B(battleOpts);
-    const { cards } = require(`../data/test/enochroot-cards.json`);
-    const playableCards = battleCore.playableCards(cards);
-    battle.cardsOfPlayers = [playableCards, playableCards];
+    battle.cardsOfPlayers = [cards];
     const nm = battle.nodeMatrix();
     console.log(Object.keys(battle.cardsOfPlayers[0]));
-    console.log(Object.keys(nm).length);
+    // console.log(Object.keys(nm).length);
+    const playableTeams = battle.playableTeams();
 
+    // console.log(battle.cardsOfPlayers);
+    assert.equal(playableTeams.length, 27);
     assert.equal(1, 1);
 });

@@ -214,7 +214,7 @@ const splinterApi = (page, user, args) => {
         await sleep(729);
         battle.cardsOfPlayers = await Promise.all(
             [user.account, battleDetails.opponent_player]
-                .filter((x) => x !== '???')
+                .filter((x) => x && x !== '???')
                 .map(getCards),
         );
         D.table([
