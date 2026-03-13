@@ -42,7 +42,7 @@ def proc-battles [] {
 def prune-unwanted-battles [] {
   where battle_queue_id_1 !~ 'prologue|tutorial'
   | where team1? != null and team2? != null
-  | where 9999 not-id ($it.team1.id ++ $it.team2.id)
+  | where 9999 not-in ($it.team1.id ++ $it.team2.id)
   | reject -o home away perks created_date
   | uniq-by battle_queue_id_1 battle_queue_id_2
   # | do {select -o home away perks | compact -e home | table -e | print; $in}
@@ -79,7 +79,7 @@ def get-battles [u] {
   let file = $'data/temp/($u)-battles.json'
   if not ($file | path exists) {
     mkdir data/temp
-    http $'https://api.splinterlands.io/battle/history?player=($u)' -H (open data/auth.json)
+    http $'https://api.splinterlands.io/battle/history?player=($u)&format=foundation' -H (open data/auth.json)
     | $in.battles
     | save -f $file
   }
@@ -88,7 +88,7 @@ def get-battles [u] {
   $b | proc-battles | update-battles
 
   $b
-  | insert bad {$in.player_2_rating_final < 999 and $in.player_1_rating_final < 999}
+  | insert bad {$in.format == foundation and $in.player_2_rating_final < 999 and $in.player_1_rating_final < 999}
   | select created_date player_1 player_2 bad
   | rename d p1 p2
   | update d {into datetime}
