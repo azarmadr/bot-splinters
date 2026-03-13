@@ -134,9 +134,10 @@ def main [] {
     | join $users p -o
     | tee {where bad? == true | length
       | if $in > 0 {print $'($in) players with < 999 rating'}}
-    | where bad? != true | reject -o bad
+    | where bad? != true or p in $default_users.p | reject -o bad_
     | handle-join-remnants
-    | update d {|i| if $i.p in $default_users.p {$in - 3hr} else {}}
+    | update d {|i| if $i.p in $default_users.p and $i.bad? != true {$in - 3hr} else {}}
+    | tee {where p in $default_users.p | print}
     | save -f $user_f
 
     # $users | rename name | grid | print
