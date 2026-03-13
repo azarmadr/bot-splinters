@@ -1,21 +1,24 @@
 const R = require('ramda');
 const B = require('./battle');
-const {playableCards} = require('./core/battle.js');
+const { playableCards } = require('./core/battle.js');
 const { C, log, sleep, E, D, F } = require('./util');
 const puppeteer = require('puppeteer');
+const ruleSet = require('./data/rulesets.json');
+
 const timeout = 5000;
 const continueAfterError = 1;
 const clickElement = (e) => e.click();
 
 async function createPage(args) {
     log('Opening a browser');
+    args.CHROME_NO_SANDBOX ??= true;
     const l_browser = await puppeteer.launch({
         headless: args.HEADLESS,
         args: [
             ...(args.PPTR_USER_DATA_DIR
                 ? [`--user-data-dir=${args.PPTR_USER_DATA_DIR}`]
                 : []),
-            ...(!args.CHROME_NO_SANDBOX
+            ...(args.CHROME_NO_SANDBOX
                 ? ['--no-sandbox']
                 : [
                       '--disable-web-security',
@@ -41,12 +44,59 @@ async function createPage(args) {
     await l_page.setViewport({
         width: 920,
         height: 903,
-        // deviceScaleFactor: 0.81,
+        deviceScaleFactor: 0.88,
     });
     return l_page;
 }
 
-const splinterApi = (page,user, args) => {
+const splinterToColor = {
+    Fire: 'Red',
+    Water: 'Blue',
+    Earth: 'Green',
+    Life: 'White',
+    Death: 'Black',
+    Dragon: 'Gold',
+};
+
+const splinterApi = (page, user, args) => {
+    const parseBattleDetails = () =>
+        page.evaluate(
+            (ruleSet, splinterToColor) => {
+                let mana_cap,
+                    inactive = [],
+                    ruleset = [];
+                for (let elem of document.all) {
+                    if (!mana_cap) {
+                        const mana = elem.innerText?.match(/^MANA\s*(\d+)$/u);
+                        if (mana) mana_cap = +mana[1];
+                    }
+                    if (elem.ariaLabel?.match(`Element not active$`)) {
+                        inactive.push(elem.ariaLabel.split` `[0]);
+                    } else if (elem.ariaLabel?.match(/:/)) {
+                        const rule = elem.ariaLabel.split`:`[0];
+                        if (ruleSet.map((x) => x.name).includes(rule))
+                            ruleset.push(rule);
+                    }
+                }
+                inactive = inactive.map((x) => splinterToColor[x]).join`,`;
+                ruleset = ruleset.join`|`;
+                return { mana_cap, inactive, ruleset, format: 'foundation' }; // TODO update format somehow??
+            },
+            ruleSet,
+            splinterToColor,
+        );
+
+    const gotoAndWait = (url) =>
+        Promise.all([page.goto(url), page.waitForNavigation()]);
+    const getJsonResponse = (urlPart, opts = {}, method = 'GET') =>
+        page
+            .waitForResponse(
+                (response) =>
+                    response.url().includes(urlPart) &&
+                    response.request().method() == method,
+                opts,
+            )
+            .then((x) => x.json());
     const clickButtonWith = (name) =>
         page.$$eval(
             'button',
@@ -120,59 +170,46 @@ const splinterApi = (page,user, args) => {
         //     .catch(() => log('Wrapping up Battle'));
     };
     const finishBattle = async () => {
-        await Promise.all([
+        const [result] = await Promise.all([
+            getJsonResponse('/battle/result'),
             clickButtonWith('BATTLE'),
             page.waitForNavigation(),
+            page.waitForFunction(() => document.URL.match(/\/battle\/sl_/), {
+                timeout: 1e5,
+                polling: 1e4,
+            }),
+            clickButtonWith('SKIP BATTLE').catch((x) => {
+                log(x);
+                return sleep(8e4);
+            }),
         ]);
-        await page.waitForFunction(() => document.URL.match(/\/battle\/sl_/), {
-            timeout: 1e5,
-            polling: 1e4,
-        });
-        await sleep(8e3);
-        await clickButtonWith('SKIP BATTLE').catch((x) => {
-            log(x);
-            return sleep(8e4);
-        });
-        await sleep(3e3);
+        return result;
     };
-    const battle = async (type = 'Ranked', user) => {
-        log(`Finding ${type} match`);
-        await Promise.all([
-            page.goto('https://splinterlands.com/battle-history'),
-            page.waitForNavigation(),
-        ]);
-        const progress = await page
-            .waitForResponse((response) =>
-                response.url().includes(`/dailies/progress`),
-            )
-            .then((x) => x.json());
-        log(progress);
-        await page.waitForFunction(
-            () =>
-                [...document.querySelectorAll('button')]
-                    .map((x) => x.innerText)
-                    .includes('BATTLE'),
-            {},
+    const battle = async () => {
+        log(`Finding ${user.battle} match`);
+        await gotoAndWait('https://splinterlands.com/battle-history');
+        await page.waitForFunction(() =>
+            [...document.querySelectorAll('button')]
+                .map((x) => x.innerText)
+                .includes('BATTLE'),
         );
-        await waitForChomperToHide();
-        await sleep(8e3);
-        await Promise.all([
+        // await waitForChomperToHide();
+        // await sleep(8e3);
+        let [battleDetails, recent_opp_teams] = await Promise.all([
+            getJsonResponse(
+                `/players/outstanding_match?username=${user.account}`,
+                { timeout: 0 },
+            ),
+            getJsonResponse(`/players/recent_teams`, { timeout: 0 }),
             clickButtonWith('BATTLE'),
             page.waitForNavigation(),
         ]);
+        if (battleDetails.mana_cap === null)
+            battleDetails = await parseBattleDetails();
 
         await sleep(2e3);
         await clickButtonWith('ENTER ARENA');
-        const battleDetails = await page
-            .waitForResponse((response) =>
-                response
-                    .url()
-                    .includes(
-                        `/players/outstanding_match?username=${user.account}`,
-                    ),
-            )
-            .then((x) => x.json());
-        log(battleDetails);
+        log({ battleDetails, recent_opp_teams });
         const battle = B(battleDetails);
         await sleep(729);
         battle.cardsOfPlayers = await Promise.all(
@@ -188,73 +225,63 @@ const splinterApi = (page,user, args) => {
                 ),
             },
         ]);
-        await teamSelection(battle.playableTeams())
-            .catch(log)
-            .then(finishBattle);
-        return battle;
+        await teamSelection(battle.playableTeams()).catch(log);
+        return await finishBattle();
     };
-    return {
-        questClaim: async (q, _q) => {
-            log({ 'Claiming quest box': q.name });
-            await page
-                .evaluate(([q, _q]) => QuestClaimReward(q, _q), [q, _q])
-                .then(() => page.waitForSelector('.loading', { hidden: true }))
-                .then(() => E.click(page, '.card3d .card_img'))
-                .then(() => E.click(page, '#btnCloseOpenPack'))
-                .catch(
-                    () =>
-                        log('failed to open Quest Box') ??
-                        page.evaluate('SM.HideLoading()'),
-                );
-        },
-        battle,
-        getCards,
-    };
-};
-async function login(page, user, args) {
-    log('logging');
-    await Promise.all([
-        page.waitForNavigation(),
-        page.goto('https://splinterlands.com/login/email'),
-    ]);
-    log('opened');
-    await puppeteer.Locator.race([
-        page.locator('::-p-aria(email)'),
-        page.locator('form > div:nth-of-type(1) input'),
-        page.locator(':scope >>> form > div:nth-of-type(1) input'),
-    ])
-        .setTimeout(timeout * 1e3)
-        .fill(user.login || user.account);
-    await puppeteer.Locator.race([
-        page.locator('::-p-aria(password)'),
-        page.locator('form > div:nth-of-type(2) input'),
-        page.locator(':scope >>> form > div:nth-of-type(2) input'),
-    ])
-        .setTimeout(timeout)
-        .fill(user.password);
-    const [progress] = await Promise.all([
-        page.waitForResponse(
-            (r) =>
-                r.url().includes(`/dailies/progress`) &&
-                r.request().method() == 'GET',
-        ),
-        puppeteer.Locator.race([
-            page.locator('div.c-btWakK button.c-drMScW'),
-            page.locator(
-                '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/button[2])',
-            ),
-            page.locator(':scope >>> div.c-btWakK button.c-drMScW'),
+    async function login() {
+        await gotoAndWait('https://splinterlands.com/login/email');
+        await puppeteer.Locator.race([
+            page.locator('::-p-aria(email)'),
+            page.locator('form > div:nth-of-type(1) input'),
+            page.locator(':scope >>> form > div:nth-of-type(1) input'),
+        ])
+            .setTimeout(timeout * 1e3)
+            .fill(user.login || user.account);
+        await puppeteer.Locator.race([
+            page.locator('::-p-aria(password)'),
+            page.locator('form > div:nth-of-type(2) input'),
+            page.locator(':scope >>> form > div:nth-of-type(2) input'),
         ])
             .setTimeout(timeout)
-            .click(),
-        page.waitForNavigation(),
-    ]);
-    log(progress.url(), await progress.json());
-    await page.evaluate(
-        `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
-    );
-    await sleep(5e3);
-    return splinterApi(page, user, args);
-}
+            .fill(user.password);
+        await sleep(1e2);
+        const [progress] = await Promise.all([
+            getJsonResponse(`/dailies/progress`),
+            puppeteer.Locator.race([
+                page.locator('div.c-btWakK button.c-drMScW'),
+                page.locator(
+                    '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/button[2])',
+                ),
+                page.locator(':scope >>> div.c-btWakK button.c-drMScW'),
+            ])
+                .setTimeout(timeout)
+                .click(),
+            page.waitForNavigation(),
+        ]);
+        user.progress = progress;
+        await page.evaluate(
+            `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
+        );
+    }
+    const questClaim = async (q, _q) => {
+        log({ 'Claiming quest box': q.name });
+        await page
+            .evaluate(([q, _q]) => QuestClaimReward(q, _q), [q, _q])
+            .then(() => page.waitForSelector('.loading', { hidden: true }))
+            .then(() => E.click(page, '.card3d .card_img'))
+            .then(() => E.click(page, '#btnCloseOpenPack'))
+            .catch(
+                () =>
+                    log('failed to open Quest Box') ??
+                    page.evaluate('SM.HideLoading()'),
+            );
+    };
+    return {
+        getJsonResponse,
+        battle,
+        login,
+        parseBattleDetails,
+    };
+};
 
-module.exports = { login, createPage };
+module.exports = { splinterApi, createPage };

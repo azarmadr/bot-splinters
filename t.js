@@ -1,84 +1,74 @@
-const { log } = require('./util');
-const args = require('minimist')(process.argv.slice(2));
-const { readFileSync, writeFileSync } = require('jsonfile');
+import { args } from './util/common.js';
+import { splinterApi, createPage } from './splinterApi.js';
+import { createWriteStream } from 'node:fs';
+import ruleSet from './data/rulesets.json' with { type: 'json' };
 
-const drs = args.drs ?? ''; // TODO
-const player = args.n ?? '';
-const depth = args.d ?? 2;
-const fn = args.f ?? '';
-const { fromUsers } = require('./getBattles');
-const minRank = args.mr ?? 0;
-
-//log({drs,player,depth,fn,minRank,args});
-
-const mergeNempty = (bd) => (o) => {
-    const ob = require(o),
-        count = [];
-    Object.entries(ob).forEach(([rs, rs_]) => {
-        Object.entries(rs_).forEach(([rs1, crs]) => {
-            bd[rs] ??= {};
-            bd[rs][rs1] ??= {};
-            const obj = bd[rs][rs1];
-            if (rs1.match(/\d+/)) {
-                const mana = rs1;
-                //log({mana,rs});
-                const { c } = merge(obj, crs);
-                if (c) count.push({ rs, mana, c });
-                ob[rs][rs1] = {};
-            } else {
-                Object.entries(crs).forEach(([mana, crs1]) => {
-                    obj[mana] ??= {};
-                    const { c } = merge(obj[mana], crs1);
-                    if (c) count.push({ rs, rs1, mana, c });
-                    ob[rs][rs1][mana] = {};
-                });
+const filePath = 'data/network.jsonl';
+const JsonLStreamer = (filePath) => {
+    const stream = createWriteStream(filePath, 'utf-8');
+    return {
+        write: async (record) => {
+            const line = JSON.stringify(record) + '\n';
+            // Respect backpressure
+            if (!stream.write(line)) {
+                await new Promise((resolve) => stream.once('drain', resolve));
             }
-        });
-    });
-    if (count.length) {
-        const res = count.reduce(
-            (a, { rs, rs1, mana, c }) => {
-                const m = Math.floor(mana / 3) * 3;
-                const x = rs + (rs1 ? `|${rs1}` : '');
-                if (a[x]) {
-                    a[x].c += c;
-                    a[x][m] = c;
-                } else {
-                    a[x] = { c, [m]: c };
-                }
-                a.__.c += c;
-                a.__[m] ??= 0;
-                a.__[m] += c;
-                return a;
-            },
-            { __: { c: 0 } },
-        );
-        console.table(
-            Object.keys(res)
-                .sort((a, b) => res[a].c - res[b].c)
-                .reduce((a, k) => {
-                    a[k] = res[k];
-                    return a;
-                }, {}),
-        );
-        if (args.r) writeFileSync(o, ob);
-        writeFileSync(`./data/battle_data${fn}.json`, bd);
-    }
+        },
+        end: () => stream.end(),
+        on: stream.on,
+    };
 };
+const stream = JsonLStreamer(filePath);
 
-if ('b' in args) {
-    log({ drs, player, depth, fn, minRank });
-    Promise.resolve(fromUsers(player, { depth, fn, minRank })).then(() => {});
-} else if ('m' in args) {
-    let bd;
-    try {
-        bd = readFileSync(`./data/battle_data${fn}.json`);
-    } catch (e) {
-        log(e);
-        bd = {};
+const page = await createPage(args);
+page.on('requestfinished', async (request) => {
+    const url = request.url();
+    if (url.match(/googletagmanager|cloudfront.net|splinterlands.zendesk.com/))
+        return;
+    if (url.match(/g.doubleclick|google.co|appleid.cdn|zdassets.com/)) return;
+    if (url.match(/config.js|settings$|bootstrap|cdn.jsdelivr|\/auctions\//))
+        return;
+
+    const respHeaders = request.response().headers();
+
+    if (
+        respHeaders['content-type'] &&
+        respHeaders['content-type'].includes`/json;`
+    ) {
+        try {
+            const response = await request.response().json();
+            stream.write({ response, url });
+        } catch (e) {
+            console.log(respHeaders);
+            console.log(e);
+        }
     }
-    args.m
-        .split(',')
-        .map((x) => log(x) ?? x)
-        .forEach(mergeNempty(bd));
-} else log({ m: 'merge', b: 'battles' });
+});
+const nSM = await splinterApi(
+    page,
+    { account: args.ACCOUNT[2], password: args.PASSWORD[2] },
+    args,
+);
+await nSM.login();
+for (let i = 0; i < 222; i++) {
+    console.log({ i });
+    !(await page
+        .waitForFunction(() => document.URL.match(/battle-history/), {
+            timeout: 1e5,
+            polling: 1e3,
+        })
+        .catch(console.log));
+    console.log('waiting');
+    if (
+        !(await page
+            .waitForFunction(() => document.URL.match(/find-match/), {
+                timeout: 1e5,
+                polling: 1e3,
+            })
+            .catch(console.log))
+    )
+        continue;
+    console.log('in match');
+    const details = await parseBattleDetails();
+    console.log(details);
+}

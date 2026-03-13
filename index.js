@@ -1,6 +1,6 @@
 const { writeFileSync } = require('jsonfile');
 const { args } = require('./util/common.js');
-const { login, createPage } = require('./splinterApi');
+const { splinterApi, createPage } = require('./splinterApi');
 
 const {
     isLocked,
@@ -172,24 +172,23 @@ async function logout(page) {
             if (!user) break;
             users.push(user);
             if (isLocked`.bot.playing.${user.account}`) {
-                await sleep(1e4);
+                await sleep(3e3);
                 continue;
             }
-            if (page.browser().process().killed)
-                page = await createPage(args);
+            if (page.browser().process().killed) page = await createPage(args);
 
-            const nSM = await login(page, user, args);
+            const nSM = splinterApi(page, user, args);
+            await nSM.login();
+            log(user.progress);
             for (let i = 0; i < 5; i++) {
-                const _battle = await nSM
-                    .battle(user.battle, user)
-                    .catch(async (e) => {
-                        log(
-                            e,
-                            'failed to submit team, so waiting for user to input manually and close the session',
-                        );
-                        await sleep(81e3);
-                        throw e; //can we continue here without throwing error
-                    });
+                const battleResult = await nSM.battle().catch(async (e) => {
+                    log(
+                        e,
+                        'failed to submit team, so waiting for user to input manually and close the session',
+                    );
+                    await sleep(81e3);
+                    throw e; //can we continue here without throwing error
+                });
                 await sleep(5e3);
             }
             rmLock`.bot.playing.${user.account}`;
