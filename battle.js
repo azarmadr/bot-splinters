@@ -100,7 +100,10 @@ module.exports = function BattleObj(battle) {
             // R.tap(log),
             T,
             R.map((x) => [cards[x[0]], x[1]]),
-            R.all(([l, r]) => l >= r),
+            R.both(
+                R.all(([l, r]) => l >= r),
+                rules.byTeam,
+            ),
         );
     };
     function nodeMatrix(
@@ -115,19 +118,14 @@ module.exports = function BattleObj(battle) {
             R.juxt([R.of(Array), R.splitEvery(1), R.always([['Standard']])]),
             R.unnest,
             R.uniq,
-        )(rules.attr);
+        );
         let nm = {};
-        for (const attrRule of possibleAttrRules) {
+        for (const attrRule of possibleAttrRules(rules.attr)) {
             const query_string = `
             SELECT w,l,d,team1,team2 FROM battles WHERE (
               rules = '${R.pipe(
-                  R.juxt([
-                      R.always([['Standard']]),
-                      R.splitEvery(1),
-                      R.of(Array),
-                  ]),
-                  R.unnest,
-                  R.uniq,
+                  possibleAttrRules,
+                  R.reverse,
                   R.juxt([R.map(R.join`,`), R.reverse]),
                   R.apply(R.zip),
                   R.fromPairs,

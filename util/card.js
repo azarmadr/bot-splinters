@@ -256,24 +256,31 @@ Ru.num = R.pipe(
     R.sum,
 );
 Ru.getRules = (ruleset) => {
-    const team_restrictions = 'High Five,Four’s a Crowd';
-    const { attr, card } = ruleset.split`|`.reduce(
+    const team_restrictions = 'High Five,Four’s a Crowd'.split`,`;
+    const { team, attr, card } = ruleset.split`|`.reduce(
         (rule, cr) => {
-            if (team_restrictions.includes(cr) || cr === 'Taking Sides')
-                return rule;
+            if (cr === 'Taking Sides') return rule;
             if (cr in Ru.cardPred) rule.card = cr;
+            else if (team_restrictions.includes(cr)) rule.team = cr;
             else rule.attr.push(cr);
             return rule;
         },
-        { attr: [], card: '' },
+        { attr: [], card: '', team: '' },
     );
     attr.sort();
     attr[0] ??= 'Standard';
     return Object.assign(new String(ruleset), {
         attr,
         card,
+        team,
         byCard: Ru.cardPred[card],
-        byTeam: R.all(Ru.cardPred[card]),
+        byTeam: R.both(R.all(Ru.cardPred[card]), (t) => {
+            if (/Four.s a Crowd|FabFour/i.test(team)) {
+                return t.length <= 5;
+            } else if (/High Five|FiveAlive/i.test(team)) {
+                return t.length <= 6;
+            } else return true;
+        }),
     });
 };
 Ru.battleRule = (rs) => (teams) =>

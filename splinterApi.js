@@ -117,14 +117,14 @@ const splinterApi = (page, args) => {
 
         await sleep(2e3);
         await clickButtonWith('ENTER ARENA');
-        const cb = await page.evaluate(`fetch(
+        const battleDetails = await page.evaluate(`fetch(
 	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
 	    .then(x=>x.json())`);
-        log(cb);
-        const battle = B(cb);
+        log(battleDetails);
+        const battle = B(battleDetails);
         await sleep(729);
         battle.cardsOfPlayers = await Promise.all(
-            [user.account, cb.opponent_player]
+            [user.account, battleDetails.opponent_player]
                 .filter((x) => x !== '???')
                 .map((account, index) =>
                     getCards(account)
@@ -159,8 +159,6 @@ const splinterApi = (page, args) => {
                         page.evaluate('SM.HideLoading()'),
                 );
         },
-        finishBattle,
-        clickButtonWith,
         battle,
         getCards,
     };
