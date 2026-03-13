@@ -42,6 +42,7 @@ def proc-battles [] {
 def prune-unwanted-battles [] {
   where battle_queue_id_1 !~ 'prologue|tutorial'
   | where team1? != null and team2? != null
+  | where 9999 not-id ($it.team1.id ++ $it.team2.id)
   | reject -o home away perks created_date
   | uniq-by battle_queue_id_1 battle_queue_id_2
   # | do {select -o home away perks | compact -e home | table -e | print; $in}
@@ -75,8 +76,14 @@ def "cleanup battles files" [] {
 }
 
 def get-battles [u] {
-  let b = http $'https://api.splinterlands.io/battle/history?player=($u)' -H (open data/auth.json)
-  | $in.battles
+  let file = $'data/temp/($u)-battles.json'
+  if not ($file | path exists) {
+    mkdir data/temp
+    http $'https://api.splinterlands.io/battle/history?player=($u)' -H (open data/auth.json)
+    | $in.battles
+    | save -f $file
+  }
+  let b = open $file
 
   $b | proc-battles | update-battles
 
@@ -106,7 +113,8 @@ def backup-processed [] {
 }
 
 def handle-join-remnants [] {
-  upsert d {|r| [$r.d? $r.d_?] | compact -e | math max} | reject -o d_
+  upsert d {|r| [$r.d? $r.d_?] | compact -e | math max}
+  | reject -o d_
   | sort-by d
 }
 
@@ -128,13 +136,14 @@ def main [] {
     | join $default_users p -o
     | handle-join-remnants
 
-    let next = $users | first
+    let next = $users | where bad? != true or p in $default_users.p | first
+
     print $'($c) ($next.p) ($next.d | date humanize) out of ($users | length)'
     get-battles $next.p
     | join $users p -o
-    | tee {where bad? == true | length
-      | if $in > 0 {print $'($in) players with < 999 rating'}}
-    | where bad? != true or p in $default_users.p | reject -o bad_
+    | tee {where bad? == true | length | if $in > 0 {print $'($in) players with < 999 rating'}}
+    | upsert bad {|r| default $r.bad_?} | reject -o bad_
+    # | tee {uniq-by d d_ bad | print}
     | handle-join-remnants
     | update d {|i| if $i.p in $default_users.p and $i.bad? != true {$in - 3hr} else {}}
     | tee {where p in $default_users.p | print}
