@@ -1,4 +1,3 @@
-const _args = require('minimist')(process.argv.slice(2));
 const { args } = require('./util/common.js');
 const R = require('ramda');
 const { log, C, D, A, F, E, sleep } = require('./util');
@@ -14,41 +13,8 @@ const cb = (acc) => (x) =>
         (x) => x.delegated_to === acc || (x.player === acc && !x.delegated_to),
     );
 (async () => {
-    // const browserFetcher = puppeteer.createBrowserFetcher();
-    // const {executablePath} = await browserFetcher.download('1022525');
-    // const executablePath = 'E:\\dl\\.pptr\\win64-1011831\\chrome-win\\chrome.exe'
     // const executablePath = 'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe'
-    // log({executablePath})
-    const browser = await puppeteer.launch({
-        headless,
-        // executablePath,
-        args: [
-            ...(args.PPTR_USER_DATA_DIR
-                ? [`--user-data-dir=${args.PPTR_USER_DATA_DIR[0]}_market`]
-                : []),
-            ...(args.CHROME_NO_SANDBOX
-                ? ['--no-sandbox']
-                : [
-                      '--disable-web-security',
-                      '--disable-features=IsolateOrigins',
-                      ' --disable-site-isolation-trials',
-                  ]),
-        ],
-    });
-    log('started');
-    const [page] = await browser.pages();
-    page.setDefaultNavigationTimeout(500000);
-    page.on('dialog', async (dialog) => {
-        await dialog.accept();
-    });
-    await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
-    );
-    // await page.setViewport({ width: 1800, height: 1500, deviceScaleFactor: 1 });
-    await page.setViewport({
-        width: 720,
-        height: 1080 /* deviceScaleFactor: 1, */,
-    });
+    const page = createBrowser(args);
     const users = args.ACCOUNT.map((account, i) => ({
         account,
         password: args.PASSWORD[i],

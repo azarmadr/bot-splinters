@@ -1,6 +1,6 @@
-// Parsing .env
 const { writeFileSync } = require('jsonfile');
 const { args } = require('./util/common.js');
+const { login, createPage } = require('./splinterApi');
 
 const {
     isLocked,
@@ -10,9 +10,6 @@ const {
     sleep,
     D: { table },
 } = require('./util');
-
-const puppeteer = require('puppeteer');
-const { login } = require('./splinterApi');
 
 // Logging function with save to a file
 args.LOG = 1;
@@ -49,43 +46,6 @@ async function _checkForUpdate() {
                 else throw new Error('choose correctly');
             }
         });
-}
-async function createBrowser(headless) {
-    const l_browser = await puppeteer.launch({
-        headless,
-        args: [
-            ...(args.PPTR_USER_DATA_DIR
-                ? [`--user-data-dir=${args.PPTR_USER_DATA_DIR}`]
-                : []),
-            ...(args.CHROME_NO_SANDBOX
-                ? ['--no-sandbox']
-                : [
-                      '--disable-web-security',
-                      '--disable-features=IsolateOrigins',
-                      ' --disable-site-isolation-trials',
-                  ]),
-            '--mute-audio',
-            '--disable-dev-shm-usage',
-        ],
-    });
-    const [page] = await l_browser.pages();
-    await l_browser
-        .defaultBrowserContext()
-        .overridePermissions('https://splinterlands.com/', ['notifications']);
-    page.setDefaultNavigationTimeout(5e5);
-    page.on('dialog', async (dialog) => {
-        await dialog.accept();
-    });
-    await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
-    );
-    // await page.setViewport({ width: 1800, height: 1200, deviceScaleFactor: 1, });
-    await page.setViewport({
-        width: 920,
-        height: 903,
-        deviceScaleFactor: 0.81,
-    });
-    return l_browser;
 }
 const _postBattle = (user) => (battle) => {
     user.won =
@@ -202,12 +162,9 @@ async function logout(page) {
             : !args.SKIP_USERS?.includes(x.account),
     );
     if ('t' in args) args.t = args.t * 60 * 60000 + Date.now();
-    log('Opening a browser');
-    let browser = await createBrowser(args.HEADLESS);
-    let [page] = await browser.pages();
-    await page.goto('https://splinterlands.com/');
+    let page = await createPage(args);
 
-    while (!args.CLOSE_AFTER_ERC) {
+    while (true) {
         //await checkForUpdate();
         for (let user; ; ) {
             log({ users: users.map((x) => x.account) });
@@ -218,10 +175,8 @@ async function logout(page) {
                 await sleep(1e4);
                 continue;
             }
-            if (browser.process().killed) {
-                browser = await createBrowser(args.HEADLESS);
-                [page] = await browser.pages();
-            }
+            if (page.browser().process().killed)
+                page = await createPage(args);
 
             const nSM = await login(page, user, args);
             for (let i = 0; i < 5; i++) {
@@ -252,7 +207,7 @@ async function logout(page) {
                 Object.fromEntries(tableList.map((x) => [x, u[x]])),
             ),
         );
-        if (!args.KEEP_BROWSER_OPEN) browser.close();
+        if (!args.KEEP_BROWSER_OPEN) page.browser.close();
         log(
             'Waiting for the next battle in',
             sleepingTime / 1000 / 60,
@@ -264,6 +219,6 @@ async function logout(page) {
         );
         await sleep(sleepingTime);
     }
-    await browser.close();
+    await page.browser.close();
     globalThis.END_GetBattles = 1;
 })();

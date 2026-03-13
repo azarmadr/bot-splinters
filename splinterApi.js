@@ -1,13 +1,52 @@
 const R = require('ramda');
 const B = require('./battle');
-const battleCore = require('./core/battle.js');
+const {playableCards} = require('./core/battle.js');
 const { C, log, sleep, E, D, F } = require('./util');
 const puppeteer = require('puppeteer');
 const timeout = 5000;
 const continueAfterError = 1;
 const clickElement = (e) => e.click();
 
-const splinterApi = (page, args) => {
+async function createPage(args) {
+    log('Opening a browser');
+    const l_browser = await puppeteer.launch({
+        headless: args.HEADLESS,
+        args: [
+            ...(args.PPTR_USER_DATA_DIR
+                ? [`--user-data-dir=${args.PPTR_USER_DATA_DIR}`]
+                : []),
+            ...(!args.CHROME_NO_SANDBOX
+                ? ['--no-sandbox']
+                : [
+                      '--disable-web-security',
+                      '--disable-features=IsolateOrigins',
+                      '--disable-site-isolation-trials',
+                  ]),
+            '--mute-audio',
+            '--disable-dev-shm-usage',
+        ],
+    });
+    const [l_page] = await l_browser.pages();
+    await l_browser
+        .defaultBrowserContext()
+        .overridePermissions('https://splinterlands.com/', ['notifications']);
+    l_page.setDefaultNavigationTimeout(5e5);
+    // l_page.on('dialog', async (dialog) => {
+    //     await dialog.accept();
+    // });
+    // await l_page.setUserAgent(
+    //     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
+    // );
+    // await l_page.setViewport({ width: 1800, height: 1200, deviceScaleFactor: 1, });
+    await l_page.setViewport({
+        width: 920,
+        height: 903,
+        // deviceScaleFactor: 0.81,
+    });
+    return l_page;
+}
+
+const splinterApi = (page,user, args) => {
     const clickButtonWith = (name) =>
         page.$$eval(
             'button',
@@ -21,7 +60,7 @@ const splinterApi = (page, args) => {
 		.then(x=>x.json())`,
         );
         log({ 'Obtaining Cards': player, '#cards': cards.length });
-        return battleCore.playableCards(cards);
+        return playableCards(cards);
     };
     const waitForChomperToHide = async () => {
         while (true) {
@@ -102,6 +141,12 @@ const splinterApi = (page, args) => {
             page.goto('https://splinterlands.com/battle-history'),
             page.waitForNavigation(),
         ]);
+        const progress = await page
+            .waitForResponse((response) =>
+                response.url().includes(`/dailies/progress`),
+            )
+            .then((x) => x.json());
+        log(progress);
         await page.waitForFunction(
             () =>
                 [...document.querySelectorAll('button')]
@@ -118,9 +163,15 @@ const splinterApi = (page, args) => {
 
         await sleep(2e3);
         await clickButtonWith('ENTER ARENA');
-        const battleDetails = await page.evaluate(`fetch(
-	    "https://api.splinterlands.com/players/outstanding_match?username=${user.account}")
-	    .then(x=>x.json())`);
+        const battleDetails = await page
+            .waitForResponse((response) =>
+                response
+                    .url()
+                    .includes(
+                        `/players/outstanding_match?username=${user.account}`,
+                    ),
+            )
+            .then((x) => x.json());
         log(battleDetails);
         const battle = B(battleDetails);
         await sleep(729);
@@ -162,8 +213,11 @@ const splinterApi = (page, args) => {
 };
 async function login(page, user, args) {
     log('logging');
-    await page.goto('https://splinterlands.com/login/email');
-    await sleep(5e3);
+    await Promise.all([
+        page.waitForNavigation(),
+        page.goto('https://splinterlands.com/login/email'),
+    ]);
+    log('opened');
     await puppeteer.Locator.race([
         page.locator('::-p-aria(email)'),
         page.locator('form > div:nth-of-type(1) input'),
@@ -178,19 +232,29 @@ async function login(page, user, args) {
     ])
         .setTimeout(timeout)
         .fill(user.password);
-    await puppeteer.Locator.race([
-        page.locator('div.c-btWakK button.c-drMScW'),
-        page.locator(
-            '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/button[2])',
+    const [progress] = await Promise.all([
+        page.waitForResponse(
+            (r) =>
+                r.url().includes(`/dailies/progress`) &&
+                r.request().method() == 'GET',
         ),
-        page.locator(':scope >>> div.c-btWakK button.c-drMScW'),
-    ])
-        .setTimeout(timeout)
-        .click();
+        puppeteer.Locator.race([
+            page.locator('div.c-btWakK button.c-drMScW'),
+            page.locator(
+                '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/button[2])',
+            ),
+            page.locator(':scope >>> div.c-btWakK button.c-drMScW'),
+        ])
+            .setTimeout(timeout)
+            .click(),
+        page.waitForNavigation(),
+    ]);
+    log(progress.url(), await progress.json());
     await page.evaluate(
         `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
     );
     await sleep(5e3);
-    return splinterApi(page, args);
+    return splinterApi(page, user, args);
 }
-module.exports = { login };
+
+module.exports = { login, createPage };

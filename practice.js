@@ -228,7 +228,9 @@ async function getBattleId(acc, page) {
     await page.evaluate(`SM.AcceptChallenge('${id}')`);
 }
 
-const db = require('better-sqlite3')('./data/battles.db', { timeout: 81e3 });
+const { battlesDB } = require('./core/battle.js');
+
+const db = battlesDB();
 const countBattles = db.prepare(`
   SELECT count(*) AS x FROM battles WHERE (
     team1=:team1 AND team2=:team2 OR team1=:team2 AND team2=:team1

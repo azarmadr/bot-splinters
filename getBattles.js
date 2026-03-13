@@ -1,4 +1,3 @@
-const R = require('ramda');
 const { writeFileSync } = require('jsonfile');
 const { log, D, sleep } = require('./util/dbug');
 const { C, T, Ru } = require('./util/card');
@@ -23,7 +22,8 @@ const B = {},
     _dbugBattles = [];
 //const __medusa=(m,t)=>(T.colorSec(t)=='Blue'&&m.card_detail_id==194&&m.level<3)?17:m.card_detail_id;
 
-const db = require('better-sqlite3')('./data/battles.db', { timeout: 81e3 });
+const { battlesDB } = require('./core/battle.js');
+const db = battlesDB();
 db.prepare(`CREATE TABLE IF NOT EXISTS battles (
   team1 TEXT, team2 TEXT, rules TEXT, r INTEGER,
   m1 INTEGER, m2 INTEGER, c1 INTEGER, c2 INTEGER,
@@ -94,8 +94,8 @@ B.insertBattles = db.transaction((battles) => {
 async function getBattles(
     player = '',
     nuSet = new Set(),
-    rFilter = R.T,
-    drs = R.F,
+    rFilter = () => true,
+    drs = () => false,
 ) {
     const battleHistory = await getJson(player)
         .then((b) =>
@@ -210,4 +210,17 @@ if (
             ),
         )
         .catch(log);
+}
+
+if (process.argv[1] == module.filename) {
+    const args = require('minimist')(process.argv.slice(2));
+
+    const drs = args.drs ?? ''; // TODO
+    const player = args.n ?? '';
+    const depth = args.d ?? 2;
+    const fn = args.f ?? '';
+    const minRank = args.mr ?? 0;
+
+    log({ drs, player, depth, fn, minRank });
+    Promise.resolve(fromUsers(player, { depth, fn, minRank })).then(() => {});
 }

@@ -17,12 +17,12 @@ const possibleAttrRules = R.pipe(
     R.uniq,
 );
 
-function Battle(opts, db) {
+function Battle(opts) {
     const battle = {
         ...opts,
         mana: Math.min(
-            battle.ruleset.includes('Little League') ? 28 : 99,
-            battle.mana_cap,
+            opts.ruleset.includes('Little League') ? 28 : 99,
+            opts.mana_cap,
         ),
     };
     return battle;

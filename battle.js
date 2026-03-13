@@ -15,7 +15,8 @@ const add2nm = (nm, io, s, t, r) => {
         nm[s][t][0] ??= r;
         nm[t][s][1] ??= r;
     } else {
-        // if (t in nm[s]) log('duplicate battle', s, t, r, nm[s][t]);
+        if (t in nm[s] && r != nm[s][t])
+            log('duplicate battle', s, t, r, nm[s][t]);
         nm[s][t] ??= r;
     }
 };
@@ -128,37 +129,38 @@ module.exports = function BattleObj(battle) {
             return cardsOfPlayers;
         },
         set cardsOfPlayers(playerCards) {
-            const processCards = R.pipe(
-                R.reduce(
-                    (agg, x) =>
-                        R.mergeWith(R.max, agg, {
-                            [x.card_detail_id]: x.level,
-                        }),
-                    {},
+            cardsOfPlayers = playerCards.map(
+                R.pipe(
+                    R.reduce(
+                        (agg, x) =>
+                            R.mergeWith(R.max, agg, {
+                                [x.card_detail_id]: x.level,
+                            }),
+                        {},
+                    ),
+                    R.toPairs,
+                    R.filter((c) => {
+                        try {
+                            C.mana(c);
+                            return true;
+                        } catch (_e) {
+                            // TODO log if not already seen error comes
+                            // if log(e);
+                            return false;
+                        }
+                    }),
+                    R.filter(rules.byCard),
+                    R.filter(
+                        (x) =>
+                            !battle.inactive.includes(C.color(x)) &&
+                            (battle.format === 'foundation'
+                                ? [15]
+                                : [12, 14, 15]
+                            ).includes(C.tier(x)),
+                    ),
+                    R.fromPairs,
                 ),
-                R.toPairs,
-                R.filter((c) => {
-                    try {
-                        C.mana(c);
-                        return true;
-                    } catch (_e) {
-                        // TODO log if not already seen error comes
-                        // if log(e);
-                        return false;
-                    }
-                }),
-                R.filter(rules.byCard),
-                R.filter(
-                    (x) =>
-                        !battle.inactive.includes(C.color(x)) &&
-                        (battle.format === 'foundation'
-                            ? [15]
-                            : [12, 14, 15]
-                        ).includes(C.tier(x)),
-                ),
-                R.fromPairs,
             );
-            cardsOfPlayers = playerCards.map(processCards);
         },
         get sortByWinRate() {
             return sortByWinRate;
