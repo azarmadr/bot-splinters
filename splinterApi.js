@@ -1,5 +1,6 @@
 const R = require('ramda');
 const B = require('./battle');
+const battleCore = require('./core/battle.js');
 const { C, log, sleep, E, D, F } = require('./util');
 const puppeteer = require('puppeteer');
 const timeout = 5000;
@@ -17,10 +18,10 @@ const splinterApi = (page, args) => {
     const getCards = async (player) => {
         const cards = await page.evaluate(
             `fetch("https://api.splinterlands.com/cards/collection/${player}")
-		.then(x=>x.json()).then(x=>x.cards)`,
+		.then(x=>x.json())`,
         );
         log({ 'Obtaining Cards': player, '#cards': cards.length });
-        return cards;
+        return battleCore.playableCards(cards);
     };
     const waitForChomperToHide = async () => {
         while (true) {
@@ -126,11 +127,7 @@ const splinterApi = (page, args) => {
         battle.cardsOfPlayers = await Promise.all(
             [user.account, battleDetails.opponent_player]
                 .filter((x) => x !== '???')
-                .map((account, index) =>
-                    getCards(account)
-                        .then(battle.processCards(index))
-                        .catch(log),
-                ),
+                .map(getCards),
         );
         D.table([
             {

@@ -8,7 +8,7 @@ module.exports = {
     ...require('./score'),
     isLocked: R.pipe(String.raw, (u) =>
         fs.existsSync(u)
-            ? fs.statSync(u).mtimeMs + 81e3 > Date.now() ||
+            ? fs.statSync(u).mtimeMs + 81e4 > Date.now() ||
               fs.writeFileSync(u, '')
             : fs.writeFileSync(u, ''),
     ),

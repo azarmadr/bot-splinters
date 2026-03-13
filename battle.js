@@ -3,11 +3,9 @@ const RA = require('ramda-adjunct');
 const { T, Ru, C } = require('./util/card');
 const { log } = require('./util/dbug');
 const { playableTeams } = require('./score');
+const { battlesDB, possibleAttrRules } = require('./core/battle.js');
 
-const db = require('better-sqlite3')('./data/battles.db', {
-    // verbose: log,
-    timeout: 81e3,
-});
+const db = battlesDB();
 const add2nm = (nm, io, s, t, r) => {
     nm[s] ??= {};
     if (io) {
@@ -21,28 +19,6 @@ const add2nm = (nm, io, s, t, r) => {
         nm[s][t] ??= r;
     }
 };
-
-// const BASE_MANA = 30;
-
-// TODO merge into processCards
-const cards2Obj = (acc) => (cards) =>
-    cards
-        .filter(
-            (card) =>
-                !(card.market_id && card.market_listing_status === 0) &&
-                (!card.delegated_to || card.delegated_to === acc) &&
-                !(
-                    card.last_used_player !== acc &&
-                    Date.parse(card.last_used_date) > Date.now() - 86400000
-                ),
-        )
-        .reduce(
-            (agg, x) =>
-                R.mergeWith(R.max, agg, {
-                    [x.card_detail_id]: x.level,
-                }),
-            {},
-        );
 
 module.exports = function BattleObj(battle) {
     let mana = Math.min(
@@ -64,31 +40,6 @@ module.exports = function BattleObj(battle) {
                 ),
         )
         .join();
-    const processCards = (i) =>
-        R.pipe(
-            cards2Obj(i ? battle.opponent_player : battle.player),
-            R.toPairs,
-            R.filter((c) => {
-                try {
-                    C.mana(c);
-                    return true;
-                } catch (_e) {
-                    // TODO log if not already seen error comes
-                    // if log(e);
-                    return false;
-                }
-            }),
-            R.filter(rules.byCard),
-            R.filter(
-                (x) =>
-                    !battle.inactive.includes(C.color(x)) &&
-                    (battle.format === 'foundation'
-                        ? [15]
-                        : [12, 14, 15]
-                    ).includes(C.tier(x)),
-            ),
-            R.fromPairs,
-        );
     const colorQuery = [1, 2].map((x) => `c${x} IN (${activeColors})`);
     const manaQuery = [1, 2].map((x) => `m${x} = :mana`);
     // `(m${x} = :mana${mana > BASE_MANA ? ` OR m${x} <=${mana} AND m${x} > ${BASE_MANA}` : ``})`,
@@ -99,9 +50,8 @@ module.exports = function BattleObj(battle) {
         return R.pipe(
             // R.tap(log),
             T,
-            R.map((x) => [cards[x[0]], x[1]]),
             R.both(
-                R.all(([l, r]) => l >= r),
+                R.all(([id, r]) => cards[id] >= r),
                 rules.byTeam,
             ),
         );
@@ -114,11 +64,6 @@ module.exports = function BattleObj(battle) {
         // x=>((a,b)=>x>mana?x/a-mana/a:mana/b-x/b)(2,1),
         const timeLimit = Date.now() + 81e3;
         // RA.rangeStep(-1, Math.min(mana, BASE_MANA), 8)
-        const possibleAttrRules = R.pipe(
-            R.juxt([R.of(Array), R.splitEvery(1), R.always([['Standard']])]),
-            R.unnest,
-            R.uniq,
-        );
         let nm = {};
         for (const attrRule of possibleAttrRules(rules.attr)) {
             const query_string = `
@@ -182,8 +127,38 @@ module.exports = function BattleObj(battle) {
         get cardsOfPlayers() {
             return cardsOfPlayers;
         },
-        set cardsOfPlayers(_) {
-            cardsOfPlayers = _;
+        set cardsOfPlayers(playerCards) {
+            const processCards = R.pipe(
+                R.reduce(
+                    (agg, x) =>
+                        R.mergeWith(R.max, agg, {
+                            [x.card_detail_id]: x.level,
+                        }),
+                    {},
+                ),
+                R.toPairs,
+                R.filter((c) => {
+                    try {
+                        C.mana(c);
+                        return true;
+                    } catch (_e) {
+                        // TODO log if not already seen error comes
+                        // if log(e);
+                        return false;
+                    }
+                }),
+                R.filter(rules.byCard),
+                R.filter(
+                    (x) =>
+                        !battle.inactive.includes(C.color(x)) &&
+                        (battle.format === 'foundation'
+                            ? [15]
+                            : [12, 14, 15]
+                        ).includes(C.tier(x)),
+                ),
+                R.fromPairs,
+            );
+            cardsOfPlayers = playerCards.map(processCards);
         },
         get sortByWinRate() {
             return sortByWinRate;
@@ -195,7 +170,6 @@ module.exports = function BattleObj(battle) {
         rules,
         inactive,
         isPlayable,
-        processCards,
         nodeMatrix,
         unStarters(t) {
             const team = T(t);

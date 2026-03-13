@@ -215,7 +215,7 @@ async function logout(page) {
             if (!user) break;
             users.push(user);
             if (isLocked`.bot.playing.${user.account}`) {
-                await sleep(1e3);
+                await sleep(1e4);
                 continue;
             }
             if (browser.process().killed) {
@@ -224,16 +224,19 @@ async function logout(page) {
             }
 
             const nSM = await login(page, user, args);
-            const _battle = await nSM
-                .battle(user.battle, user)
-                .catch(async (e) => {
-                    log(
-                        e,
-                        'failed to submit team, so waiting for user to input manually and close the session',
-                    );
-                    await sleep(81e3);
-                    throw e; //can we continue here without throwing error
-                });
+            for (let i = 0; i < 5; i++) {
+                const _battle = await nSM
+                    .battle(user.battle, user)
+                    .catch(async (e) => {
+                        log(
+                            e,
+                            'failed to submit team, so waiting for user to input manually and close the session',
+                        );
+                        await sleep(81e3);
+                        throw e; //can we continue here without throwing error
+                    });
+                await sleep(5e3);
+            }
             rmLock`.bot.playing.${user.account}`;
             logout(page);
             tableList.forEach((x, i) => {
