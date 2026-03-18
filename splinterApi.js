@@ -6,7 +6,6 @@ const puppeteer = require('puppeteer');
 const ruleSet = require('./data/rulesets.json');
 
 const timeout = 5000;
-const continueAfterError = 1;
 const clickElement = (e) => e.click();
 
 async function createPage(args) {
@@ -65,7 +64,7 @@ const splinterApi = (page, user, args) => {
                 let mana_cap,
                     inactive = [],
                     ruleset = [];
-                for (let elem of document.all) {
+                for (const elem of document.all) {
                     if (!mana_cap) {
                         const mana = elem.innerText?.match(/^MANA\s*(\d+)$/u);
                         if (mana) mana_cap = +mana[1];
@@ -93,7 +92,7 @@ const splinterApi = (page, user, args) => {
             .waitForResponse(
                 (response) =>
                     response.url().includes(urlPart) &&
-                    response.request().method() == method,
+                    response.request().method() === method,
                 opts,
             )
             .then((x) => x.json());
@@ -103,7 +102,7 @@ const splinterApi = (page, user, args) => {
             (buttons, name) =>
                 buttons.filter((e) => e.innerText === name)[0].click(),
             name,
-        );
+        ).catch(e=>log({e, name}));
     const getCards = async (player) => {
         const cards = await page.evaluate(
             `fetch("https://api.splinterlands.com/cards/collection/${player}")
@@ -112,13 +111,17 @@ const splinterApi = (page, user, args) => {
         log({ 'Obtaining Cards': player, '#cards': cards.length });
         return playableCards(cards);
     };
-    const waitForChomperToHide = async () => {
+    const _waitForChomperToHide = async () => {
         while (true) {
             await page.waitForSelector('img[alt="chomper"]', { hidden: true });
             if (!(await page.$('img[alt="chomper"]').catch(log))) break;
         }
         log('Waiting finished');
     };
+    const clickCard = (id, continueAfterError = false) =>
+        F.retryFor(3, 3000, continueAfterError, async () =>
+            page.$eval(`[data-card_detail_id="${id}"] img`, clickElement),
+        );
     const teamSelection = async (teams) => {
         // TODO add a tui to select the best team
         // TODO find better strategy B.sortByWinRate =
@@ -137,20 +140,13 @@ const splinterApi = (page, user, args) => {
             })),
         ]);
         D.table([Stats]);
-        await F.retryFor(3, 3000, !continueAfterError, async () =>
-            page
-                .waitForSelector(`[data-card_detail_id="${Summoner[0]}"]`, {
-                    timeout: 1001,
-                })
-                .then(clickElement)
-                .catch(log),
-        );
+        await clickCard(Summoner[0]);
         await sleep(2e3);
         // TODO fix for the gold
         if (C.color(Summoner) === 'Gold') {
             const splinter = T.splinter(B.inactive)(teamToPlay.team);
             log({ splinter });
-            await F.retryFor(3, 3000, !continueAfterError, async () =>
+            await F.retryFor(3, 3000, false, async () =>
                 page.$eval(
                     `[data-data-original-title="${splinter}"] label`,
                     clickElement,
@@ -159,9 +155,7 @@ const splinterApi = (page, user, args) => {
         }
         for (const [mon] of Monsters) {
             //log({[`Playing ${C.name(mon)}`]:mon})
-            await F.retryFor(3, 3000, continueAfterError, async () =>
-                page.$eval(`[data-card_detail_id="${mon}"] img`, clickElement),
-            );
+            await clickCard(mon, true);
         }
         if (!args.HEADLESS)
             await sleep(Math.min(60, Math.abs(args.PAUSE_BEFORE_SUBMIT)) * 1e3);
@@ -263,7 +257,7 @@ const splinterApi = (page, user, args) => {
             `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
         );
     }
-    const questClaim = async (q, _q) => {
+    const _questClaim = async (q, _q) => {
         log({ 'Claiming quest box': q.name });
         await page
             .evaluate(([q, _q]) => QuestClaimReward(q, _q), [q, _q])

@@ -121,7 +121,7 @@ test('node matrix', { skip: false }, (_t) => {
     battle.cardsOfPlayers = [cards];
     const nm = battle.nodeMatrix();
     console.log(Object.keys(battle.cardsOfPlayers[0]));
-    // console.log(Object.keys(nm).length);
+    console.log(Object.keys(nm).length);
     const playableTeams = battle.playableTeams();
 
     // console.log(battle.cardsOfPlayers);

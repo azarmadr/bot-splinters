@@ -189,6 +189,7 @@ async function logout(page) {
                     await sleep(81e3);
                     throw e; //can we continue here without throwing error
                 });
+                console.log(battleResult);
                 await sleep(5e3);
             }
             rmLock`.bot.playing.${user.account}`;

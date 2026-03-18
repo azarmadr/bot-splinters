@@ -212,7 +212,7 @@ if (
         .catch(log);
 }
 
-if (process.argv[1] == module.filename) {
+if (process.argv[1] === module.filename) {
     const args = require('minimist')(process.argv.slice(2));
 
     const drs = args.drs ?? ''; // TODO

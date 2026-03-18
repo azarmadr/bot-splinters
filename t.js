@@ -1,7 +1,6 @@
 import { args } from './util/common.js';
 import { splinterApi, createPage } from './splinterApi.js';
 import { createWriteStream } from 'node:fs';
-import ruleSet from './data/rulesets.json' with { type: 'json' };
 
 const filePath = 'data/network.jsonl';
 const JsonLStreamer = (filePath) => {

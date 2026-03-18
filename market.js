@@ -1,8 +1,6 @@
 const { args } = require('./util/common.js');
 const R = require('ramda');
 const { log, C, D, A, F, E, sleep } = require('./util');
-const puppeteer = require('puppeteer');
-const headless = 0;
 
 const waitList = {};
 

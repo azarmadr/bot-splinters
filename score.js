@@ -38,6 +38,16 @@ const setScores = (battle) => {
     return [nm, scores];
 };
 const printConf = { columns: [{ name: 'team', maxLen: 35 }] };
+const tablePrinter = Belt.flow(
+    Belt.A.take(6),
+    Belt.A.map(
+        Belt.D.updateUnsafe(
+            'team',
+            Belt.A.map((c) => [C.name(c), c[1]].join(', ')),
+        ),
+    ),
+    (x) => D.table(x, printConf),
+);
 globalThis.practiceOn = 0;
 module.exports.playableTeams = (battle) => {
     const [nm, scores] = setScores(battle);
@@ -105,62 +115,43 @@ module.exports.playableTeams = (battle) => {
     );
 
     var pt = teams;
-    const tablePrinter = Belt.flow(
-        Belt.A.take(6),
-        Belt.A.map(
-            Belt.D.updateUnsafe(
-                'team',
-                Belt.A.map((c) => [C.name(c), c[1]].join(', ')),
-            ),
-        ),
-        (x) => D.table(x, printConf),
-    );
     if (battle.sortByWinRate) {
         pt = pt.slice(0, 27);
         pt.sort((_) => Math.random() * 2 - 1);
     }
     tablePrinter(pt);
-    if (!battle.sortByWinRate) {
-        if (practiceOn) {
-            Belt.pipe(
-                teams,
-                R.sortWith(
-                    R.map(R.descend)([
-                        (x) => x.adv * Math.sqrt(x.score ** 2 + x.ev ** 2),
-                        (x) => !x.oppMark,
-                    ]),
-                ),
-                (x) => (pt = x),
-                R.slice(0, 5),
-                R.map(({ team, ...s }) => ({
-                    team: team.map((c) => [C.name(c), c[1]]).join(),
-                    ...s,
-                })),
-                D.table,
-            );
-            // pt=pt.slice(0,9);
-            // pt.sort(_=>Math.random()*2-1)
-        } else {
-            for (const [name, fn] of [
-                ['ev', R.sortBy((b) => -b.ev)],
+    for (const [name, fn] of [
+        ['ev', R.sortBy((b) => -b.ev)],
+        [
+            'aScore+ev',
+            R.sortWith(
                 [
-                    'aScore+ev',
-                    R.sortWith(
-                        [
-                            (x) => x.aScore ** 2 + x.ev ** 2 * 1.27,
-                            (x) => x.score,
-                            (x) => x.ev,
-                        ].map((fn) => R.descend(fn)),
-                    ),
-                ],
-                ['adv', R.sortBy((x) => -x.adv)],
-                ['loss-win', R.sortBy((x) => x._l - x._w)],
-            ]) {
-                log(name);
-                pt = fn(pt);
-                tablePrinter(pt);
-            }
-        }
+                    (x) => x.aScore ** 2 + x.ev ** 2 * 1.27,
+                    (x) => x.score,
+                    (x) => x.ev,
+                ].map((fn) => R.descend(fn)),
+            ),
+        ],
+        ['adv', R.sortBy((x) => -x.adv)],
+        ['loss-win', R.sortBy((x) => x._l - x._w)],
+        ...(battle.sortByWinRate || !practiceOn
+            ? []
+            : [
+                  [
+                      'practice',
+                      R.sortWith(
+                          R.map(R.descend)([
+                              (x) =>
+                                  x.adv * Math.sqrt(x.score ** 2 + x.ev ** 2),
+                              (x) => !x.oppMark,
+                          ]),
+                      ),
+                  ],
+              ]),
+    ]) {
+        log(name);
+        pt = fn(pt);
+        tablePrinter(pt);
     }
     return pt.slice(0, 27).map(S.wBetterCards(battle));
 };

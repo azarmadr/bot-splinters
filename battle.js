@@ -16,7 +16,7 @@ const add2nm = (nm, io, s, t, r) => {
         nm[s][t][0] ??= r;
         nm[t][s][1] ??= r;
     } else {
-        if (t in nm[s] && r != nm[s][t])
+        if (t in nm[s] && r !== nm[s][t])
             log('duplicate battle', s, t, r, nm[s][t]);
         nm[s][t] ??= r;
     }
