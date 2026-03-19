@@ -11,9 +11,10 @@ test-js:
     # node util/common.js
     node --test test/main.js
 
-get-rulesets:
+get-rulesets-cards:
     #!nu
-    http https://api.splinterlands.com/battle/rulesets | save -f data/rulesets.json
+    http https://api.splinterlands.com/battle/rulesets  | save -f data/rulesets.json
+    http https://api.splinterlands.io/cards/get_details | save data\cards.json -f
 
 get-cards player:
     #!nu
