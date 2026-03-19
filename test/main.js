@@ -15,14 +15,25 @@ test('mana matches', (_t) => {
     }, /Error: id:'869' is probably not a card/);
 });
 
-test('team and rule set number calculation', (_t) => {
-    const team = T('827,4,850,4,830,2,824,4,855,2,567,4');
-    // const stats = 'name,armor,attack,ranged,magic,abilities'.split`,`;
-    // console.table(
-    //     team.map((c) => stats.reduce((a, x) => ((a[x] = C[x](c)), a), {})),
-    // );
-    // console.log(R.pipe(R.applySpec(Ru.pred))([team, team]));
-    assert.equal(Ru.num([team, team]), 35735310696448);
+test('team and rule set number calculation', { only: true }, (_t) => {
+    for (const { team, mana, ru } of [
+        { team: '5,1,2,1,976,1,6,1,7,1,483,1,538,1', mana: 44, ru: 41947136 },
+        {
+            team: '827,4,850,4,830,2,824,4,855,2,567,4',
+            mana: 42,
+            ru: 35735310696448,
+        },
+    ]) {
+        console.log({ team });
+        const t = T(team);
+        // const stats = 'name,armor,attack,ranged,magic,abilities'.split`,`;
+        // console.table(
+        //     team.map((c) => stats.reduce((a, x) => ((a[x] = C[x](c)), a), {})),
+        // );
+        // console.log(R.pipe(R.applySpec(Ru.pred))([team, team]));
+        assert.equal(T.mana(t), mana);
+        assert.equal(Ru.num([t, t]), ru);
+    }
 });
 
 const battleOpts = {

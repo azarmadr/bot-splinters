@@ -12,7 +12,13 @@ const setScores = (battle) => {
         for (const t in nm[s]) {
             const p = nm[s][t];
             const teams = [s, t].map(T);
-            const [sMana, tMana] = teams.map(T.mana);
+            let sMana, tMana;
+            try {
+                [sMana, tMana] = teams.map(T.mana);
+            } catch (e) {
+                log(e, 'skipping');
+                continue;
+            }
             const m =
                 ((sMana / battle.mana) *
                     teams.reduce(
