@@ -1,7 +1,6 @@
 const { args } = require('./util/common.js');
 const { splinterApi, createPage } = require('./splinterApi');
 const { User } = require('./core/user.js');
-
 const {
     isLocked,
     rmLock,
@@ -47,74 +46,14 @@ async function _checkForUpdate() {
             }
         });
 }
-const postBattle = (user, battle) => {
-    if (battle === undefined) return;
-    user.won =
-        battle.winner === user.account ? 1 : battle.winner === 'DRAW' ? 0 : -1;
-    if (user.won > 0) {
-        log({ Result: `Won!!!${Array(battle.current_streak).fill('_.~"(')}` });
-        user.w++;
-    } else user.won < 0 ? user.l++ : user.d++;
-    user.netWon += user.won;
-};
 
-const _preMatch =
-    (user) =>
-    ({ Player, settings }) => {
-        user.wRating = Player.rating;
-        user.mRating = Player.modern_rating;
-        const roll = 1; //Math.random()>0.27;
-        user.rating = roll ? user.mRating : user.wRating;
-        user.cp = Player.collection_power;
-        user.sp = Player.current_season_player?.rshares;
-        user.qp = Player.quest?.rshares;
-        user.claimSeasonReward =
-            args.CLAIM_SEASON_REWARD &&
-            Player?.season_reward.reward_packs > 0 &&
-            Player.starter_pack_purchase;
-
-        user.battle = `${roll ? 'Modern ' : ''}Ranked`;
-        // TODO if quest done claim reward
-        user.claimQuestReward = [];
-        user.quest = 0;
-        if (Player.quest && !Player.quest.claim_trx_id) {
-            const { name } = Player.quest;
-            const quest = settings.daily_quests.find((x) => x.name === name);
-            if (
-                (Number(args.qp) || 3) * Math.random() < 1 &&
-                args.QUEST_PRIORITY
-            )
-                user.quest = {
-                    type: quest.objective_type,
-                    ...quest.data,
-                };
-            //if(completed_items<total_items){ }
-            // if(completed_items>=total_items){
-            //   user.claimQuestReward.push(Player.quest,quest);
-            //   //user.quest = 0;
-            // }
-        }
-        Player.quest ??= {};
-        table([
-            {
-                Rating: Player.rating,
-                t: (args.t - Date.now()) / 36e5,
-                ...Player.quest,
-            },
-        ]);
-    };
-
-const tableList = ['account', 'wRating', `mRating`, 'netWon', 'w', 'l', 'd'];
 (async () => {
     const users = User.listFromArgs(args);
     let page = await createPage(args); // TODO move this completely into splinterApi.js
 
     for (let user; ; ) {
-        table(
-            users.map((u) =>
-                Object.fromEntries(tableList.map((x) => [x, u[x]])),
-            ),
-        );
+        const count = users.filter((x) => !!x.rate).length ? 1 : 5;
+        table(users);
         if (args.t && Date.now() > args.t) break;
         user = users.shift();
         if (!user) break;
@@ -127,15 +66,11 @@ const tableList = ['account', 'wRating', `mRating`, 'netWon', 'w', 'l', 'd'];
 
         const nSM = splinterApi(page, user, args);
         await nSM.login();
-        log(user.progress);
-        user.battle = 'MODERN'; // TODO or 'FOUNDATION'
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < count; i++) {
             if (args.t && Date.now() > args.t) break;
-            const battleResult = await nSM.battle().catch(log);
-            postBattle(user, battleResult);
+            await nSM.battle().catch(log);
             await sleep(5e3);
         }
-        user.updateData();
         rmLock`.bot.playing.${user.account}`;
         await nSM.logout();
         if (!args.KEEP_BROWSER_OPEN) page.browser.close();

@@ -178,21 +178,22 @@ const splinterApi = (page, user, args) => {
                 polling: 1e4,
             }),
         ]);
+        user.postBattle(result);
         await clickButtonWith('SKIP BATTLE').catch((x) => {
             log(x);
-            return sleep(8e4);
+            return sleep(8e4); // TODO why wait here?
         });
-        return result;
     };
     const battle = async () => {
-        log(`Finding ${user.battle} match`);
+        const battleFormat = user.battle();
+        log(`Finding ${battleFormat} match`);
         await gotoAndWait('https://splinterlands.com/battle-history');
         await page.waitForFunction(() =>
             [...document.querySelectorAll('button')]
                 .map((x) => x.innerText)
                 .includes('BATTLE'),
         );
-        await clickButtonWith(user.battle);
+        await clickButtonWith(battleFormat);
         // await waitForChomperToHide();
         // await sleep(8e3);
         let [battleDetails, recent_opp_teams] = await Promise.all([
@@ -234,7 +235,7 @@ const splinterApi = (page, user, args) => {
             );
             return sleep(81e3);
         });
-        return await finishBattle();
+        await finishBattle();
     };
 
     async function logout() {
@@ -272,7 +273,7 @@ const splinterApi = (page, user, args) => {
                 .setTimeout(timeout)
                 .click(),
         ]);
-        user.progress = progress;
+        user.updateInfo(progress, info);
         await page.evaluate(
             `localStorage.setItem('battlePersistent:playbackSpeed', 6)`,
         );
