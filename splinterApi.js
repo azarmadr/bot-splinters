@@ -97,12 +97,14 @@ const splinterApi = (page, user, args) => {
             )
             .then((x) => x.json());
     const clickButtonWith = (name) =>
-        page.$$eval(
-            'button',
-            (buttons, name) =>
-                buttons.filter((e) => e.innerText === name)[0].click(),
-            name,
-        ).catch(e=>log({e, name}));
+        page
+            .$$eval(
+                'button',
+                (buttons, name) =>
+                    buttons.filter((e) => e.innerText === name)[0].click(),
+                name,
+            )
+            .catch((e) => log({ e, name }));
     const getCards = async (player) => {
         const cards = await page.evaluate(
             `fetch("https://api.splinterlands.com/cards/collection/${player}")
@@ -172,11 +174,11 @@ const splinterApi = (page, user, args) => {
                 timeout: 1e5,
                 polling: 1e4,
             }),
-            clickButtonWith('SKIP BATTLE').catch((x) => {
-                log(x);
-                return sleep(8e4);
-            }),
         ]);
+        await clickButtonWith('SKIP BATTLE').catch((x) => {
+            log(x);
+            return sleep(8e4);
+        });
         return result;
     };
     const battle = async () => {
@@ -203,6 +205,7 @@ const splinterApi = (page, user, args) => {
 
         await sleep(2e3);
         await clickButtonWith('ENTER ARENA');
+        // TODO make use of opp_teams to get min cards
         log({ battleDetails, recent_opp_teams });
         const battle = B(battleDetails);
         await sleep(729);
