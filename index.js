@@ -48,6 +48,7 @@ async function _checkForUpdate() {
         });
 }
 const postBattle = (user, battle) => {
+    if (battle === undefined) return;
     user.won =
         battle.winner === user.account ? 1 : battle.winner === 'DRAW' ? 0 : -1;
     if (user.won > 0) {
@@ -102,12 +103,6 @@ const _preMatch =
         ]);
     };
 
-async function logout(page) {
-    await sleep(1e4);
-    await page.goto('https://splinterlands.com').catch(log);
-    await page.goto('https://splinterlands.com/logout').catch(log);
-}
-
 (async () => {
     const tableList = [
             'account',
@@ -155,51 +150,39 @@ async function logout(page) {
     if ('t' in args) args.t = args.t * 60 * 60000 + Date.now();
     let page = await createPage(args);
 
-    while (true) {
-        //await checkForUpdate();
-        for (let user; ; ) {
-            log({ users: users.map((x) => x.account) });
-            user = users.shift();
-            if (!user) break;
-            users.push(user);
-            if (isLocked`.bot.playing.${user.account}`) {
-                await sleep(3e3);
-                continue;
-            }
-            if (page.browser().process().killed) page = await createPage(args);
-
-            const nSM = splinterApi(page, user, args);
-            await nSM.login();
-            log(user.progress);
-            user.battle = 'MODERN'; // TODO or 'FOUNDATION'
-            for (let i = 0; i < 5; i++) {
-                const battleResult = await nSM.battle().catch(async (e) => {
-                    log(
-                        e,
-                        `failed to submit team,
-                        so waiting for user to input manually and close the session`,
-                    );
-                    await sleep(81e3);
-                    throw e; //can we continue here without throwing error
-                });
-                postBattle(user, battleResult);
-                await sleep(5e3);
-            }
-            rmLock`.bot.playing.${user.account}`;
-            logout(page);
-            tableList.forEach((x, i) => {
-                if (i > 3) {
-                    userData[toDay][user.account] ??= {};
-                    userData[toDay][user.account][x] = user[x];
-                }
-            });
-            writeFileSync('./data/user_data.json', userData);
-        }
+    for (let user; ; ) {
         table(
             users.map((u) =>
                 Object.fromEntries(tableList.map((x) => [x, u[x]])),
             ),
         );
+        user = users.shift();
+        if (!user) break;
+        users.push(user);
+        if (isLocked`.bot.playing.${user.account}`) {
+            await sleep(3e3);
+            continue;
+        }
+        if (page.browser().process().killed) page = await createPage(args);
+
+        const nSM = splinterApi(page, user, args);
+        await nSM.login();
+        log(user.progress);
+        user.battle = 'MODERN'; // TODO or 'FOUNDATION'
+        for (let i = 0; i < 5; i++) {
+            const battleResult = await nSM.battle().catch(log);
+            postBattle(user, battleResult);
+            await sleep(5e3);
+        }
+        rmLock`.bot.playing.${user.account}`;
+        await nSM.logout();
+        tableList.forEach((x, i) => {
+            if (i > 3) {
+                userData[toDay][user.account] ??= {};
+                userData[toDay][user.account][x] = user[x];
+            }
+        });
+        writeFileSync('./data/user_data.json', userData);
         if (!args.KEEP_BROWSER_OPEN) page.browser.close();
         log(
             'Waiting for the next battle in',
@@ -207,9 +190,7 @@ async function logout(page) {
             'minutes at',
             new Date(Date.now() + sleepingTime).toLocaleString(),
         );
-        log(
-            '--------------------------End of Session--------------------------------\n\n',
-        );
+        log('End of Session\n\n');
         await sleep(sleepingTime);
     }
     await page.browser.close();

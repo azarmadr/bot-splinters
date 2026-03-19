@@ -64,9 +64,9 @@ const splinterApi = (page, user, args) => {
                 details.mana_cap ||= +document
                     .querySelector('[aria-label*="MANA"')
                     .ariaLabel.replace('MANA', '');
-                details.opponent_player ||= document.querySelector(
-                    '[aria-label^="Opponent"]',
-                ).innerText;
+                details.opponent_player ||= document
+                    .querySelector('[aria-label^="Opponent"]')
+                    .innerText.toLowerCase();
 
                 let inactive = [],
                     ruleset = [];
@@ -113,7 +113,7 @@ const splinterApi = (page, user, args) => {
             `fetch("https://api.splinterlands.com/cards/collection/${player}")
 		.then(x=>x.json())`,
         );
-        log({ 'Obtaining Cards': player, '#cards': cards.length });
+        log({ 'Obtaining Cards': player, '#cards': cards.cards.length });
         return playableCards(cards);
     };
     const _waitForChomperToHide = async () => {
@@ -174,7 +174,7 @@ const splinterApi = (page, user, args) => {
             clickButtonWith('BATTLE'),
             page.waitForNavigation(),
             page.waitForFunction(() => document.URL.match(/\/battle\/sl_/), {
-                timeout: 0,
+                timeout: 3e5,
                 polling: 1e4,
             }),
         ]);
@@ -204,14 +204,13 @@ const splinterApi = (page, user, args) => {
             clickButtonWith('BATTLE'),
             page.waitForNavigation(),
         ]);
-        log(battleDetails);
         battleDetails = await parseBattleDetails(battleDetails);
 
         await sleep(2e3);
         await clickButtonWith('ENTER ARENA');
         // TODO make use of opp_teams to get min cards
         // TODO getBattles of the opponent_player
-        log({ battleDetails, recent_opp_teams });
+        log({ battleDetails, recent_opp_teams: recent_opp_teams.length });
         const battle = B(battleDetails);
         await sleep(729);
         battle.cardsOfPlayers = await Promise.all(
@@ -227,9 +226,22 @@ const splinterApi = (page, user, args) => {
                 ),
             },
         ]);
-        await teamSelection(battle.playableTeams()).catch(log);
+        await teamSelection(battle.playableTeams()).catch((e) => {
+            log(e);
+            log(
+                `failed to submit team,
+                        so waiting for user to input manually and close the session`,
+            );
+            return sleep(81e3);
+        });
         return await finishBattle();
     };
+
+    async function logout() {
+        await sleep(1e4);
+        await page.goto('https://splinterlands.com').catch(log);
+        await page.goto('https://splinterlands.com/logout').catch(log);
+    }
     async function login() {
         await gotoAndWait('https://splinterlands.com/login/email');
         await puppeteer.Locator.race([
@@ -283,6 +295,7 @@ const splinterApi = (page, user, args) => {
         getJsonResponse,
         battle,
         login,
+        logout,
         parseBattleDetails,
     };
 };

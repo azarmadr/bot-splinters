@@ -51,23 +51,14 @@ const nSM = await splinterApi(
 await nSM.login();
 for (let i = 0; i < 222; i++) {
     console.log({ i });
-    !(await page
-        .waitForFunction(() => document.URL.match(/battle-history/), {
-            timeout: 1e5,
-            polling: 1e3,
-        })
-        .catch(console.log));
-    console.log('waiting');
-    if (
+    nSM.clickButtonWith('MODERN');
+    for (const urlRegex of [/battle-history/, /find-match/])
         !(await page
-            .waitForFunction(() => document.URL.match(/find-match/), {
+            .waitForFunction(() => document.URL.match(urlRegex), {
                 timeout: 1e5,
                 polling: 1e3,
             })
-            .catch(console.log))
-    )
-        continue;
-    console.log('in match');
-    const details = await parseBattleDetails();
+            .catch(console.log));
+    const details = await parseBattleDetails().catch(console.log);
     console.log(details);
 }
