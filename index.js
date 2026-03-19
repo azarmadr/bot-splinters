@@ -47,18 +47,9 @@ async function _checkForUpdate() {
             }
         });
 }
-const _postBattle = (user) => (battle) => {
+const postBattle = (user, battle) => {
     user.won =
         battle.winner === user.account ? 1 : battle.winner === 'DRAW' ? 0 : -1;
-    // log({
-    //     getBattles:
-    //         battle.player_1 !== user.account
-    //             ? battle.player_1
-    //             : battle.player_2,
-    // });
-    // const pl =
-    //     battle.player_1 !== user.account ? battle.player_1 : battle.player_2;
-    // if (pl) getBattles(pl).catch(log);
     if (user.won > 0) {
         log({ Result: `Won!!!${Array(battle.current_streak).fill('_.~"(')}` });
         user.w++;
@@ -180,16 +171,18 @@ async function logout(page) {
             const nSM = splinterApi(page, user, args);
             await nSM.login();
             log(user.progress);
+            user.battle = 'MODERN'; // TODO or 'FOUNDATION'
             for (let i = 0; i < 5; i++) {
                 const battleResult = await nSM.battle().catch(async (e) => {
                     log(
                         e,
-                        'failed to submit team, so waiting for user to input manually and close the session',
+                        `failed to submit team,
+                        so waiting for user to input manually and close the session`,
                     );
                     await sleep(81e3);
                     throw e; //can we continue here without throwing error
                 });
-                console.log(battleResult);
+                postBattle(user, battleResult);
                 await sleep(5e3);
             }
             rmLock`.bot.playing.${user.account}`;

@@ -58,17 +58,19 @@ const splinterToColor = {
 };
 
 const splinterApi = (page, user, args) => {
-    const parseBattleDetails = () =>
+    const parseBattleDetails = (details) =>
         page.evaluate(
-            (ruleSet, splinterToColor) => {
-                let mana_cap,
-                    inactive = [],
+            (details, ruleSet, splinterToColor) => {
+                details.mana_cap ||= +document
+                    .querySelector('[aria-label*="MANA"')
+                    .ariaLabel.replace('MANA', '');
+                details.opponent_player ||= document.querySelector(
+                    '[aria-label^="Opponent"]',
+                ).innerText;
+
+                let inactive = [],
                     ruleset = [];
                 for (const elem of document.all) {
-                    if (!mana_cap) {
-                        const mana = elem.innerText?.match(/^MANA\s*(\d+)$/u);
-                        if (mana) mana_cap = +mana[1];
-                    }
                     if (elem.ariaLabel?.match(`Element not active$`)) {
                         inactive.push(elem.ariaLabel.split` `[0]);
                     } else if (elem.ariaLabel?.match(/:/)) {
@@ -79,8 +81,9 @@ const splinterApi = (page, user, args) => {
                 }
                 inactive = inactive.map((x) => splinterToColor[x]).join`,`;
                 ruleset = ruleset.join`|`;
-                return { mana_cap, inactive, ruleset, format: 'foundation' }; // TODO update format somehow??
+                return { ...details, inactive, ruleset };
             },
+            details,
             ruleSet,
             splinterToColor,
         );
@@ -161,17 +164,17 @@ const splinterApi = (page, user, args) => {
         }
         if (!args.HEADLESS)
             await sleep(Math.min(60, Math.abs(args.PAUSE_BEFORE_SUBMIT)) * 1e3);
-        log('Team submitted, Waiting for opponent');
+        log('Team submitted'); // TODO confirm if team was really submitted
         //     .then(() => page.evaluate('SM.CurrentView.data').then(postBattle(user)))
         //     .catch(() => log('Wrapping up Battle'));
     };
     const finishBattle = async () => {
         const [result] = await Promise.all([
-            getJsonResponse('/battle/result'),
+            getJsonResponse('/battle/result', { timeout: 0 }),
             clickButtonWith('BATTLE'),
             page.waitForNavigation(),
             page.waitForFunction(() => document.URL.match(/\/battle\/sl_/), {
-                timeout: 1e5,
+                timeout: 0,
                 polling: 1e4,
             }),
         ]);
@@ -189,6 +192,7 @@ const splinterApi = (page, user, args) => {
                 .map((x) => x.innerText)
                 .includes('BATTLE'),
         );
+        await clickButtonWith(user.battle);
         // await waitForChomperToHide();
         // await sleep(8e3);
         let [battleDetails, recent_opp_teams] = await Promise.all([
@@ -200,12 +204,13 @@ const splinterApi = (page, user, args) => {
             clickButtonWith('BATTLE'),
             page.waitForNavigation(),
         ]);
-        if (battleDetails.mana_cap === null)
-            battleDetails = await parseBattleDetails();
+        log(battleDetails);
+        battleDetails = await parseBattleDetails(battleDetails);
 
         await sleep(2e3);
         await clickButtonWith('ENTER ARENA');
         // TODO make use of opp_teams to get min cards
+        // TODO getBattles of the opponent_player
         log({ battleDetails, recent_opp_teams });
         const battle = B(battleDetails);
         await sleep(729);
@@ -274,6 +279,7 @@ const splinterApi = (page, user, args) => {
             );
     };
     return {
+        clickButtonWith,
         getJsonResponse,
         battle,
         login,
