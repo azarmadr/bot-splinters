@@ -89,7 +89,7 @@ const splinterApi = (page, user, args) => {
         );
 
     const gotoAndWait = (url) =>
-        Promise.all([page.goto(url), page.waitForNavigation()]);
+        Promise.all([page.goto(url), page.waitForNavigation()])[0];
     const getJsonResponse = (urlPart, opts = {}, method = 'GET') =>
         page
             .waitForResponse(
@@ -250,27 +250,27 @@ const splinterApi = (page, user, args) => {
             page.locator(':scope >>> form > div:nth-of-type(1) input'),
         ])
             .setTimeout(timeout * 1e3)
-            .fill(user.login || user.account);
+            .fill(user.login());
         await puppeteer.Locator.race([
             page.locator('::-p-aria(password)'),
             page.locator('form > div:nth-of-type(2) input'),
             page.locator(':scope >>> form > div:nth-of-type(2) input'),
         ])
             .setTimeout(timeout)
-            .fill(user.password);
+            .fill(user.password());
         await sleep(1e2);
-        const [progress] = await Promise.all([
+        const [progress, info] = await Promise.all([
             getJsonResponse(`/dailies/progress`),
+            getJsonResponse(`/players/v2/update`),
+            page.waitForNavigation(),
             puppeteer.Locator.race([
                 page.locator('div.c-btWakK button.c-drMScW'),
                 page.locator(
                     '::-p-xpath(//*[@id=\\"root\\"]/div/div[2]/div/div/div/div/form/button[2])',
                 ),
-                page.locator(':scope >>> div.c-btWakK button.c-drMScW'),
             ])
                 .setTimeout(timeout)
                 .click(),
-            page.waitForNavigation(),
         ]);
         user.progress = progress;
         await page.evaluate(

@@ -127,7 +127,6 @@ module.exports.playableTeams = (battle) => {
     }
     tablePrinter(pt);
     for (const [name, fn] of [
-        ['ev', R.sortBy((b) => -b.ev)],
         [
             'aScore+ev',
             R.sortWith(
@@ -140,6 +139,7 @@ module.exports.playableTeams = (battle) => {
         ],
         ['adv', R.sortBy((x) => -x.adv)],
         ['loss-win', R.sortBy((x) => x._l - x._w)],
+        ['ev', R.sortBy((b) => -b.ev)],
         ...(battle.sortByWinRate || !practiceOn
             ? []
             : [

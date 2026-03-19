@@ -1,6 +1,6 @@
-const { writeFileSync } = require('jsonfile');
 const { args } = require('./util/common.js');
 const { splinterApi, createPage } = require('./splinterApi');
+const { User } = require('./core/user.js');
 
 const {
     isLocked,
@@ -57,6 +57,7 @@ const postBattle = (user, battle) => {
     } else user.won < 0 ? user.l++ : user.d++;
     user.netWon += user.won;
 };
+
 const _preMatch =
     (user) =>
     ({ Player, settings }) => {
@@ -103,52 +104,10 @@ const _preMatch =
         ]);
     };
 
+const tableList = ['account', 'wRating', `mRating`, 'netWon', 'w', 'l', 'd'];
 (async () => {
-    const tableList = [
-            'account',
-            'won',
-            'cp',
-            'wRating',
-            `mRating`,
-            'sp',
-            'qp',
-            'netWon',
-            'w',
-            'l',
-            'd',
-        ],
-        toDay = new Date().toDateString();
-    const userData = (() => {
-        try {
-            return require('./data/user_data.json');
-        } catch (e) {
-            log(e);
-            return {};
-        }
-    })();
-    const users = args.ACCOUNT.map((account, i) => {
-        userData[toDay] ??= {};
-        const u = userData[toDay]?.[account];
-        return {
-            account,
-            password: args.PASSWORD[i],
-            login: args?.EMAIL?.[i],
-            w: u?.w ?? 0,
-            l: u?.l ?? 0,
-            d: u?.d ?? 0,
-            won: 0,
-            netWon: u?.netWon ?? 0,
-            rating: u?.rating ?? 0,
-            claimQuestReward: [],
-            claimSeasonReward: 0,
-        };
-    }).filter((x) =>
-        args.u
-            ? args.u?.split(',')?.includes(x.account)
-            : !args.SKIP_USERS?.includes(x.account),
-    );
-    if ('t' in args) args.t = args.t * 60 * 60000 + Date.now();
-    let page = await createPage(args);
+    const users = User.listFromArgs(args);
+    let page = await createPage(args); // TODO move this completely into splinterApi.js
 
     for (let user; ; ) {
         table(
@@ -156,6 +115,7 @@ const _preMatch =
                 Object.fromEntries(tableList.map((x) => [x, u[x]])),
             ),
         );
+        if (args.t && Date.now() > args.t) break;
         user = users.shift();
         if (!user) break;
         users.push(user);
@@ -170,29 +130,24 @@ const _preMatch =
         log(user.progress);
         user.battle = 'MODERN'; // TODO or 'FOUNDATION'
         for (let i = 0; i < 5; i++) {
+            if (args.t && Date.now() > args.t) break;
             const battleResult = await nSM.battle().catch(log);
             postBattle(user, battleResult);
             await sleep(5e3);
         }
+        user.updateData();
         rmLock`.bot.playing.${user.account}`;
         await nSM.logout();
-        tableList.forEach((x, i) => {
-            if (i > 3) {
-                userData[toDay][user.account] ??= {};
-                userData[toDay][user.account][x] = user[x];
-            }
-        });
-        writeFileSync('./data/user_data.json', userData);
         if (!args.KEEP_BROWSER_OPEN) page.browser.close();
         log(
-            'Waiting for the next battle in',
+            'Waiting for the next session in',
             sleepingTime / 1000 / 60,
             'minutes at',
             new Date(Date.now() + sleepingTime).toLocaleString(),
+            '\n\n',
         );
-        log('End of Session\n\n');
         await sleep(sleepingTime);
     }
-    await page.browser.close();
+    await page.browser().close();
     globalThis.END_GetBattles = 1;
 })();
