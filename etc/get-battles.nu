@@ -75,13 +75,29 @@ def "cleanup battles files" [] {
   rm data/battles.*json -f
 }
 
+def battles-req [u] {
+  loop {try {
+    [foundations modern]
+    | each {(
+      http $'https://api.splinterlands.io/battle/history?player=($u)&format=($in)'
+      -H (open data/auth.json).0
+    )}
+    | tee {print $in}
+    | $in.battles
+    | flatten
+    | return $in
+  } catch {|e| print $e
+    if not ($e | rg author) {exit}
+    open data/auth.json | skip | collect | save -f data/auth.json
+    open data/auth.json | if $in == [] {exit}
+  }}
+}
+
 def get-battles [u] {
   let file = $'data/temp/($u)-battles.json'
   if not ($file | path exists) {
     mkdir data/temp
-    http $'https://api.splinterlands.io/battle/history?player=($u)&format=foundation' -H (open data/auth.json)
-    | $in.battles
-    | save -f $file
+    battles-req $u | save -f $file
   }
   let b = open $file
 
@@ -96,7 +112,7 @@ def get-battles [u] {
   | reduce -f {} {|r a| $r | get p1 p2 | reduce -f $a {|p|
     upsert $p ($r | select d bad)
   }}
-  | update $u {update d (date now)}
+  | upsert $u {default {} | upsert d (date now)}
   | transpose -d | flatten | rename p | sort-by d
 }
 
@@ -141,17 +157,23 @@ def main [] {
     print $'($c) ($next.p) ($next.d | date humanize) out of ($users | length)'
     get-battles $next.p
     | join $users p -o
-    | tee {where bad? == true | length | if $in > 0 {print $'($in) players with < 999 rating'}}
+    | tee {where bad? == true | length | if $in > 0 {
+      print $'($in) players with < 999 rating'}}
     | upsert bad {|r| default $r.bad_?} | reject -o bad_
     # | tee {uniq-by d d_ bad | print}
     | handle-join-remnants
-    | update d {|i| if $i.p in $default_users.p and $i.bad? != true {$in - 3hr} else {}}
-    | tee {where p in $default_users.p | print}
+    | update d {|i| if $i.p in $default_users.p  {$in - 3hr} else {}}
+    | tee {enumerate | flatten | where p in $default_users.p | print}
     | save -f $user_f
 
     # $users | rename name | grid | print
     gum spin -- sleep 15
   }
+}
+
+def "main append-auth" [...auth] {
+    open data/auth.json | $in ++ ($auth | wrap authorization)
+    | collect | save -f data/auth.json
 }
 
 export-env {
