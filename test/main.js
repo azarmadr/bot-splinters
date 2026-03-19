@@ -17,11 +17,11 @@ test('mana matches', (_t) => {
 
 test('team and rule set number calculation', { only: true }, (_t) => {
     for (const { team, mana, ru } of [
-        { team: '5,1,2,1,976,1,6,1,7,1,483,1,538,1', mana: 44, ru: 41947136 },
+        { team: '5,1,2,1,976,1,6,1,7,1,483,1,538,1', mana: 44, ru: 83890176 },
         {
             team: '827,4,850,4,830,2,824,4,855,2,567,4',
             mana: 42,
-            ru: 35735310696448,
+            ru: 142938877198336,
         },
     ]) {
         console.log({ team });

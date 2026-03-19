@@ -155,6 +155,8 @@ const Ru = {
         Counterspell: R.F,
         'Thick Skinned': R.F,
         'Collateral Damage': R.F,
+        Eggceleration: R.F,
+        Pandamonium: R.F,
         //'': R.F,
         'Hey Jealousy': R.F,
         'Death Has No Power': R.F,

@@ -11,7 +11,7 @@ test-js:
     # node util/common.js
     node --test test/main.js
 
-get-splinterlands-info:
+get-rulesets:
     #!nu
     http https://api.splinterlands.com/battle/rulesets | save -f data/rulesets.json
 
